@@ -27,6 +27,7 @@
   <ItemGroup>
     <Folder Include="DTOs\Users\" />
     <Folder Include="Middleware\" />
+    <Folder Include="Migrations\" />
   </ItemGroup>
 
 </Project>

@@ -14,21 +14,6 @@ public record TaskCreateRequest(
     string CategoryTitle
 )
 {
-    public TaskEntity ToEntity(Guid? categoryId, Guid userId)
-    {
-        return new TaskEntity
-        {
-            Id = Guid.NewGuid(),
-            Title = this.Title,
-            Description = this.Description,
-            DueDate = this.DueDate ?? DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
-            Priority = this.Priority,
-            CreatedAt = DateTime.Now,
-            CategoryId = categoryId,
-            UserId = userId
-        };
-    }
-
     public class Validator : AbstractValidator<TaskCreateRequest>
     {
         public Validator()

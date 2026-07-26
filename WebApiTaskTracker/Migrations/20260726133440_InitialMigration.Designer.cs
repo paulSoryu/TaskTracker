@@ -11,8 +11,8 @@ using WebApiTaskTracker.Data.Databases;
 namespace WebApiTaskTracker.Migrations
 {
     [DbContext(typeof(TaskTrackerDbContext))]
-    [Migration("20260724092051_InitialMigration2")]
-    partial class InitialMigration2
+    [Migration("20260726133440_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -152,12 +152,14 @@ namespace WebApiTaskTracker.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Colour")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Colour")
+                        .IsRequired()
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(20)
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
@@ -184,10 +186,10 @@ namespace WebApiTaskTracker.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(2000)
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("DueDate")
+                    b.Property<DateOnly?>("DueDate")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsCompleted")
@@ -198,7 +200,7 @@ namespace WebApiTaskTracker.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(150)
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")

@@ -15,15 +15,6 @@ public record TaskUpdateRequest(
     string? CategoryName
 )
 {
-    public void UpdateEntity(TaskEntity entity, Guid? categoryId)
-    {
-        entity.Title = this.Title;
-        entity.Description = this.Description;
-        entity.DueDate = this.DueDate;
-        entity.Priority = this.Priority;
-        entity.CategoryId = categoryId;
-    }
-
     public class Validator : AbstractValidator<TaskUpdateRequest>
     {
         public Validator()

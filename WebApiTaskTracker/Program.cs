@@ -3,12 +3,12 @@ using Mapster;
 using MicroElements.Swashbuckle.FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Security.Claims;
 using WebApiTaskTracker.Data.Databases;
 using WebApiTaskTracker.Data.Entities;
+using WebApiTaskTracker.DTOs.MappingConfigurations;
 using WebApiTaskTracker.Endpoints;
 using WebApiTaskTracker.Services.Categories;
 using WebApiTaskTracker.Services.Emails;
@@ -27,7 +27,8 @@ builder.Services.AddScoped<IUserContext, HttpUserContext>();
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<UserEntity>(options => {
-     options.SignIn.RequireConfirmedEmail = false;
+    options.SignIn.RequireConfirmedAccount = false;
+    options.SignIn.RequireConfirmedEmail = false;
 }).AddEntityFrameworkStores<TaskTrackerDbContext>();
 
 builder.Services.AddScoped<ITaskService, TaskService>();
@@ -48,9 +49,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddFluentValidationRulesToSwagger();
 
-TypeAdapterConfig.GlobalSettings.RequireDestinationMemberSource = true;
+// Mapster check when mapping if the source member exists for the destination member. If not, it will throw an exception. This is useful to catch mapping issues early during development.
+//TypeAdapterConfig.GlobalSettings.RequireDestinationMemberSource = true;
 TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
-TypeAdapterConfig.GlobalSettings.Compile();
+//TypeAdapterConfig.GlobalSettings.Compile();
 
 var app = builder.Build();
 
@@ -74,9 +76,6 @@ app.UseStatusCodePages(async context =>
     }
 });
 
-app.UseAuthentication();
-app.UseAuthorization();
-
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -84,18 +83,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
-        // Явно запрещаем сохранять авторизацию в localStorage браузера
+        // Explicitly forbid saving authorization in the browser's localStorage
         options.ConfigObject.AdditionalItems["persistAuthorization"] = false;
     });
 }
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapIdentityApi<UserEntity>();
 
-// app.MapUserEndpoints();
 app.MapTaskEndpoints();
-// app.MapCategoryEndpoints();
+app.MapCategoryEndpoints();
 
 app.MapPost("/logout", async (
     ClaimsPrincipal userPrincipal,

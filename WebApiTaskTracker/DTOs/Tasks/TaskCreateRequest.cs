@@ -2,34 +2,41 @@
 using WebApiTaskTracker.Data.Entities;
 using WebApiTaskTracker.Utilities;
 
-// this is a DTO for updating a task, including validation rules and a method to update a TaskEntity with the values from this DTO
+// this is a DTO for creating a task, including validation rules and a method to convert the DTO to a TaskEntity
 // this breaks the single responsibility principle, as the DTO is responsible for data transfer, conversion and validation, but it is convenient for this simple app
 namespace WebApiTaskTracker.DTOs.Tasks;
 
-public record UpdateTaskRequest(
+public record TaskCreateRequest(
     string Title,
     string Description,
-    string? CategoryName,
     DateOnly? DueDate,
-    int Priority
+    int Priority,
+    string CategoryTitle
 )
 {
-    public void UpdateEntity(TaskEntity entity, Guid? categoryId)
+    public TaskEntity ToEntity(Guid? categoryId, Guid userId)
     {
-        entity.Title = this.Title;
-        entity.Description = this.Description;
-        entity.DueDate = this.DueDate;
-        entity.Priority = this.Priority;
-        entity.CategoryId = categoryId;
+        return new TaskEntity
+        {
+            Id = Guid.NewGuid(),
+            Title = this.Title,
+            Description = this.Description,
+            DueDate = this.DueDate ?? DateOnly.FromDateTime(DateTime.Now.AddDays(1)),
+            Priority = this.Priority,
+            CreatedAt = DateTime.Now,
+            CategoryId = categoryId,
+            UserId = userId
+        };
     }
 
-    public class Validator : AbstractValidator<UpdateTaskRequest>
+    public class Validator : AbstractValidator<TaskCreateRequest>
     {
         public Validator()
         {
             RuleFor(x => x.Title)
                 .NotEmpty().WithMessage("Title cannot be empty.")
-                .Length(TaskConstraints.TitleMinLength, TaskConstraints.TitleMaxLength).WithMessage($"Title must be between {TaskConstraints.TitleMinLength} and {TaskConstraints.TitleMaxLength} characters.");
+                .MinimumLength(TaskConstraints.TitleMinLength).WithMessage($"Title must be at least {TaskConstraints.TitleMinLength} characters.")
+                .MaximumLength(TaskConstraints.TitleMaxLength).WithMessage($"Title must be at most {TaskConstraints.TitleMaxLength} characters.");
 
             RuleFor(x => x.Description)
                 .MaximumLength(TaskConstraints.DescriptionMaxLength).WithMessage($"Description must be at most {TaskConstraints.DescriptionMaxLength} characters.");
@@ -42,3 +49,6 @@ public record UpdateTaskRequest(
         }
     }
 }
+
+
+

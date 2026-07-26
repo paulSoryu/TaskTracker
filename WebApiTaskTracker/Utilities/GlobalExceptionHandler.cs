@@ -40,13 +40,29 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         if (exception is EntityNotFoundException notFoundException)
         {
-            httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
 
             var problemDetails = new ProblemDetails
             {
-                Status = StatusCodes.Status401Unauthorized,
+                Status = StatusCodes.Status404NotFound,
                 Title = "Not Found",
                 Detail = notFoundException.Message
+            };
+
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+
+            return true;
+        }
+
+        if (exception is EntityAlreadyExistsException alreadyExistsException)
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Conflict",
+                Detail = alreadyExistsException.Message
             };
 
             await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WebApiTaskTracker.Data.Configurations;
 using WebApiTaskTracker.Data.Entities;
+using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.Data.Databases;
 
@@ -11,9 +12,12 @@ public class TaskTrackerDbContext : IdentityDbContext<UserEntity, IdentityRole<G
     public DbSet<TaskEntity> Tasks => Set<TaskEntity>();
     public DbSet<CategoryEntity> Categories => Set<CategoryEntity>();
 
-    public TaskTrackerDbContext(DbContextOptions<TaskTrackerDbContext> options)
+    private readonly IUserContext _userContext;
+
+    public TaskTrackerDbContext(DbContextOptions<TaskTrackerDbContext> options, IUserContext userContext)
         : base(options)
     {
+        _userContext = userContext;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -23,6 +27,12 @@ public class TaskTrackerDbContext : IdentityDbContext<UserEntity, IdentityRole<G
         modelBuilder.ApplyConfiguration(new TaskConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new CategoryConfiguration());
+
+        modelBuilder.Entity<CategoryEntity>()
+            .HasQueryFilter(c => !_userContext.IsAuthenticated || c.UserId == _userContext.CurrentUserId);
+
+        modelBuilder.Entity<TaskEntity>()
+            .HasQueryFilter(t => !_userContext.IsAuthenticated || t.UserId == _userContext.CurrentUserId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -33,16 +43,12 @@ public class TaskTrackerDbContext : IdentityDbContext<UserEntity, IdentityRole<G
 
     private void UpdateTimestamps()
     {
-        var entries = ChangeTracker.Entries()
-            .Where(e => e.State == EntityState.Added);
+        var entries = ChangeTracker.Entries<IAuditableEntity>()
+        .Where(e => e.State == EntityState.Added);
 
         foreach (var entry in entries)
         {
-            var property = entry.Metadata.FindProperty("CreatedOn");
-            if (property != null)
-            {
-                entry.Property("CreatedOn").CurrentValue = DateTime.UtcNow;
-            }
+            entry.Entity.CreatedAt = DateTime.UtcNow;
         }
     }
 }

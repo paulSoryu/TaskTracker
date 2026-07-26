@@ -18,10 +18,10 @@ public static class TaskEndpoints
             .WithName("GetTaskById");
 
         routeGroup.MapPost("/", CreateTask)
-            .AddEndpointFilter<ValidationFilter<CreateTaskRequest>>();
+            .AddEndpointFilter<ValidationFilter<TaskCreateRequest>>();
         
         routeGroup.MapPut("/{id:Guid}", UpdateTask)
-            .AddEndpointFilter<ValidationFilter<UpdateTaskRequest>>();
+            .AddEndpointFilter<ValidationFilter<TaskUpdateRequest>>();
 
         routeGroup.MapDelete("/{id:Guid}", DeleteTask);
     }
@@ -38,13 +38,13 @@ public static class TaskEndpoints
         return Results.Ok(task);
     }
 
-    private static async Task<IResult> CreateTask(CreateTaskRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
+    private static async Task<IResult> CreateTask(TaskCreateRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
     {
         TaskResponse createdTask = await taskService.CreateAsync(taskRequest, user.GetUserId());
         return Results.CreatedAtRoute("GetTaskById", new { id = createdTask.Id }, createdTask);
     }
 
-    private static async Task<IResult> UpdateTask(Guid id, UpdateTaskRequest taskRequest, ITaskService taskService)
+    private static async Task<IResult> UpdateTask(Guid id, TaskUpdateRequest taskRequest, ITaskService taskService)
     {
         await taskService.UpdateAsync(id, taskRequest);
         return Results.NoContent();

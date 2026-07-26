@@ -8,9 +8,9 @@ public record TaskResponse(
     Guid Id,
     string Title,
     string Description,
-    string CategoryName,
     DateOnly? DueDate,
-    int Priority
+    int Priority,
+    string CategoryTitle
 )
 {
     public static TaskResponse FromEntity(TaskEntity entity)
@@ -19,7 +19,7 @@ public record TaskResponse(
             Id: entity.Id,
             Title: entity.Title,
             Description: entity.Description ?? "",
-            CategoryName: entity.Category?.Title ?? "",
+            CategoryTitle: entity.Category?.Title ?? "",
             DueDate: entity.DueDate,
             Priority: entity.Priority
         );

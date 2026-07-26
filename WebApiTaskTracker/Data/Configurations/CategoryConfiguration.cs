@@ -23,13 +23,11 @@ public class CategoryConfiguration : IEntityTypeConfiguration<CategoryEntity>
                .IsRequired()
                .HasMaxLength(CategoryConstraints.TitleMaxLength);
 
-        builder.HasIndex(c => new { c.UserId, c.Title }).IsUnique();
+        builder.HasIndex(c => new { c.UserId, c.Title })
+               .IsUnique();
 
         builder.Property(p => p.Colour)
                .IsRequired()
-               .HasConversion(
-                   c => c.ToArgb(),
-                   s => Color.FromArgb(s)
-               );
+               .HasMaxLength(9);
     }
 }

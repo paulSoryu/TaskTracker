@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Mapster;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -10,72 +11,69 @@ using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.Services.Tasks;
 
-public class TaskService : ITaskService
+public class TaskService(TaskTrackerDbContext db) : ITaskService
 {
-    private readonly TaskTrackerDbContext _db;
 
-    public TaskService(TaskTrackerDbContext db)
+    public async Task<TaskResponse> GetByIdAsync(Guid id)
     {
-        _db = db;
-    }
-
-    public async Task<TaskResponse?> GetByIdAsync(Guid id)
-    {
-        var task = await _db.Tasks
+        var response = await db.Tasks
             .AsNoTracking()
-            .Include(t => t.Category)
-            .FirstOrDefaultAsync(t => t.Id == id);
-        if (task == null)
-            throw new EntityNotFoundException($"Task {id} not found.");
+            .Where(t => t.Id == id)
+            .ProjectToType<TaskResponse>()
+            .FirstOrDefaultAsync();
 
-        return TaskResponse.FromEntity(task);
+        return response ?? throw new EntityNotFoundException($"Task {id} not found.");
     }
 
     public async Task<IEnumerable<TaskSummaryResponse>> GetAllAsync()
     {
-        var result = await _db.Tasks
+        return await db.Tasks
             .AsNoTracking()
-            .Include(t => t.Category)
-            .Select(p => TaskSummaryResponse.FromEntity(p))
+            .ProjectToType<TaskSummaryResponse>()
             .ToListAsync();
-
-        return result;
     }
 
-    public async Task<TaskResponse> CreateAsync(CreateTaskRequest dto, Guid userId)
+    public async Task<TaskResponse> CreateAsync(TaskCreateRequest dto, Guid userId)
     {
-        var existingCategory = await GetOrCreateCategoryAsync(dto.CategoryName!, userId);
+        var existingCategory = await GetOrCreateCategoryAsync(dto.CategoryTitle, userId);
         Guid? categoryId = existingCategory?.Id;
-        var entity = dto.ToEntity(categoryId, userId);
 
-        _db.Tasks.Add(entity);
-        await _db.SaveChangesAsync();
+        var entity = dto.Adapt<TaskEntity>();
 
-        return TaskResponse.FromEntity(entity);
+        entity.UserId = userId;
+        entity.CategoryId = categoryId;
+
+        db.Tasks.Add(entity);
+        await db.SaveChangesAsync();
+
+        return entity.Adapt<TaskResponse>();
     }
 
-    public async Task UpdateAsync(Guid taskId, UpdateTaskRequest dto)
+    public async Task UpdateAsync(Guid taskId, TaskUpdateRequest dto)
     {
-        var existingTask = await _db.Tasks.FindAsync(taskId);
-        if (existingTask == null)
+        var task = await db.Tasks.FindAsync(taskId);
+        if (task == null)
             throw new EntityNotFoundException($"Task {taskId} not found.");
 
-        var existingCategory = await GetOrCreateCategoryAsync(dto.CategoryName!, existingTask.UserId);
-        Guid? categoryId = existingCategory?.Id;
-        
+        dto.Adapt(task);
 
-        dto.UpdateEntity(existingTask, categoryId);
-        await _db.SaveChangesAsync();
+        if (dto.CategoryName != null)
+        {
+            var category = await GetOrCreateCategoryAsync(dto.CategoryName, task.UserId);
+            task.CategoryId = category?.Id;
+        }
+
+        await db.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(Guid taskId)
     {
-        var existingTask = await _db.Tasks.FindAsync(taskId);
+        var existingTask = await db.Tasks.FindAsync(taskId);
         if (existingTask == null)
             throw new EntityNotFoundException($"Task {taskId} not found.");
 
-        _db.Remove(existingTask);
-        await _db.SaveChangesAsync();
+        db.Remove(existingTask);
+        await db.SaveChangesAsync();
     }
 
     private async Task<CategoryEntity?> GetOrCreateCategoryAsync(string categoryName, Guid userId)
@@ -83,21 +81,24 @@ public class TaskService : ITaskService
         if (string.IsNullOrWhiteSpace(categoryName))
             return null;
 
-        var normalizedName = categoryName.Trim().ToLower();
-        var category = await _db.Categories
-            .FirstOrDefaultAsync(c => c.Title.ToLower() == normalizedName);
+        var cleanedTitle = categoryName.Trim();
+        var normalizedTitle = cleanedTitle.ToLower();
+
+        var category = await db.Categories
+            .FirstOrDefaultAsync(c => c.Title.ToLower() == normalizedTitle);
 
         if (category == null)
         {
             category = new CategoryEntity
             {
-                Id = Guid.NewGuid(),
-                Title = categoryName.Trim(),
+                Title = cleanedTitle,
                 UserId = userId
             };
-            _db.Categories.Add(category);
-            await _db.SaveChangesAsync();
+
+            db.Categories.Add(category);
+            await db.SaveChangesAsync();
         }
+
         return category;
     }
 }

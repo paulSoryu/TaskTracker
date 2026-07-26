@@ -1,9 +1,13 @@
-﻿namespace WebApiTaskTracker.Data.Entities;
+﻿using WebApiTaskTracker.Data.Databases;
 
-public class TaskEntity
+namespace WebApiTaskTracker.Data.Entities;
+
+// This entity can be made more secure by making the setters private and using a constructor to set the properties, but for simplicity, we will keep it as is.
+// Private setters would also complicate the mapping with Mapster, which is used in this project for DTO mapping.
+public class TaskEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
-    public string Title { get; set; } = string.Empty;
+    public required string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateOnly? DueDate { get; set; }
     public int Priority { get; set; }
@@ -11,7 +15,7 @@ public class TaskEntity
     public DateTime CreatedAt { get; set; }
 
 
-    public Guid UserId { get; set; }
+    public required Guid UserId { get; set; }
     public UserEntity User { get; set; } = null!;
 
     

@@ -16,5 +16,6 @@ public class UserConstraints
 
 public class CategoryConstraints
 {
-    public const int TitleMaxLength = 20;
+    public const int TitleMinLength = 3;
+    public const int TitleMaxLength = 50;
 }

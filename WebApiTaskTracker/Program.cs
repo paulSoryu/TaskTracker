@@ -1,9 +1,11 @@
 using FluentValidation;
+using Mapster;
 using MicroElements.Swashbuckle.FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using System.IdentityModel.Tokens.Jwt;
+using System.Reflection;
 using System.Security.Claims;
 using WebApiTaskTracker.Data.Databases;
 using WebApiTaskTracker.Data.Entities;
@@ -20,6 +22,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContext, HttpUserContext>();
+
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<UserEntity>(options => {
@@ -37,14 +41,16 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddDbContext<TaskTrackerDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Access by adding /scalar to the base URL of the API. For example, https://localhost:5001/scalar
-//builder.Services.AddOpenApi();
+builder.Services.AddMapster();
 
 // Access by adding /swagger to the base URL of the API. For example, https://localhost:5001/swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddFluentValidationRulesToSwagger();
+
+TypeAdapterConfig.GlobalSettings.RequireDestinationMemberSource = true;
+TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
+TypeAdapterConfig.GlobalSettings.Compile();
 
 var app = builder.Build();
 
@@ -74,11 +80,13 @@ app.UseAuthorization();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    //app.MapOpenApi();
-    //app.MapScalarApiReference();
 
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        // Явно запрещаем сохранять авторизацию в localStorage браузера
+        options.ConfigObject.AdditionalItems["persistAuthorization"] = false;
+    });
 }
 
 app.UseHttpsRedirection();

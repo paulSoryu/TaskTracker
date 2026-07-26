@@ -30,14 +30,12 @@ public class TaskConfiguration : IEntityTypeConfiguration<TaskEntity>
         builder.Property(p => p.Description)
                .HasMaxLength(TaskConstraints.DescriptionMaxLength);
 
-        builder.Property(p => p.DueDate)
-               .IsRequired();
-
         builder.Property(p => p.CreatedAt)
                .IsRequired();
 
         builder.Property(p => p.Priority)
-               .IsRequired()
-               .HasPrecision(1, 0);
+               .IsRequired();
+
+        builder.HasIndex(t => t.UserId);
     }
 }

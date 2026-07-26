@@ -5,25 +5,26 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
-using System.Security.Claims;
-using WebApiTaskTracker.Data.Databases;
-using WebApiTaskTracker.Data.Entities;
-using WebApiTaskTracker.DTOs.MappingConfigurations;
-using WebApiTaskTracker.Endpoints;
-using WebApiTaskTracker.Services.Categories;
-using WebApiTaskTracker.Services.Emails;
-using WebApiTaskTracker.Services.Tasks;
-using WebApiTaskTracker.Services.Users;
+using WebApiTaskTracker.Business.Services.Accounts;
+using WebApiTaskTracker.Business.Services.Categories;
+using WebApiTaskTracker.Business.Services.Emails;
+using WebApiTaskTracker.Business.Services.Tasks;
+using WebApiTaskTracker.DataAccess.Databases;
+using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
+using WebApiTaskTracker.WebApi.Endpoints;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add services to the container
+
+// User context service to access the current user in the application
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, HttpUserContext>();
 
+// Identity and authentication
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<UserEntity>(options => {
@@ -31,15 +32,18 @@ builder.Services.AddIdentityApiEndpoints<UserEntity>(options => {
     options.SignIn.RequireConfirmedEmail = false;
 }).AddEntityFrameworkStores<TaskTrackerDbContext>();
 
+// Business services
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<IEmailSender<UserEntity>, EmailSenderService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 
+// Validators and exception handling
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// Database context and Mapster configuration
 builder.Services.AddDbContext<TaskTrackerDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddMapster();
@@ -50,9 +54,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddFluentValidationRulesToSwagger();
 
 // Mapster check when mapping if the source member exists for the destination member. If not, it will throw an exception. This is useful to catch mapping issues early during development.
-//TypeAdapterConfig.GlobalSettings.RequireDestinationMemberSource = true;
+// TypeAdapterConfig.GlobalSettings.RequireDestinationMemberSource = true;
 TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
-//TypeAdapterConfig.GlobalSettings.Compile();
+// TypeAdapterConfig.GlobalSettings.Compile();
 
 var app = builder.Build();
 
@@ -63,6 +67,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
+// Custom middleware to handle 401 Unauthorized responses and return a JSON response instead of the default HTML response.
+// It is needed because global exception handler middleware kicks in after the authentication middleware, so if a request is unauthorized, it will return a 401 response with an HTML page instead of a JSON response.
+// This middleware will catch that and return a JSON response instead.
 app.UseStatusCodePages(async context =>
 {
     if (context.HttpContext.Response.StatusCode == StatusCodes.Status401Unauthorized)
@@ -93,25 +100,9 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapIdentityApi<UserEntity>();
 
+app.MapAccountEndpoints();
 app.MapTaskEndpoints();
 app.MapCategoryEndpoints();
-
-app.MapPost("/logout", async (
-    ClaimsPrincipal userPrincipal,
-    UserManager<UserEntity> userManager) =>
-{
-    var user = await userManager.GetUserAsync(userPrincipal);
-    if (user == null) return Results.Unauthorized();
-
-    await userManager.RemoveAuthenticationTokenAsync(
-        user,
-        "[AspNetCoreIdentityBearerToken]",
-        "refresh_token");
-
-    return Results.Ok(new { message = "Logout succesful. Refresh token is deleted." });
-})
-.RequireAuthorization();
 
 app.Run();

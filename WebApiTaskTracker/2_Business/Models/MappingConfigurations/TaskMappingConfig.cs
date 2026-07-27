@@ -12,7 +12,7 @@ public class TaskMappingConfig : IRegister
         config.NewConfig<TaskEntity, TaskBusinessModel>()
             .RequireDestinationMemberSource(true);
 
-        // Configure mapping from TaskCreateRequest to TaskEntity
+        // Configure mapping from TaskSaveCommand to TaskEntity
         config.NewConfig<TaskSaveCommand, TaskEntity>();
     }
 }

@@ -1,4 +1,6 @@
-﻿using System.Security.Claims;
+﻿using Mapster;
+using System.Security.Claims;
+using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.DTOs;
@@ -29,27 +31,40 @@ public static class CategoryEndpoints
         routeGroup.MapDelete("/{id:Guid}", DeleteCategory);
     }
 
-    private static async Task<IResult> GetAllCategories(ICategoryService categoryService)
-    {
-        var categories = await categoryService.GetAllAsync();
-        return Results.Ok(categories);
-    }
-
     private static async Task<IResult> GetCategoryById(Guid id, ICategoryService categoryService)
     {
-        var category = await categoryService.GetByIdAsync(id);
-        return Results.Ok(category);
+        CategoryBusinessModel? category = await categoryService.GetByIdAsync(id);
+
+        if (category is null)
+            return Results.NotFound(new { Message = $"Category with ID {id} not found." });
+        
+        var response = category.Adapt<CategoryResponse>();
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> GetAllCategories(ICategoryService categoryService)
+    {
+        IReadOnlyCollection<CategoryBusinessModel> categories = await categoryService.GetAllAsync();
+
+        var response = categories.Adapt<IReadOnlyCollection<CategorySummaryResponse>>();
+        return Results.Ok(response);
     }
 
     private static async Task<IResult> CreateCategory(CategoryCreateRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)
     {
-        CategoryResponse createdCategory = await categoryService.CreateAsync(categoryRequest, user.GetUserId());
-        return Results.CreatedAtRoute("GetCategoryById", new { id = createdCategory.Id }, createdCategory);
+        var command = categoryRequest.Adapt<CategorySaveCommand>();
+
+        CategoryBusinessModel createdCategory = await categoryService.CreateAsync(command, user.GetUserId());
+
+        var response = createdCategory.Adapt<CategoryResponse>();
+        return Results.CreatedAtRoute("GetCategoryById", new { id = response.Id }, response);
     }
 
     private static async Task<IResult> UpdateCategory(Guid id, CategoryUpdateRequest categoryRequest, ICategoryService categoryService)
     {
-        await categoryService.UpdateAsync(id, categoryRequest);
+        var command = categoryRequest.Adapt<CategorySaveCommand>() with { Id = id };
+
+        await categoryService.UpdateAsync(command);
         return Results.NoContent();
     }
 

@@ -1,5 +1,4 @@
 ﻿using WebApiTaskTracker.Business.Models.Tasks;
-using WebApiTaskTracker.WebApi.DTOs.Tasks;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 

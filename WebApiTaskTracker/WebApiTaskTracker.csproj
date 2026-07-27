@@ -26,7 +26,6 @@
 
   <ItemGroup>
     <Folder Include="1_WebApi\Middleware\" />
-    <Folder Include="2_Business\Models\Categories\" />
     <Folder Include="Migrations\" />
   </ItemGroup>
 

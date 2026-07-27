@@ -1,5 +1,5 @@
 ﻿using Mapster;
-using WebApiTaskTracker.DataAccess.Entities;
+using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.WebApi.DTOs.Categories;
 
 namespace WebApiTaskTracker.WebApi.DTOs.MappingConfigurations;
@@ -8,21 +8,19 @@ public class CategoryMappingConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
-        // Configure mapping from CategoryEntity to CategoryResponse
-        config.NewConfig<CategoryEntity, CategoryResponse>()
-            .RequireDestinationMemberSource(true);
+        // Configure mapping from CategoryBusinessModel to CategoryResponse
+        config.NewConfig<CategoryBusinessModel, CategoryResponse>();
+            
 
-        // Configure mapping from CategoryEntity to CategorySummaryResponse
-        config.NewConfig<CategoryEntity, CategorySummaryResponse>()
-            .RequireDestinationMemberSource(true)
+        // Configure mapping from CategoryBusinessModel to CategorySummaryResponse
+        config.NewConfig<CategoryBusinessModel, CategorySummaryResponse>()
             .Map(dest => dest.TaskCount, src => src.Tasks.Count);
 
-        // Configure mapping from CategoryCreateRequest to CategoryEntity
-        config.NewConfig<CategoryCreateRequest, CategoryEntity>();
-            //.IgnoreNonMapped(true);
+        // Configure mapping from CategoryCreateRequest to CategorySaveCommand
+        config.NewConfig<CategoryCreateRequest, CategorySaveCommand>()
+            .Map(dest => dest.Id, src => (Guid?)null);
 
-        // Configure mapping from CategoryUpdateRequest to CategoryEntity
-        config.NewConfig<CategoryUpdateRequest, CategoryEntity>();
-            //.IgnoreNonMapped(true);
+        // Configure mapping from CategoryUpdateRequest to CategorySaveCommand
+        config.NewConfig<CategoryUpdateRequest, CategorySaveCommand>();
     }
 }

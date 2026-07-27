@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
@@ -14,28 +15,28 @@ namespace WebApiTaskTracker.Business.Services.Categories;
 public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 {
 
-    public async Task<CategoryResponse> GetByIdAsync(Guid id)
+    public async Task<CategoryBusinessModel> GetByIdAsync(Guid id)
     {
         var response = await db.Categories
            .AsNoTracking()
            .Where(c => c.Id == id)
-           .ProjectToType<CategoryResponse>()
+           .ProjectToType<CategoryBusinessModel>()
            .FirstOrDefaultAsync();
 
         return response ?? throw new EntityNotFoundException($"Category {id} not found.");
     }
 
-    public async Task<IEnumerable<CategorySummaryResponse>> GetAllAsync()
+    public async Task<IReadOnlyCollection<CategoryBusinessModel>> GetAllAsync()
     {
         var result = await db.Categories
             .AsNoTracking()
-            .ProjectToType<CategorySummaryResponse>()
+            .ProjectToType<CategoryBusinessModel>()
             .ToListAsync();
 
         return result;
     }
 
-    public async Task<CategoryResponse> CreateAsync(CategoryCreateRequest dto, Guid userId)
+    public async Task<CategoryBusinessModel> CreateAsync(CategorySaveCommand dto, Guid userId)
     {
         bool categoryExists = await db.Categories
             .AnyAsync(c => c.Title.ToLower() == dto.Title.ToLower());
@@ -49,16 +50,16 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         db.Categories.Add(entity);
         await db.SaveChangesAsync();
 
-        return entity.Adapt<CategoryResponse>();
+        return entity.Adapt<CategoryBusinessModel>();
     }
 
 
-    public async Task UpdateAsync(Guid categoryId, CategoryUpdateRequest dto)
+    public async Task UpdateAsync(CategorySaveCommand dto)
     {
-        var category = await db.Categories.FindAsync(categoryId);
+        var category = await db.Categories.FindAsync(dto.Id);
 
         if (category == null)
-            throw new EntityNotFoundException($"Category {categoryId} not found.");
+            throw new EntityNotFoundException($"Category {dto.Id} not found.");
 
         dto.Adapt(category);
 

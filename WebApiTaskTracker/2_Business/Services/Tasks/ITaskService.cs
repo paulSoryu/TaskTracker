@@ -1,12 +1,13 @@
-﻿using WebApiTaskTracker.WebApi.DTOs.Tasks;
+﻿using WebApiTaskTracker.Business.Models.Tasks;
+using WebApiTaskTracker.WebApi.DTOs.Tasks;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 
 public interface ITaskService
 {
-    Task<TaskResponse> GetByIdAsync(Guid id);
-    Task<IEnumerable<TaskSummaryResponse>> GetAllAsync();
-    Task<TaskResponse> CreateAsync(TaskCreateRequest task, Guid userId);
-    Task UpdateAsync(Guid id, TaskUpdateRequest task);
+    Task<TaskBusinessModel> GetByIdAsync(Guid id);
+    Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync();
+    Task<TaskBusinessModel> CreateAsync(TaskSaveCommand task, Guid userId);
+    Task UpdateAsync(TaskSaveCommand task);
     Task DeleteAsync(Guid id);
 }

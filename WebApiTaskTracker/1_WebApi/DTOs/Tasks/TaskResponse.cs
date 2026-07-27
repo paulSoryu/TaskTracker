@@ -11,17 +11,4 @@ public record TaskResponse(
     DateOnly? DueDate,
     int Priority,
     string CategoryTitle
-)
-{
-    public static TaskResponse FromEntity(TaskEntity entity)
-    {
-        return new TaskResponse(
-            Id: entity.Id,
-            Title: entity.Title,
-            Description: entity.Description ?? "",
-            CategoryTitle: entity.Category?.Title ?? "",
-            DueDate: entity.DueDate,
-            Priority: entity.Priority
-        );
-    }
-}
+);

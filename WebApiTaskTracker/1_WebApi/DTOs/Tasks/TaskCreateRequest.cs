@@ -8,7 +8,7 @@ namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 public record TaskCreateRequest(
     string Title,
     string Description,
-    DateOnly? DueDate,
+    string? DueDate,
     int Priority,
     string CategoryTitle
 )
@@ -19,17 +19,34 @@ public record TaskCreateRequest(
         {
             RuleFor(x => x.Title)
                 .NotEmpty().WithMessage("Title cannot be empty.")
-                .MinimumLength(TaskConstraints.TitleMinLength).WithMessage($"Title must be at least {TaskConstraints.TitleMinLength} characters.")
-                .MaximumLength(TaskConstraints.TitleMaxLength).WithMessage($"Title must be at most {TaskConstraints.TitleMaxLength} characters.");
+                .Length(TaskConstraints.TitleMinLength, TaskConstraints.TitleMaxLength).WithMessage($"Title must be between {TaskConstraints.TitleMinLength} and {TaskConstraints.TitleMaxLength} characters.");
 
             RuleFor(x => x.Description)
+                .NotEmpty().WithMessage("Description cannot be empty.")
                 .MaximumLength(TaskConstraints.DescriptionMaxLength).WithMessage($"Description must be at most {TaskConstraints.DescriptionMaxLength} characters.");
 
             RuleFor(x => x.DueDate)
-                .GreaterThanOrEqualTo(DateOnly.FromDateTime(DateTime.Now)).WithMessage("Due date must be today or in the future.");
+                .Matches(@"^\d{4}-\d{2}-\d{2}$").WithMessage("Format must be YYYY-MM-DD.")
+                .Must(BeAValidCalendarDate).WithMessage("Invalid date.")
+                .Must(BeTodayOrFuture).WithMessage("Date must be today or in the future.");
 
             RuleFor(x => x.Priority)
+                .NotEmpty().WithMessage("Priority cannot be empty.")
                 .InclusiveBetween(TaskConstraints.PriorityMinValue, TaskConstraints.PriorityMaxValue).WithMessage($"Priority must be between {TaskConstraints.PriorityMinValue} and {TaskConstraints.PriorityMaxValue}.");
+        }
+
+        private bool BeAValidCalendarDate(string dateStr)
+        {
+            return DateOnly.TryParseExact(dateStr, "yyyy-MM-dd", out _);
+        }
+
+        private bool BeTodayOrFuture(string dateStr)
+        {
+            if (DateOnly.TryParseExact(dateStr, "yyyy-MM-dd", out DateOnly parsedDate))
+            {
+                return parsedDate >= DateOnly.FromDateTime(DateTime.Today);
+            }
+            return false;
         }
     }
 }

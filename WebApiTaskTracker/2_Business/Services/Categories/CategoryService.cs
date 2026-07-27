@@ -8,7 +8,6 @@ using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
-using WebApiTaskTracker.WebApi.DTOs.Categories;
 
 namespace WebApiTaskTracker.Business.Services.Categories;
 

@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 
@@ -25,10 +27,11 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         return response ?? throw new EntityNotFoundException($"Task {id} not found.");
     }
 
-    public async Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync()
+    public async Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync(GetTasksQuery query)
     {
-        return await db.Tasks
-            .AsNoTracking()
+        return await db.Tasks.AsQueryable()
+            .ApplyFilter(query)   
+            .ApplySorting(query)  
             .ProjectToType<TaskBusinessModel>()
             .ToListAsync();
     }

@@ -33,15 +33,17 @@ public static class TaskEndpoints
         TaskBusinessModel? businessTask = await taskService.GetByIdAsync(id);
 
         if (businessTask is null)
-            return Results.NotFound(new { Message = $"Задача с ID {id} не найдена." });
+            return Results.NotFound(new { Message = $"Task with ID {id} not found." });
 
         var response = businessTask.Adapt<TaskResponse>();
         return Results.Ok(response);
     }
 
-    private static async Task<IResult> GetAllTasks(ITaskService taskService)
+    private static async Task<IResult> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
     {
-        IReadOnlyCollection<TaskBusinessModel> businessTasks = await taskService.GetAllAsync();
+
+        var query = request.Adapt<GetTasksQuery>();
+        IReadOnlyCollection<TaskBusinessModel> businessTasks = await taskService.GetAllAsync(query);
 
         var response = businessTasks.Adapt<IReadOnlyCollection<TaskSummaryResponse>>();
         return Results.Ok(response);

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
+using System.Text.Json.Serialization;
 using WebApiTaskTracker.Business.Services.Accounts;
 using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Business.Services.Emails;
@@ -35,13 +36,19 @@ builder.Services.AddIdentityApiEndpoints<UserEntity>(options => {
 // Business services
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddSingleton<IEmailSender<UserEntity>, EmailSenderService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddSingleton<IEmailSender<UserEntity>, EmailSenderService>();
 
 // Validators and exception handling
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// Configure JSON options to use string representation for enums in the API responses
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Database context and Mapster configuration
 builder.Services.AddDbContext<TaskTrackerDbContext>(options =>

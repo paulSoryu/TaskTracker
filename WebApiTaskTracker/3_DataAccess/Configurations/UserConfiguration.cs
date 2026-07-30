@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using WebApiTaskTracker.DataAccess.Entities;
-using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.DataAccess.Configurations;
 

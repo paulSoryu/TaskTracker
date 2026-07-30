@@ -1,6 +1,6 @@
 ﻿using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Entities;
-using WebApiTaskTracker.WebApi.DTOs.Tasks;
+using WebApiTaskTracker.Business.Models.Enums;
 
 namespace WebApiTaskTracker.Business.Extensions;
 
@@ -11,11 +11,11 @@ public static class TaskQueryExtensions
         if (query.IsCompleted.HasValue)
             dbQuery = dbQuery.Where(t => t.IsCompleted == query.IsCompleted.Value);
 
+        if (query.CategoryTitle != null)
+            dbQuery = dbQuery.Where(t => t.Category != null && t.Category.Title == query.CategoryTitle);
+
         if (query.Priority.HasValue)
             dbQuery = dbQuery.Where(t => t.Priority == query.Priority.Value);
-
-        if (query.CategoryId.HasValue)
-            dbQuery = dbQuery.Where(t => t.CategoryId == query.CategoryId.Value);
 
         if (query.DueDate.HasValue)
             dbQuery = dbQuery.Where(t => t.DueDate == query.DueDate.Value);
@@ -24,7 +24,7 @@ public static class TaskQueryExtensions
         {
             var search = query.SearchTerm.ToLower();
             dbQuery = dbQuery.Where(t => t.Title.ToLower().Contains(search)
-                                      || t.Description.ToLower().Contains(search));
+                                    || (t.Description != null && t.Description.ToLower().Contains(search)));
         }
 
         return dbQuery;

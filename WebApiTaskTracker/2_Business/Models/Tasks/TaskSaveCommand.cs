@@ -1,11 +1,14 @@
-﻿namespace WebApiTaskTracker.Business.Models.Tasks;
+﻿using WebApiTaskTracker.Business.Models.Enums;
+
+namespace WebApiTaskTracker.Business.Models.Tasks;
 
 public record TaskSaveCommand(
     Guid? Id,                 
     string Title,
     string Description,
     DateOnly? DueDate,        
-    int Priority,
+    Priority Priority,
+    bool IsCompleted,
     Guid? CategoryId,         
     string? CategoryTitle     
 );

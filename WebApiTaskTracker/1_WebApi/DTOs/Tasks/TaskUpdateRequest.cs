@@ -1,16 +1,18 @@
 ﻿using FluentValidation;
+using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.Utilities;
 
 // this is a DTO for updating a task, including validation rules and a method to update a TaskEntity with the values from this DTO
-// this breaks the single responsibility principle, as the DTO is responsible for data transfer, conversion and validation, but it is convenient for this simple app
+// this breaks the single responsibility principle, as the DTO is responsible for data transfer and validation, but it is convenient for this simple app
 namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 
 public record TaskUpdateRequest(
     string Title,
     string Description,
-    string? DueDate,
-    int Priority,
-    string? CategoryName
+    DateOnly? DueDate,
+    Priority Priority,
+    bool IsCompleted,
+    string? CategoryTitle
 )
 {
     public class Validator : AbstractValidator<TaskUpdateRequest>
@@ -25,28 +27,8 @@ public record TaskUpdateRequest(
                 .NotEmpty().WithMessage("Description cannot be empty.")
                 .MaximumLength(TaskConstraints.DescriptionMaxLength).WithMessage($"Description must be at most {TaskConstraints.DescriptionMaxLength} characters.");
 
-            RuleFor(x => x.DueDate)
-                .Matches(@"^\d{4}-\d{2}-\d{2}$").WithMessage("Format must be YYYY-MM-DD.")
-                .Must(BeAValidCalendarDate).WithMessage("Invalid date.")
-                .Must(BeTodayOrFuture).WithMessage("Date must be today or in the future.");
-
             RuleFor(x => x.Priority)
-                .NotEmpty().WithMessage("Priority cannot be empty.")
-                .InclusiveBetween(TaskConstraints.PriorityMinValue, TaskConstraints.PriorityMaxValue).WithMessage($"Priority must be between {TaskConstraints.PriorityMinValue} and {TaskConstraints.PriorityMaxValue}.");
-        }
-
-        private bool BeAValidCalendarDate(string dateStr)
-        {
-            return DateOnly.TryParseExact(dateStr, "yyyy-MM-dd", out _);
-        }
-
-        private bool BeTodayOrFuture(string dateStr)
-        {
-            if (DateOnly.TryParseExact(dateStr, "yyyy-MM-dd", out DateOnly parsedDate))
-            {
-                return parsedDate >= DateOnly.FromDateTime(DateTime.Today);
-            }
-            return false;
+                .NotEmpty().WithMessage("Priority cannot be empty.");
         }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System.Drawing;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.DataAccess.Entities;
 
@@ -17,14 +16,14 @@ public class CategoryConfiguration : IEntityTypeConfiguration<CategoryEntity>
         builder.HasOne(c => c.User)
                .WithMany(u => u.Categories)
                .HasForeignKey(c => c.UserId)
-               .OnDelete(DeleteBehavior.Cascade);
+               .OnDelete(DeleteBehavior.Cascade); // When a user is deleted, all their categories will also be deleted.
+                
+        builder.HasIndex(c => new { c.UserId, c.Title })
+               .IsUnique();
 
         builder.Property(p => p.Title)
                .IsRequired()
                .HasMaxLength(CategoryConstraints.TitleMaxLength);
-
-        builder.HasIndex(c => new { c.UserId, c.Title })
-               .IsUnique();
 
         builder.Property(p => p.Colour)
                .IsRequired()

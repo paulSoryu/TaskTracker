@@ -1,4 +1,5 @@
-﻿using WebApiTaskTracker.DataAccess.Databases;
+﻿using WebApiTaskTracker.Business.Models.Enums;
+using WebApiTaskTracker.DataAccess.Databases;
 
 namespace WebApiTaskTracker.DataAccess.Entities;
 
@@ -8,10 +9,10 @@ public class TaskEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
     public required string Title { get; set; } = string.Empty;
-    public string? Description { get; set; }
+    public string Description { get; set; } = string.Empty;
     public DateOnly? DueDate { get; set; }
-    public int Priority { get; set; }
-    public bool IsCompleted { get; set; } = false;
+    public Priority Priority { get; set; }
+    public bool IsCompleted { get; set; }
     public DateTime CreatedAt { get; set; }
 
 

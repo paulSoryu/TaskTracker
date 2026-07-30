@@ -16,18 +16,19 @@ public class TaskConfiguration : IEntityTypeConfiguration<TaskEntity>
         builder.HasOne(t => t.User)
                .WithMany(u => u.Tasks)
                .HasForeignKey(t => t.UserId)
-               .OnDelete(DeleteBehavior.Restrict);
+               .OnDelete(DeleteBehavior.Restrict); // Prevents deletion of a user if they have associated tasks 
 
         builder.HasOne(t => t.Category)
                .WithMany(c => c.Tasks)
                .HasForeignKey(t => t.CategoryId)
-               .OnDelete(DeleteBehavior.SetNull);
+               .OnDelete(DeleteBehavior.SetNull); // Sets the CategoryId to null if the associated category is deleted
 
         builder.Property(p => p.Title)
                .IsRequired()
                .HasMaxLength(TaskConstraints.TitleMaxLength);
 
         builder.Property(p => p.Description)
+               .IsRequired()
                .HasMaxLength(TaskConstraints.DescriptionMaxLength);
 
         builder.Property(p => p.CreatedAt)

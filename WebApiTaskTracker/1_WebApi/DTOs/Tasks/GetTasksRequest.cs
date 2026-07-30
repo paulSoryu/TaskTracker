@@ -1,22 +1,15 @@
-﻿namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
+﻿using WebApiTaskTracker.Business.Models.Enums;
 
-public enum TaskSortField
-{
-    Title,
-    CategoryTitle,
-    DueDate,
-    Priority,
-    IsCompleted,
-    CreatedAt
-}
+namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 
 public record GetTasksRequest(
     TaskSortField? SortBy = null, 
     bool IsDescending = false,
 
-    bool? IsCompleted = null,
-    int? Priority = null,
-    Guid? CategoryId = null,
+    // Filter parameters
     string? SearchTerm = null,
-    string? DueDate = null
+    string? CategoryTitle = null,
+    DateOnly? DueDate = null,
+    Priority? Priority = null,
+    bool? IsCompleted = null
 );

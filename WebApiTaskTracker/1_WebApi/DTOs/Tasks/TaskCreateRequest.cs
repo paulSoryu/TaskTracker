@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.Utilities;
 
 // this is a DTO for creating a task, including validation rules and a method to convert the DTO to a TaskEntity
@@ -8,8 +9,8 @@ namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 public record TaskCreateRequest(
     string Title,
     string Description,
-    string? DueDate,
-    int Priority,
+    DateOnly? DueDate,
+    Priority Priority,
     string CategoryTitle
 )
 {
@@ -26,30 +27,17 @@ public record TaskCreateRequest(
                 .MaximumLength(TaskConstraints.DescriptionMaxLength).WithMessage($"Description must be at most {TaskConstraints.DescriptionMaxLength} characters.");
 
             RuleFor(x => x.DueDate)
-                .Matches(@"^\d{4}-\d{2}-\d{2}$").WithMessage("Format must be YYYY-MM-DD.")
-                .Must(BeAValidCalendarDate).WithMessage("Invalid date.")
                 .Must(BeTodayOrFuture).WithMessage("Date must be today or in the future.");
 
             RuleFor(x => x.Priority)
-                .NotEmpty().WithMessage("Priority cannot be empty.")
-                .InclusiveBetween(TaskConstraints.PriorityMinValue, TaskConstraints.PriorityMaxValue).WithMessage($"Priority must be between {TaskConstraints.PriorityMinValue} and {TaskConstraints.PriorityMaxValue}.");
+                .NotEmpty().WithMessage("Priority cannot be empty.");
         }
 
-        private bool BeAValidCalendarDate(string dateStr)
+        private bool BeTodayOrFuture(DateOnly? date)
         {
-            return DateOnly.TryParseExact(dateStr, "yyyy-MM-dd", out _);
-        }
-
-        private bool BeTodayOrFuture(string dateStr)
-        {
-            if (DateOnly.TryParseExact(dateStr, "yyyy-MM-dd", out DateOnly parsedDate))
-            {
-                return parsedDate >= DateOnly.FromDateTime(DateTime.Today);
-            }
-            return false;
+            if (date is null) return true;
+            return date.Value >= DateOnly.FromDateTime(DateTime.Today);
         }
     }
 }
-
-
-
+    

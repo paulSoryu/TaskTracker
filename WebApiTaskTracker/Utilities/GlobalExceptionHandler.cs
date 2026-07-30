@@ -70,6 +70,22 @@ public class GlobalExceptionHandler : IExceptionHandler
             return true;
         }
 
+        if (exception is InvalidDateException invalidDateException)
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = invalidDateException.Message
+            };
+
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+
+            return true;
+        }
+
         return false;
     }
 }

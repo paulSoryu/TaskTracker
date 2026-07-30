@@ -1,4 +1,4 @@
-﻿using WebApiTaskTracker.WebApi.DTOs.Tasks;
+﻿using WebApiTaskTracker.Business.Models.Enums;
 
 namespace WebApiTaskTracker.Business.Models.Tasks;
 
@@ -6,9 +6,10 @@ public record GetTasksQuery(
     TaskSortField? SortBy,
     bool IsDescending,
 
-    bool? IsCompleted,
-    int? Priority,
-    Guid? CategoryId,
+    // Filter parameters
     string? SearchTerm,
-    DateOnly? DueDate
+    string? CategoryTitle,
+    DateOnly? DueDate,
+    bool? IsCompleted,
+    Priority? Priority
 );

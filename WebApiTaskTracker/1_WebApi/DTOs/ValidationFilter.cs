@@ -2,6 +2,9 @@
 
 namespace WebApiTaskTracker.WebApi.DTOs;
 
+// Validation filter for minimal APIs that uses FluentValidation to validate the request body of generic type.
+// If the validation fails, it returns a 400 Bad Request response with the validation errors.
+// If the request body is null or has an invalid format, it also returns a 400 Bad Request response.
 public class ValidationFilter<T> : IEndpointFilter where T : class
 {
     private readonly IValidator<T> _validator;
@@ -27,6 +30,7 @@ public class ValidationFilter<T> : IEndpointFilter where T : class
     }
 }
 
+// Extension method to add the validation filter to a route handler builder for a specific type.
 public static class ValidationFilterExtensions
 {
     public static RouteHandlerBuilder WithValidation<T>(this RouteHandlerBuilder builder) where T : class

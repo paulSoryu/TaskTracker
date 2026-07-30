@@ -9,7 +9,6 @@ using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 
@@ -58,6 +57,10 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         if (task == null)
             throw new EntityNotFoundException($"Task {dto.Id} not found.");
 
+        // Validate that the due date is not set to a past date, but only if the due date is being changed
+        if (dto.DueDate != task.DueDate && dto.DueDate < DateOnly.FromDateTime(DateTime.Today))
+            throw new InvalidDateException("You cannot change the due date to a past date.");
+
         dto.Adapt(task);
 
         if (dto.CategoryTitle != null)
@@ -67,6 +70,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
 
         await db.SaveChangesAsync();
+        
     }
 
     public async Task DeleteAsync(Guid taskId)
@@ -79,12 +83,12 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         await db.SaveChangesAsync();
     }
 
-    private async Task<CategoryEntity?> GetOrCreateCategoryAsync(string categoryName, Guid userId)
+    private async Task<CategoryEntity?> GetOrCreateCategoryAsync(string categoryTitle, Guid userId)
     {
-        if (string.IsNullOrWhiteSpace(categoryName))
+        if (string.IsNullOrWhiteSpace(categoryTitle))
             return null;
 
-        var cleanedTitle = categoryName.Trim();
+        var cleanedTitle = categoryTitle.Trim();
         var normalizedTitle = cleanedTitle.ToLower();
 
         var category = await db.Categories

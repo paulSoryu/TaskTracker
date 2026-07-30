@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 using WebApiTaskTracker.Business.Services.Accounts;
 using WebApiTaskTracker.DataAccess.Entities;
@@ -23,35 +24,37 @@ public static class AccountEndpoints
     // This method handles the logout process for a user. It removes the refresh token associated with the user's account, effectively logging them out of the application.
     // But it does not invalidate the access token, which may still be valid until it expires. Therefore, the user may still have access to protected resources until the access token expires.
     // Access tokens could only be invalidated on the frontend by removing them from the client-side storage (e.g., localStorage, sessionStorage, or cookies) after the logout process is completed.
-    private static async Task<IResult> Logout(ClaimsPrincipal userPrincipal, UserManager<UserEntity> userManager)
+    private static async Task<Results<Ok<string>, UnauthorizedHttpResult>> Logout(ClaimsPrincipal userPrincipal, UserManager<UserEntity> userManager)
     {
         var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null) return Results.Unauthorized();
+        if (user == null)
+            return TypedResults.Unauthorized();
 
         await userManager.RemoveAuthenticationTokenAsync(
             user,
             "[AspNetCoreIdentityBearerToken]",
             "refresh_token");
 
-        return Results.Ok(new { message = "Logout succesful. Refresh token is deleted." });
+        return TypedResults.Ok("Logout successful. Refresh token is deleted.");
     }
 
-    private static async Task<IResult> Delete(
+    private static async Task<Results<Ok<string>, UnauthorizedHttpResult, BadRequest<IEnumerable<IdentityError>>>> Delete(
         ClaimsPrincipal userPrincipal,
         UserManager<UserEntity> userManager,
         SignInManager<UserEntity> signInManager,
         IAccountService accountService)
     {
         var userId = userManager.GetUserId(userPrincipal);
-        if (userId == null) return Results.Unauthorized();
+        if (userId == null)
+            return TypedResults.Unauthorized();
 
         var result = await accountService.DeleteAccountAsync(userId);
 
         if (!result.Succeeded)
-            return Results.BadRequest(result.Errors);
+            return TypedResults.BadRequest(result.Errors);
 
         await signInManager.SignOutAsync();
 
-        return Results.Ok(new { message = "Account successfully deleted." });
+        return TypedResults.Ok("Account successfully deleted.");
     }
 }

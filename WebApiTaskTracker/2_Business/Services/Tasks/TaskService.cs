@@ -70,7 +70,6 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
 
         await db.SaveChangesAsync();
-        
     }
 
     public async Task DeleteAsync(Guid taskId)

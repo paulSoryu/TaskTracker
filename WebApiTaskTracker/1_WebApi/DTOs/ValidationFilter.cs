@@ -19,12 +19,13 @@ public class ValidationFilter<T> : IEndpointFilter where T : class
         var argument = context.Arguments.FirstOrDefault(x => x is T) as T;
 
         if (argument is null)
-            return Results.BadRequest("The request body cannot be empty or have an invalid format.");
+            return TypedResults.BadRequest("The request body cannot be empty or have an invalid format.");
 
         var validationResult = await _validator.ValidateAsync(argument);
 
         if (!validationResult.IsValid)
-            return Results.ValidationProblem(validationResult.ToDictionary());
+            return TypedResults.ValidationProblem(validationResult.ToDictionary());
+        
 
         return await next(context);
     }

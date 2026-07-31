@@ -3,6 +3,7 @@
 namespace WebApiTaskTracker.Business.Models.Tasks;
 
 public record GetTasksQuery(
+    // Sorting parameters
     TaskSortField? SortBy,
     bool IsDescending,
 
@@ -11,5 +12,9 @@ public record GetTasksQuery(
     string? CategoryTitle,
     DateOnly? DueDate,
     bool? IsCompleted,
-    Priority? Priority
+    Priority? Priority,
+
+    // Pagination parameters
+    int PageNumber,
+    int PageSize
 );

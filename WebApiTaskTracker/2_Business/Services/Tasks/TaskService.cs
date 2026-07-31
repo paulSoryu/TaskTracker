@@ -41,12 +41,12 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
     public async Task<Result<TaskBusinessModel>> CreateAsync(TaskSaveCommand dto, Guid userId)
     {
+        // Global SQL filter already filters everything by userId, so we don't need to filter here
         var isEmailConfirmed = await db.Users
-            .Where(u => u.Id == userId)
             .Select(u => u.EmailConfirmed)
             .FirstOrDefaultAsync();
 
-        int currentTasksCount = await db.Tasks.CountAsync(); // Global SQL filter already filters tasks by userId, so we don't need to filter here
+        int currentTasksCount = await db.Tasks.CountAsync(); 
         int maxAllowedTasks = isEmailConfirmed ? 1000 : 20;
 
         // Check if the user has reached the maximum allowed tasks

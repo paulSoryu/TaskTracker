@@ -66,4 +66,15 @@ public static class TaskQueryExtensions
             _ => dbQuery
         };
     }
+
+    public static IQueryable<TaskEntity> ApplyPagination(this IQueryable<TaskEntity> dbQuery, GetTasksQuery query)
+    {
+        // default to page 1 and size 10 if not provided or invalid
+        int page = query.PageNumber > 0 ? query.PageNumber : 1;
+        int size = query.PageSize > 0 ? query.PageSize : 10;
+
+        return dbQuery
+            .Skip((page - 1) * size)
+            .Take(size);
+    }
 }

@@ -33,6 +33,18 @@ builder.Services.AddIdentityApiEndpoints<UserEntity>(options => {
     options.SignIn.RequireConfirmedEmail = false;
 }).AddEntityFrameworkStores<TaskTrackerDbContext>();
 
+// CORS configuration to allow requests from the frontend application running on a different origin
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Business services
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
@@ -103,6 +115,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("FrontendPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();

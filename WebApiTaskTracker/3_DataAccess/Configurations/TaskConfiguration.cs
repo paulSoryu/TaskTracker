@@ -16,7 +16,7 @@ public class TaskConfiguration : IEntityTypeConfiguration<TaskEntity>
         builder.HasOne(t => t.User)
                .WithMany(u => u.Tasks)
                .HasForeignKey(t => t.UserId)
-               .OnDelete(DeleteBehavior.Restrict); // Prevents deletion of a user if they have associated tasks 
+               .OnDelete(DeleteBehavior.Restrict); // Prevents deletion of a user if they have associated tasks. You have to delete the tasks manually before deleting the user.
 
         builder.HasOne(t => t.Category)
                .WithMany(c => c.Tasks)

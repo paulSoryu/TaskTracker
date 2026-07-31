@@ -33,7 +33,8 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
     public async Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync(GetTasksQuery query)
     {
         return await db.Tasks.AsQueryable()
-            .ApplyFilter(query, DateOnly.FromDateTime(DateTime.Today))   
+            // Ideally, we should pass the current date from the frontend, but for now, we will use the server's current date
+            .ApplyFilter(query, DateOnly.FromDateTime(DateTime.Today)) 
             .ApplySorting(query)
             .ApplyPagination(query)
             .ProjectToType<TaskBusinessModel>()

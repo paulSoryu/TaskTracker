@@ -2,7 +2,6 @@
 using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
-using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.Business.Services.Tasks;
 using WebApiTaskTracker.Utilities;
@@ -31,18 +30,13 @@ public static class TaskEndpoints
         routeGroup.MapDelete("/{id:Guid}", DeleteTask);
     }
 
-    private static async Task<Results<Ok<TaskResponse>, NotFound<string>>> GetTaskById(Guid id, ITaskService taskService)
+    private static async Task<Results<Ok<TaskResponse>, ProblemHttpResult>> GetTaskById(Guid id, ITaskService taskService)
     {
         Result<TaskBusinessModel> result = await taskService.GetByIdAsync(id);
 
-        if (result.IsFailed)
-        {
-            string errorMessage = result.Errors.First().Message;
-            return TypedResults.NotFound(errorMessage);
-        }
+        Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
 
-        var response = result.Value.Adapt<TaskResponse>();
-        return TypedResults.Ok(response);
+        return responseResult.ToTypedHttpResult();
     }
 
     private static async Task<Ok<IReadOnlyCollection<TaskSummaryResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
@@ -54,47 +48,45 @@ public static class TaskEndpoints
         return TypedResults.Ok(response);
     }
 
-    private static async Task<Results<CreatedAtRoute<TaskResponse>, BadRequest<string>>> CreateTask(TaskCreateRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
+    //private static async Task<Results<Ok<IReadOnlyCollection<TaskSummaryResponse>>, ProblemHttpResult>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
+    //{
+    //    var query = request.Adapt<GetTasksQuery>();
+
+    //    Result<IReadOnlyCollection<TaskBusinessModel>> result = await taskService.GetAllAsync(query);
+
+    //    Result<IReadOnlyCollection<TaskSummaryResponse>> responseResult =
+    //        result.Map(tasks => tasks.Adapt<IReadOnlyCollection<TaskSummaryResponse>>());
+
+    //    return responseResult.ToTypedHttpResult();
+    //}
+
+    private static async Task<Results<CreatedAtRoute<TaskResponse>, ProblemHttpResult>> CreateTask(TaskCreateRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
     {
         var command = taskRequest.Adapt<TaskSaveCommand>();
         Guid userId = user.GetUserId();
 
         Result<TaskBusinessModel> result = await taskService.CreateAsync(command, userId);
 
-        if (result.IsFailed)
-            return TypedResults.BadRequest(result.Errors.First().Message);
+        Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
 
-        var response = result.Value.Adapt<TaskResponse>();
-        return TypedResults.CreatedAtRoute(response, "GetTaskById", new { id = response.Id });
+        return responseResult.ToCreatedAtRouteResult(
+            routeName: "GetTaskById",
+            routeValues: new { id = responseResult.ValueOrDefault?.Id });
     }
 
-    private static async Task<Results<NoContent, NotFound<string>, BadRequest<string>>> UpdateTask(Guid id, TaskUpdateRequest taskRequest, ITaskService taskService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateTask(Guid id, TaskUpdateRequest taskRequest, ITaskService taskService)
     {
         var command = taskRequest.Adapt<TaskSaveCommand>() with { Id = id };
 
         Result result = await taskService.UpdateAsync(command);
 
-        if (result.IsFailed)
-        {
-            if (result.HasError<NotFoundError>())
-                return TypedResults.NotFound(result.Errors.First().Message);
-
-            if (result.HasError<ValidationError>())
-                return TypedResults.BadRequest(result.Errors.First().Message);
-
-            return TypedResults.BadRequest("An unexpected error occurred.");
-        }
-
-        return TypedResults.NoContent();
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, NotFound<string>>> DeleteTask(Guid id, ITaskService taskService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteTask(Guid id, ITaskService taskService)
     {
         Result result = await taskService.DeleteAsync(id);
 
-        if (result.IsFailed)
-            return TypedResults.NotFound(result.Errors.First().Message);
-
-        return TypedResults.NoContent();
+        return result.ToTypedHttpResult();
     }
 }

@@ -3,7 +3,7 @@
 namespace WebApiTaskTracker.Business.Models.Tasks;
 
 public record TaskSaveCommand(
-    Guid? Id,                 
+    Guid Id,                 
     string Title,
     string Description,
     DateOnly? DueDate,        

@@ -1,6 +1,8 @@
-﻿using Mapster;
+﻿using FluentResults;
+using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
+using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.Business.Services.Tasks;
 using WebApiTaskTracker.Utilities;
@@ -22,7 +24,7 @@ public static class TaskEndpoints
 
         routeGroup.MapPost("/", CreateTask)
             .AddEndpointFilter<ValidationFilter<TaskCreateRequest>>();
-        
+
         routeGroup.MapPut("/{id:Guid}", UpdateTask)
             .AddEndpointFilter<ValidationFilter<TaskUpdateRequest>>();
 
@@ -31,12 +33,15 @@ public static class TaskEndpoints
 
     private static async Task<Results<Ok<TaskResponse>, NotFound<string>>> GetTaskById(Guid id, ITaskService taskService)
     {
-        TaskBusinessModel? businessTask = await taskService.GetByIdAsync(id);
+        Result<TaskBusinessModel> result = await taskService.GetByIdAsync(id);
 
-        if (businessTask is null)
-            return TypedResults.NotFound($"Task with ID {id} not found.");
+        if (result.IsFailed)
+        {
+            string errorMessage = result.Errors.First().Message;
+            return TypedResults.NotFound(errorMessage);
+        }
 
-        var response = businessTask.Adapt<TaskResponse>();
+        var response = result.Value.Adapt<TaskResponse>();
         return TypedResults.Ok(response);
     }
 
@@ -49,34 +54,47 @@ public static class TaskEndpoints
         return TypedResults.Ok(response);
     }
 
-    private static async Task<CreatedAtRoute<TaskResponse>> CreateTask(
-        TaskCreateRequest taskRequest,
-        ITaskService taskService,
-        ClaimsPrincipal user)
+    private static async Task<Results<CreatedAtRoute<TaskResponse>, BadRequest<string>>> CreateTask(TaskCreateRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
     {
         var command = taskRequest.Adapt<TaskSaveCommand>();
         Guid userId = user.GetUserId();
 
-        TaskBusinessModel createdBusinessTask = await taskService.CreateAsync(command, userId);
-        var response = createdBusinessTask.Adapt<TaskResponse>();
+        Result<TaskBusinessModel> result = await taskService.CreateAsync(command, userId);
 
+        if (result.IsFailed)
+            return TypedResults.BadRequest(result.Errors.First().Message);
+
+        var response = result.Value.Adapt<TaskResponse>();
         return TypedResults.CreatedAtRoute(response, "GetTaskById", new { id = response.Id });
     }
 
-    private static async Task<NoContent> UpdateTask(
-        Guid id,
-        TaskUpdateRequest taskRequest,
-        ITaskService taskService)
+    private static async Task<Results<NoContent, NotFound<string>, BadRequest<string>>> UpdateTask(Guid id, TaskUpdateRequest taskRequest, ITaskService taskService)
     {
         var command = taskRequest.Adapt<TaskSaveCommand>() with { Id = id };
 
-        await taskService.UpdateAsync(command);
+        Result result = await taskService.UpdateAsync(command);
+
+        if (result.IsFailed)
+        {
+            if (result.HasError<NotFoundError>())
+                return TypedResults.NotFound(result.Errors.First().Message);
+
+            if (result.HasError<ValidationError>())
+                return TypedResults.BadRequest(result.Errors.First().Message);
+
+            return TypedResults.BadRequest("An unexpected error occurred.");
+        }
+
         return TypedResults.NoContent();
     }
 
-    private static async Task<NoContent> DeleteTask(Guid id, ITaskService taskService)
+    private static async Task<Results<NoContent, NotFound<string>>> DeleteTask(Guid id, ITaskService taskService)
     {
-        await taskService.DeleteAsync(id);
+        Result result = await taskService.DeleteAsync(id);
+
+        if (result.IsFailed)
+            return TypedResults.NotFound(result.Errors.First().Message);
+
         return TypedResults.NoContent();
     }
 }

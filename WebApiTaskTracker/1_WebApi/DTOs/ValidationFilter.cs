@@ -3,7 +3,7 @@
 namespace WebApiTaskTracker.WebApi.DTOs;
 
 // Validation filter for minimal APIs that uses FluentValidation to validate the request body of generic type.
-// If the validation fails, it returns a 400 Bad Request response with the validation errors.
+// If the validation fails, it returns a 409 Conflict response with the validation errors.
 // If the request body is null or has an invalid format, it also returns a 400 Bad Request response.
 public class ValidationFilter<T> : IEndpointFilter where T : class
 {

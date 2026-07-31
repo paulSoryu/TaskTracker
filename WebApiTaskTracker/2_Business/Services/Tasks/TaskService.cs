@@ -1,10 +1,12 @@
-﻿using Mapster;
+﻿using FluentResults;
+using Mapster;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using WebApiTaskTracker.Business.Extensions;
+using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
@@ -15,16 +17,18 @@ namespace WebApiTaskTracker.Business.Services.Tasks;
 public class TaskService(TaskTrackerDbContext db) : ITaskService
 {
 
-    public async Task<TaskBusinessModel> GetByIdAsync(Guid id)
-    {
-        var response = await db.Tasks
-            .AsNoTracking()
-            .Where(t => t.Id == id)
-            .ProjectToType<TaskBusinessModel>()
-            .FirstOrDefaultAsync();
+    public async Task<Result<TaskBusinessModel>> GetByIdAsync(Guid id)
+{
+    var response = await db.Tasks
+        .AsNoTracking()
+        .Where(t => t.Id == id)
+        .ProjectToType<TaskBusinessModel>()
+        .FirstOrDefaultAsync();
 
-        return response ?? throw new EntityNotFoundException($"Task {id} not found.");
-    }
+    return response is null
+        ? Result.Fail(new NotFoundError("Task", id))
+        : Result.Ok(response);
+}
 
     public async Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync(GetTasksQuery query)
     {
@@ -35,8 +39,20 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             .ToListAsync();
     }
 
-    public async Task<TaskBusinessModel> CreateAsync(TaskSaveCommand dto, Guid userId)
+    public async Task<Result<TaskBusinessModel>> CreateAsync(TaskSaveCommand dto, Guid userId)
     {
+        var isEmailConfirmed = await db.Users
+            .Where(u => u.Id == userId)
+            .Select(u => u.EmailConfirmed)
+            .FirstOrDefaultAsync();
+
+        int currentTasksCount = await db.Tasks.CountAsync(); // Global SQL filter already filters tasks by userId, so we don't need to filter here
+        int maxAllowedTasks = isEmailConfirmed ? 1000 : 20;
+
+        // Check if the user has reached the maximum allowed tasks
+        if (currentTasksCount >= maxAllowedTasks)
+            return Result.Fail(new TaskLimitExceededError(maxAllowedTasks, isEmailConfirmed));
+
         var existingCategory = await GetOrCreateCategoryAsync(dto.CategoryTitle!, userId);
         Guid? categoryId = existingCategory?.Id;
 
@@ -48,18 +64,18 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         db.Tasks.Add(entity);
         await db.SaveChangesAsync();
 
-        return entity.Adapt<TaskBusinessModel>();
+        return Result.Ok(entity.Adapt<TaskBusinessModel>());
     }
 
-    public async Task UpdateAsync(TaskSaveCommand dto)
+    public async Task<Result> UpdateAsync(TaskSaveCommand dto)
     {
         var task = await db.Tasks.FindAsync(dto.Id);
         if (task == null)
-            throw new EntityNotFoundException($"Task {dto.Id} not found.");
+            return Result.Fail(new NotFoundError("Task", dto.Id));
 
         // Validate that the due date is not set to a past date, but only if the due date is being changed
         if (dto.DueDate != task.DueDate && dto.DueDate < DateOnly.FromDateTime(DateTime.Today))
-            throw new InvalidDateException("You cannot change the due date to a past date.");
+            return Result.Fail(new ValidationError("You cannot change the due date to a past date."));
 
         dto.Adapt(task);
 
@@ -70,19 +86,22 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
 
         await db.SaveChangesAsync();
+        return Result.Ok();
     }
 
-    public async Task DeleteAsync(Guid taskId)
+    public async Task<Result> DeleteAsync(Guid taskId)
     {
         var existingTask = await db.Tasks.FindAsync(taskId);
         if (existingTask == null)
-            throw new EntityNotFoundException($"Task {taskId} not found.");
+            return Result.Fail(new NotFoundError("Task", taskId));
 
         db.Remove(existingTask);
         await db.SaveChangesAsync();
+
+        return Result.Ok();
     }
 
-    private async Task<CategoryEntity?> GetOrCreateCategoryAsync(string categoryTitle, Guid userId)
+    private async Task<CategoryEntity?> GetOrCreateCategoryAsync(string? categoryTitle, Guid userId)
     {
         if (string.IsNullOrWhiteSpace(categoryTitle))
             return null;

@@ -41,7 +41,7 @@ public static class TaskEndpoints
     private static async Task<Ok<IReadOnlyCollection<TaskSummaryResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
     {
         var query = request.Adapt<GetTasksQuery>();
-        IReadOnlyCollection<TaskBusinessModel> businessTasks = await taskService.GetAllAsync(query);
+        IReadOnlyCollection<TaskView> businessTasks = await taskService.GetAllAsync(query);
 
         var response = businessTasks.Adapt<IReadOnlyCollection<TaskSummaryResponse>>();
         return TypedResults.Ok(response);
@@ -49,7 +49,7 @@ public static class TaskEndpoints
 
     private static async Task<Results<Ok<TaskResponse>, ProblemHttpResult>> GetTaskById(Guid id, ITaskService taskService)
     {
-        Result<TaskBusinessModel> result = await taskService.GetByIdAsync(id);
+        Result<TaskView> result = await taskService.GetByIdAsync(id);
 
         Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
 
@@ -61,7 +61,7 @@ public static class TaskEndpoints
         var command = taskRequest.Adapt<TaskSaveCommand>();
         Guid userId = user.GetUserId();
 
-        Result<TaskBusinessModel> result = await taskService.CreateAsync(command, userId);
+        Result<TaskView> result = await taskService.CreateAsync(command, userId);
 
         Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
 

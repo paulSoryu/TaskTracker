@@ -2,7 +2,7 @@
 
 namespace WebApiTaskTracker.Business.Models.Tasks;
 
-public record TaskBusinessModel(
+public record TaskView(
     Guid Id,
     string Title,
     string Description,

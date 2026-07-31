@@ -8,8 +8,8 @@ public class TaskMappingConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
-        // Configure mapping from TaskEntity to TaskBusinessModel
-        config.NewConfig<TaskEntity, TaskBusinessModel>()
+        // Configure mapping from TaskEntity to TaskView
+        config.NewConfig<TaskEntity, TaskView>()
             .RequireDestinationMemberSource(true);
 
         // Configure mapping from TaskSaveCommand to TaskEntity

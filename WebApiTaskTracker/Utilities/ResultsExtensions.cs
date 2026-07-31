@@ -35,6 +35,13 @@ public static class ResultExtensions
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Task Limit Exceeded"),
 
+            // Ideally, TaskLimitExceededError and CategoryLimitExceededError should be handled in one generic way to not duplicate code, but for now, we handle them separately.
+            CategoryLimitExceededError => TypedResults.Problem(
+                detail: error.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Category Limit Exceeded"),
+
+            // In case we will add other roles like Admin, Moderator, etc., we can handle them here.
             //UnauthorizedError => TypedResults.Problem(
             //    detail: error.Message,
             //    statusCode: StatusCodes.Status401Unauthorized,
@@ -50,9 +57,7 @@ public static class ResultExtensions
     public static Results<NoContent, ProblemHttpResult> ToTypedHttpResult(this Result result)
     {
         if (result.IsSuccess)
-        {
             return TypedResults.NoContent();
-        }
 
         var error = result.Errors.FirstOrDefault();
 
@@ -61,6 +66,7 @@ public static class ResultExtensions
             NotFoundError => TypedResults.Problem(detail: error.Message, statusCode: 404, title: "Not Found"),
             ValidationError => TypedResults.Problem(detail: error.Message, statusCode: 400, title: "Validation Error"),
             TaskLimitExceededError => TypedResults.Problem(detail: error.Message, statusCode: 400, title: "Task Limit Exceeded"),
+            CategoryLimitExceededError => TypedResults.Problem(detail: error.Message, statusCode: 400, title: "Category Limit Exceeded"),
             _ => TypedResults.Problem(detail: error?.Message, statusCode: 500, title: "Server Error")
         };
     }
@@ -70,13 +76,9 @@ public static class ResultExtensions
         string routeName,
         object? routeValues)
     {
-        // Если успех — возвращаем строго типизированный 201 CreatedAtRoute
         if (result.IsSuccess)
-        {
             return TypedResults.CreatedAtRoute(result.Value, routeName, routeValues);
-        }
 
-        // Если ошибка — маппим в Problem Details (400, 401, 404 или 500)
         var error = result.Errors.FirstOrDefault();
 
         return error switch
@@ -96,6 +98,11 @@ public static class ResultExtensions
                 detail: error.Message,
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Task Limit Exceeded"),
+
+            CategoryLimitExceededError => TypedResults.Problem(
+                detail: error.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Category Limit Exceeded"),
 
             //UnauthorizedError => TypedResults.Problem(
             //    detail: error.Message,

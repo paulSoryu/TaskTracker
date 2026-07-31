@@ -15,24 +15,24 @@ namespace WebApiTaskTracker.Business.Services.Categories;
 
 public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 {
-    public async Task<IReadOnlyCollection<CategoryBusinessModel>> GetAllAsync(GetCategoriesQuery query)
+    public async Task<IReadOnlyCollection<CategoryView>> GetAllAsync(GetCategoriesQuery query)
     {
         var result = await db.Categories
             .AsNoTracking()
             .ApplyFilter(query)
             .ApplySorting(query)
-            .ProjectToType<CategoryBusinessModel>()
+            .ProjectToType<CategoryView>()
             .ToListAsync();
 
         return result;
     }
 
-    public async Task<Result<CategoryBusinessModel>> GetByIdAsync(Guid id)
+    public async Task<Result<CategoryView>> GetByIdAsync(Guid id)
     {
         var response = await db.Categories
            .AsNoTracking()
            .Where(c => c.Id == id)
-           .ProjectToType<CategoryBusinessModel>()
+           .ProjectToType<CategoryView>()
            .FirstOrDefaultAsync();
 
         if (response is null)
@@ -41,7 +41,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         return Result.Ok(response);
     }
 
-    public async Task<Result<CategoryBusinessModel>> CreateAsync(CategorySaveCommand dto, Guid userId)
+    public async Task<Result<CategoryView>> CreateAsync(CategorySaveCommand dto, Guid userId)
     {
         bool categoryExists = await db.Categories
             .AnyAsync(c => c.Title.ToLower() == dto.Title.ToLower());
@@ -49,13 +49,25 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         if (categoryExists)
             return Result.Fail(new ValidationError($"Category with name '{dto.Title}' already exists."));
 
+        // Global SQL filter already filters everything by userId, so we don't need to filter here
+        var isEmailConfirmed = await db.Users
+            .Select(u => u.EmailConfirmed)
+            .FirstOrDefaultAsync();
+
+        int currentCategoriesCount = await db.Categories.CountAsync();
+        int maxAllowedCategories = isEmailConfirmed ? 100 : 5;
+
+        // Check if the user has reached the maximum allowed categories
+        if (currentCategoriesCount >= maxAllowedCategories)
+            return Result.Fail(new CategoryLimitExceededError(maxAllowedCategories, isEmailConfirmed));
+
         var entity = dto.Adapt<CategoryEntity>();
         entity.UserId = userId;
 
         db.Categories.Add(entity);
         await db.SaveChangesAsync();
 
-        return Result.Ok(entity.Adapt<CategoryBusinessModel>());
+        return Result.Ok(entity.Adapt<CategoryView>());
     }
 
 

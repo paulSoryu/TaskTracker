@@ -8,11 +8,11 @@ public class TaskMappingConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
-        // Configure mapping from TaskBusinessModel to TaskResponse
-        config.NewConfig<TaskBusinessModel, TaskResponse>();
+        // Configure mapping from TaskView to TaskResponse
+        config.NewConfig<TaskView, TaskResponse>();
 
-        // Configure mapping from TaskBusinessModel to TaskSummaryResponse
-        config.NewConfig<TaskBusinessModel, TaskSummaryResponse>();
+        // Configure mapping from TaskView to TaskSummaryResponse
+        config.NewConfig<TaskView, TaskSummaryResponse>();
 
         // Configure mapping from from TaskCreateRequest to TaskSaveCommand
         config.NewConfig<TaskCreateRequest, TaskSaveCommand>()

@@ -2,9 +2,9 @@
 
 namespace WebApiTaskTracker.Business.Models.Categories;
 
-public record CategoryBusinessModel(
+public record CategoryView(
     Guid Id,
     string Title,
     string Colour,
-    IReadOnlyCollection<TaskBusinessModel> Tasks
+    IReadOnlyCollection<TaskView> Tasks
 );

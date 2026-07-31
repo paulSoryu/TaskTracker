@@ -9,11 +9,11 @@ public class CategoryMappingConfig : IRegister
     public void Register(TypeAdapterConfig config)
     {
         // Configure mapping from CategoryBusinessModel to CategoryResponse
-        config.NewConfig<CategoryBusinessModel, CategoryResponse>();
+        config.NewConfig<CategoryView, CategoryResponse>();
             
 
         // Configure mapping from CategoryBusinessModel to CategorySummaryResponse
-        config.NewConfig<CategoryBusinessModel, CategorySummaryResponse>()
+        config.NewConfig<CategoryView, CategorySummaryResponse>()
             .Map(dest => dest.TaskCount, src => src.Tasks.Count);
 
         // Configure mapping from CategoryCreateRequest to CategorySaveCommand

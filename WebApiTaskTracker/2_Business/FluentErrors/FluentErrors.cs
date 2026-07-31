@@ -42,6 +42,29 @@ public class TaskLimitExceededError : Error
     }
 }
 
+public class CategoryLimitExceededError : Error
+{
+    public int MaxAllowedCategories { get; }
+    public bool IsEmailConfirmed { get; }
+
+    public CategoryLimitExceededError(int maxAllowedCategories, bool isEmailConfirmed)
+        : base(BuildMessage(maxAllowedCategories, isEmailConfirmed))
+    {
+        MaxAllowedCategories = maxAllowedCategories;
+        IsEmailConfirmed = isEmailConfirmed;
+
+        Metadata.Add("ErrorCode", "CATEGORY_LIMIT_EXCEEDED");
+        Metadata.Add("MaxLimit", maxAllowedCategories);
+    }
+
+    private static string BuildMessage(int maxAllowedCategories, bool isEmailConfirmed)
+    {
+        return isEmailConfirmed
+            ? $"You have reached the category limit ({maxAllowedCategories}). Creating new categories is not possible."
+            : $"You have reached the category limit ({maxAllowedCategories}). Confirm your email to increase the limit to 100.";
+    }
+}
+
 public class ValidationError : Error
 {
     public Dictionary<string, string[]> Errors { get; } = new();

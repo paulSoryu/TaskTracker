@@ -43,7 +43,7 @@ public static class CategoryEndpoints
     private static async Task<Ok<IReadOnlyCollection<CategorySummaryResponse>>> GetAllCategories(ICategoryService categoryService, [AsParameters] GetCategoriesRequest request)
     {
         var query = request.Adapt<GetCategoriesQuery>();
-        IReadOnlyCollection<CategoryBusinessModel> categories = await categoryService.GetAllAsync(query);
+        IReadOnlyCollection<CategoryView> categories = await categoryService.GetAllAsync(query);
 
         var response = categories.Adapt<IReadOnlyCollection<CategorySummaryResponse>>();
         return TypedResults.Ok(response);
@@ -51,7 +51,7 @@ public static class CategoryEndpoints
 
     private static async Task<Results<Ok<CategoryResponse>, ProblemHttpResult>> GetCategoryById(Guid id, ICategoryService categoryService)
     {
-        Result<CategoryBusinessModel> result = await categoryService.GetByIdAsync(id);
+        Result<CategoryView> result = await categoryService.GetByIdAsync(id);
 
         Result<CategoryResponse> responseResult = result.Map(category => category.Adapt<CategoryResponse>());
 
@@ -62,7 +62,7 @@ public static class CategoryEndpoints
     {
         var command = categoryRequest.Adapt<CategorySaveCommand>();
 
-        Result<CategoryBusinessModel> result = await categoryService.CreateAsync(command, user.GetUserId());
+        Result<CategoryView> result = await categoryService.CreateAsync(command, user.GetUserId());
 
         Result<CategoryResponse> responseResult = result.Map(category => category.Adapt<CategoryResponse>());
 

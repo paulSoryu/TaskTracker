@@ -12,17 +12,18 @@ public static class TaskQueryExtensions
         if (query.IsCompleted.HasValue)
             dbQuery = dbQuery.Where(t => t.IsCompleted == query.IsCompleted.Value);
 
-        if (query.CategoryTitle != null)
-            dbQuery = dbQuery.Where(t => t.Category != null && t.Category.Title == query.CategoryTitle);
+        if (!string.IsNullOrEmpty(query.CategoryTitle))
+            dbQuery = dbQuery.Where(t => t.Category.Title == query.CategoryTitle);
 
         if (query.Priority.HasValue)
             dbQuery = dbQuery.Where(t => t.Priority == query.Priority.Value);
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            var search = query.SearchTerm.ToLower();
-            dbQuery = dbQuery.Where(t => t.Title.ToLower().Contains(search)
-                                    || (t.Description != null && t.Description.ToLower().Contains(search)));
+            var search = query.SearchTerm;
+
+            dbQuery = dbQuery.Where(t => t.Title.Contains(search) || t.Description.Contains(search));
+
         }
 
         // Apply specific month filter if provided
@@ -38,17 +39,20 @@ public static class TaskQueryExtensions
         // Apply due date filter preset if provided
         if (query.DueDateFilterPreset.HasValue)
         {
-            return query.DueDateFilterPreset.Value switch
-            {
-                TaskDueDateFilterPreset.All => dbQuery,
+            var startOfWeek = today.StartOfWeek();
+            var endOfWeek = today.EndOfWeek();
+            var startOfMonth = new DateOnly(today.Year, today.Month, 1);
+            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
 
+            dbQuery = query.DueDateFilterPreset.Value switch
+            {
                 TaskDueDateFilterPreset.Overdue => dbQuery.Where(t => t.DueDate < today),
 
                 TaskDueDateFilterPreset.Today => dbQuery.Where(t => t.DueDate == today),
 
-                TaskDueDateFilterPreset.ThisWeek => dbQuery.Where(t => t.DueDate >= today.StartOfWeek() && t.DueDate <= today.EndOfWeek()),
+                TaskDueDateFilterPreset.ThisWeek => dbQuery.Where(t => t.DueDate >= startOfWeek && t.DueDate <= endOfWeek),
 
-                TaskDueDateFilterPreset.ThisMonth => dbQuery.Where(t => t.DueDate.Value.Year == today.Year && t.DueDate.Value.Month == today.Month),
+                TaskDueDateFilterPreset.ThisMonth => dbQuery.Where(t => t.DueDate >= startOfMonth && t.DueDate <= endOfMonth),
 
                 TaskDueDateFilterPreset.NoDueDate => dbQuery.Where(t => t.DueDate == null),
 
@@ -73,8 +77,8 @@ public static class TaskQueryExtensions
                 : dbQuery.OrderBy(t => t.Title),
 
             TaskSortField.CategoryTitle => query.IsDescending
-                ? dbQuery.OrderByDescending(t => t.Category != null ? t.Category.Title : string.Empty)
-                : dbQuery.OrderBy(t => t.Category != null ? t.Category.Title : string.Empty),
+                ? dbQuery.OrderByDescending(t => t.Category.Title)
+                : dbQuery.OrderBy(t => t.Category.Title),
 
             TaskSortField.DueDate => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.DueDate)
@@ -98,7 +102,6 @@ public static class TaskQueryExtensions
 
     public static IQueryable<TaskEntity> ApplyPagination(this IQueryable<TaskEntity> dbQuery, GetTasksQuery query)
     {
-        // default to page 1 and size 10 if not provided or invalid
         int page = query.PageNumber > 0 ? query.PageNumber : 1;
         int size = query.PageSize > 0 ? query.PageSize : 10;
 

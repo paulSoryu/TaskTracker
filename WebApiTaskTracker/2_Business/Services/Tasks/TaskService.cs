@@ -15,7 +15,7 @@ namespace WebApiTaskTracker.Business.Services.Tasks;
 
 public class TaskService(TaskTrackerDbContext db) : ITaskService
 {
-    public async Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync(GetTasksQuery query)
+    public async Task<IReadOnlyCollection<TaskView>> GetAllAsync(GetTasksQuery query)
     {
         // Ideally, we should pass the current date from the frontend, but for now, we will use the server's current date
         var today = DateOnly.FromDateTime(DateTime.Today);
@@ -25,16 +25,16 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             .ApplyFilter(query, today)
             .ApplySorting(query)
             .ApplyPagination(query)
-            .ProjectToType<TaskBusinessModel>()
+            .ProjectToType<TaskView>()
             .ToListAsync();
     }
 
-    public async Task<Result<TaskBusinessModel>> GetByIdAsync(Guid id)
+    public async Task<Result<TaskView>> GetByIdAsync(Guid id)
     {
         var response = await db.Tasks
             .AsNoTracking()
             .Where(t => t.Id == id)
-            .ProjectToType<TaskBusinessModel>()
+            .ProjectToType<TaskView>()
             .FirstOrDefaultAsync();
 
         return response is null
@@ -42,7 +42,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             : Result.Ok(response);
     }
 
-    public async Task<Result<TaskBusinessModel>> CreateAsync(TaskSaveCommand dto, Guid userId)
+    public async Task<Result<TaskView>> CreateAsync(TaskSaveCommand dto, Guid userId)
     {
         // Global SQL filter already filters everything by userId, so we don't need to filter here
         var isEmailConfirmed = await db.Users
@@ -67,7 +67,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         db.Tasks.Add(entity);
         await db.SaveChangesAsync();
 
-        return Result.Ok(entity.Adapt<TaskBusinessModel>());
+        return Result.Ok(entity.Adapt<TaskView>());
     }
 
     public async Task<Result> UpdateAsync(TaskSaveCommand dto)

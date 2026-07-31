@@ -9,7 +9,6 @@ using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
-using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.Business.Services.Categories;
 

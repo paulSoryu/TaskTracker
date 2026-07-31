@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.DataAccess.Databases;
@@ -14,6 +15,17 @@ namespace WebApiTaskTracker.Business.Services.Categories;
 
 public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 {
+    public async Task<IReadOnlyCollection<CategoryBusinessModel>> GetAllAsync(GetCategoriesQuery query)
+    {
+        var result = await db.Categories
+            .AsNoTracking()
+            .ApplyFilter(query)
+            .ApplySorting(query)
+            .ProjectToType<CategoryBusinessModel>()
+            .ToListAsync();
+
+        return result;
+    }
 
     public async Task<Result<CategoryBusinessModel>> GetByIdAsync(Guid id)
     {
@@ -27,16 +39,6 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
             return Result.Fail(new NotFoundError("Category", id));
 
         return Result.Ok(response);
-    }
-
-    public async Task<IReadOnlyCollection<CategoryBusinessModel>> GetAllAsync()
-    {
-        var result = await db.Categories
-            .AsNoTracking()
-            .ProjectToType<CategoryBusinessModel>()
-            .ToListAsync();
-
-        return result;
     }
 
     public async Task<Result<CategoryBusinessModel>> CreateAsync(CategorySaveCommand dto, Guid userId)

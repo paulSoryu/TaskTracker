@@ -14,29 +14,28 @@ public static class TaskEndpoints
 {
     public static void MapTaskEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var routeGroup = endpoints.MapGroup("/api/tasks").RequireAuthorization();
+        var routeGroup = endpoints.MapGroup("/api/tasks")
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         routeGroup.MapGet("/", GetAllTasks);
 
         routeGroup.MapGet("/{id:Guid}", GetTaskById)
-            .WithName("GetTaskById");
+            .WithName("GetTaskById")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         routeGroup.MapPost("/", CreateTask)
-            .AddEndpointFilter<ValidationFilter<TaskCreateRequest>>();
+            .WithValidation<TaskCreateRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapPut("/{id:Guid}", UpdateTask)
-            .AddEndpointFilter<ValidationFilter<TaskUpdateRequest>>();
+            .WithValidation<TaskUpdateRequest>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        routeGroup.MapDelete("/{id:Guid}", DeleteTask);
-    }
-
-    private static async Task<Results<Ok<TaskResponse>, ProblemHttpResult>> GetTaskById(Guid id, ITaskService taskService)
-    {
-        Result<TaskBusinessModel> result = await taskService.GetByIdAsync(id);
-
-        Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
-
-        return responseResult.ToTypedHttpResult();
+        routeGroup.MapDelete("/{id:Guid}", DeleteTask)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Ok<IReadOnlyCollection<TaskSummaryResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
@@ -48,17 +47,14 @@ public static class TaskEndpoints
         return TypedResults.Ok(response);
     }
 
-    //private static async Task<Results<Ok<IReadOnlyCollection<TaskSummaryResponse>>, ProblemHttpResult>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
-    //{
-    //    var query = request.Adapt<GetTasksQuery>();
+    private static async Task<Results<Ok<TaskResponse>, ProblemHttpResult>> GetTaskById(Guid id, ITaskService taskService)
+    {
+        Result<TaskBusinessModel> result = await taskService.GetByIdAsync(id);
 
-    //    Result<IReadOnlyCollection<TaskBusinessModel>> result = await taskService.GetAllAsync(query);
+        Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
 
-    //    Result<IReadOnlyCollection<TaskSummaryResponse>> responseResult =
-    //        result.Map(tasks => tasks.Adapt<IReadOnlyCollection<TaskSummaryResponse>>());
-
-    //    return responseResult.ToTypedHttpResult();
-    //}
+        return responseResult.ToTypedHttpResult();
+    }
 
     private static async Task<Results<CreatedAtRoute<TaskResponse>, ProblemHttpResult>> CreateTask(TaskCreateRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
     {

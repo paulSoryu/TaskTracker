@@ -10,35 +10,36 @@ using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
-using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 
 public class TaskService(TaskTrackerDbContext db) : ITaskService
 {
-
-    public async Task<Result<TaskBusinessModel>> GetByIdAsync(Guid id)
-{
-    var response = await db.Tasks
-        .AsNoTracking()
-        .Where(t => t.Id == id)
-        .ProjectToType<TaskBusinessModel>()
-        .FirstOrDefaultAsync();
-
-    return response is null
-        ? Result.Fail(new NotFoundError("Task", id))
-        : Result.Ok(response);
-}
-
     public async Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync(GetTasksQuery query)
     {
+        // Ideally, we should pass the current date from the frontend, but for now, we will use the server's current date
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
         return await db.Tasks.AsQueryable()
-            // Ideally, we should pass the current date from the frontend, but for now, we will use the server's current date
-            .ApplyFilter(query, DateOnly.FromDateTime(DateTime.Today)) 
+            .AsNoTracking()
+            .ApplyFilter(query, today)
             .ApplySorting(query)
             .ApplyPagination(query)
             .ProjectToType<TaskBusinessModel>()
             .ToListAsync();
+    }
+
+    public async Task<Result<TaskBusinessModel>> GetByIdAsync(Guid id)
+    {
+        var response = await db.Tasks
+            .AsNoTracking()
+            .Where(t => t.Id == id)
+            .ProjectToType<TaskBusinessModel>()
+            .FirstOrDefaultAsync();
+
+        return response is null
+            ? Result.Fail(new NotFoundError("Task", id))
+            : Result.Ok(response);
     }
 
     public async Task<Result<TaskBusinessModel>> CreateAsync(TaskSaveCommand dto, Guid userId)
@@ -48,7 +49,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             .Select(u => u.EmailConfirmed)
             .FirstOrDefaultAsync();
 
-        int currentTasksCount = await db.Tasks.CountAsync(); 
+        int currentTasksCount = await db.Tasks.CountAsync();
         int maxAllowedTasks = isEmailConfirmed ? 1000 : 20;
 
         // Check if the user has reached the maximum allowed tasks

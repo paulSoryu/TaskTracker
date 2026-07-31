@@ -3,10 +3,12 @@ using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using WebApiTaskTracker.Business.Models.Categories;
+using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.DTOs;
 using WebApiTaskTracker.WebApi.DTOs.Categories;
+using WebApiTaskTracker.WebApi.DTOs.Tasks;
 
 namespace WebApiTaskTracker.WebApi.Endpoints;
 
@@ -14,20 +16,37 @@ public static class CategoryEndpoints
 {
     public static void MapCategoryEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var routeGroup = endpoints.MapGroup("/api/categories").RequireAuthorization();
+        var routeGroup = endpoints.MapGroup("/api/categories")
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         routeGroup.MapGet("/", GetAllCategories);
 
         routeGroup.MapGet("/{id:Guid}", GetCategoryById)
-            .WithName("GetCategoryById");
+            .WithName("GetCategoryById")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         routeGroup.MapPost("/", CreateCategory)
-            .AddEndpointFilter<ValidationFilter<CategoryCreateRequest>>();
+            .AddEndpointFilter<ValidationFilter<CategoryCreateRequest>>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapPut("/{id:Guid}", UpdateCategory)
-            .AddEndpointFilter<ValidationFilter<CategoryUpdateRequest>>();
+            .AddEndpointFilter<ValidationFilter<CategoryUpdateRequest>>()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        routeGroup.MapDelete("/{id:Guid}", DeleteCategory);
+        routeGroup.MapDelete("/{id:Guid}", DeleteCategory)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    private static async Task<Ok<IReadOnlyCollection<CategorySummaryResponse>>> GetAllCategories(ICategoryService categoryService, [AsParameters] GetCategoriesRequest request)
+    {
+        var query = request.Adapt<GetCategoriesQuery>();
+        IReadOnlyCollection<CategoryBusinessModel> categories = await categoryService.GetAllAsync(query);
+
+        var response = categories.Adapt<IReadOnlyCollection<CategorySummaryResponse>>();
+        return TypedResults.Ok(response);
     }
 
     private static async Task<Results<Ok<CategoryResponse>, ProblemHttpResult>> GetCategoryById(Guid id, ICategoryService categoryService)
@@ -37,14 +56,6 @@ public static class CategoryEndpoints
         Result<CategoryResponse> responseResult = result.Map(category => category.Adapt<CategoryResponse>());
 
         return responseResult.ToTypedHttpResult();
-    }
-
-    private static async Task<Ok<IReadOnlyCollection<CategorySummaryResponse>>> GetAllCategories(ICategoryService categoryService)
-    {
-        IReadOnlyCollection<CategoryBusinessModel> categories = await categoryService.GetAllAsync();
-
-        var response = categories.Adapt<IReadOnlyCollection<CategorySummaryResponse>>();
-        return TypedResults.Ok(response);
     }
 
     private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CategoryCreateRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)

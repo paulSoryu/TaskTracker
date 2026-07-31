@@ -30,7 +30,9 @@ public record TaskCreateRequest(
                 .Must(BeTodayOrFuture).WithMessage("Date must be today or in the future.");
 
             RuleFor(x => x.Priority)
-                .NotEmpty().WithMessage("Priority cannot be empty.");
+                .NotEmpty().WithMessage("Priority cannot be empty.")
+                .IsInEnum().WithMessage("Priority must be between 1 and 3.");
+        
         }
 
         private bool BeTodayOrFuture(DateOnly? date)

@@ -28,7 +28,8 @@ public record TaskUpdateRequest(
                 .MaximumLength(TaskConstraints.DescriptionMaxLength).WithMessage($"Description must be at most {TaskConstraints.DescriptionMaxLength} characters.");
 
             RuleFor(x => x.Priority)
-                .NotEmpty().WithMessage("Priority cannot be empty.");
+                .NotEmpty().WithMessage("Priority cannot be empty.")
+                .IsInEnum().WithMessage("Priority must be between 1 and 3.");
         }
     }
 }

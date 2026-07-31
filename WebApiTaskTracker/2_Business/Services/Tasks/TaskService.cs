@@ -33,8 +33,9 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
     public async Task<IReadOnlyCollection<TaskBusinessModel>> GetAllAsync(GetTasksQuery query)
     {
         return await db.Tasks.AsQueryable()
-            .ApplyFilter(query)   
-            .ApplySorting(query)  
+            .ApplyFilter(query, DateOnly.FromDateTime(DateTime.Today))   
+            .ApplySorting(query)
+            .ApplyPagination(query)
             .ProjectToType<TaskBusinessModel>()
             .ToListAsync();
     }

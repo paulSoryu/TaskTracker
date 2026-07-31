@@ -15,6 +15,8 @@ using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.Endpoints;
 
+// Clear the default inbound claim type mapping to prevent automatic mapping of JWT claims to Microsoft identity claims.
+// This is important for ensuring that the claims in the JWT are preserved as-is and not transformed into different claim types by the framework.
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);

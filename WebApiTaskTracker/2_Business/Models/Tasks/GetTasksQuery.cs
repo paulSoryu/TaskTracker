@@ -14,6 +14,9 @@ public record GetTasksQuery(
     bool? IsCompleted,
     Priority? Priority,
 
+    TaskDueDateFilterPreset? DueDateFilterPreset,
+    DateOnly? SpecificMonth,
+
     // Pagination parameters
     int PageNumber,
     int PageSize

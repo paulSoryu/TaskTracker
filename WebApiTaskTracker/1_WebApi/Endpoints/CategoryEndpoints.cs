@@ -1,4 +1,5 @@
-﻿using Mapster;
+﻿using FluentResults;
+using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using WebApiTaskTracker.Business.Models.Categories;
@@ -29,15 +30,13 @@ public static class CategoryEndpoints
         routeGroup.MapDelete("/{id:Guid}", DeleteCategory);
     }
 
-    private static async Task<Results<Ok<CategoryResponse>, NotFound<string>>> GetCategoryById(Guid id, ICategoryService categoryService)
+    private static async Task<Results<Ok<CategoryResponse>, ProblemHttpResult>> GetCategoryById(Guid id, ICategoryService categoryService)
     {
-        CategoryBusinessModel? category = await categoryService.GetByIdAsync(id);
+        Result<CategoryBusinessModel> result = await categoryService.GetByIdAsync(id);
 
-        if (category is null)
-            return TypedResults.NotFound($"Category with ID {id} not found.");
+        Result<CategoryResponse> responseResult = result.Map(category => category.Adapt<CategoryResponse>());
 
-        var response = category.Adapt<CategoryResponse>();
-        return TypedResults.Ok(response);
+        return responseResult.ToTypedHttpResult();
     }
 
     private static async Task<Ok<IReadOnlyCollection<CategorySummaryResponse>>> GetAllCategories(ICategoryService categoryService)
@@ -48,27 +47,32 @@ public static class CategoryEndpoints
         return TypedResults.Ok(response);
     }
 
-    private static async Task<CreatedAtRoute<CategoryResponse>> CreateCategory(CategoryCreateRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)
+    private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CategoryCreateRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)
     {
         var command = categoryRequest.Adapt<CategorySaveCommand>();
 
-        CategoryBusinessModel createdCategory = await categoryService.CreateAsync(command, user.GetUserId());
+        Result<CategoryBusinessModel> result = await categoryService.CreateAsync(command, user.GetUserId());
 
-        var response = createdCategory.Adapt<CategoryResponse>();
-        return TypedResults.CreatedAtRoute(response, "GetCategoryById", new { id = response.Id });
+        Result<CategoryResponse> responseResult = result.Map(category => category.Adapt<CategoryResponse>());
+
+        return responseResult.ToCreatedAtRouteResult(
+            routeName: "GetCategoryById",
+            routeValues: new { id = responseResult.ValueOrDefault?.Id });
     }
 
-    private static async Task<NoContent> UpdateCategory(Guid id, CategoryUpdateRequest categoryRequest, ICategoryService categoryService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateCategory(Guid id, CategoryUpdateRequest categoryRequest, ICategoryService categoryService)
     {
         var command = categoryRequest.Adapt<CategorySaveCommand>() with { Id = id };
 
-        await categoryService.UpdateAsync(command);
-        return TypedResults.NoContent();
+        Result result = await categoryService.UpdateAsync(command);
+
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<NoContent> DeleteCategory(Guid id, ICategoryService categoryService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteCategory(Guid id, ICategoryService categoryService)
     {
-        await categoryService.DeleteAsync(id);
-        return TypedResults.NoContent();
+        Result result = await categoryService.DeleteAsync(id);
+
+        return result.ToTypedHttpResult();
     }
 }

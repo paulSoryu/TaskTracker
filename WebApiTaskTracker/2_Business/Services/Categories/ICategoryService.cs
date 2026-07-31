@@ -1,13 +1,13 @@
-﻿using WebApiTaskTracker.Business.Models.Categories;
-using WebApiTaskTracker.WebApi.DTOs.Categories;
+﻿using FluentResults;
+using WebApiTaskTracker.Business.Models.Categories;
 
 namespace WebApiTaskTracker.Business.Services.Categories;
 
 public interface ICategoryService
 {
-    Task<CategoryBusinessModel> GetByIdAsync(Guid id);
+    Task<Result<CategoryBusinessModel>> GetByIdAsync(Guid id);
     Task<IReadOnlyCollection<CategoryBusinessModel>> GetAllAsync();
-    Task<CategoryBusinessModel> CreateAsync(CategorySaveCommand category, Guid userId);
-    Task UpdateAsync(CategorySaveCommand category);
-    Task DeleteAsync(Guid id);
+    Task<Result<CategoryBusinessModel>> CreateAsync(CategorySaveCommand category, Guid userId);
+    Task<Result> UpdateAsync(CategorySaveCommand category);
+    Task<Result> DeleteAsync(Guid id);
 }

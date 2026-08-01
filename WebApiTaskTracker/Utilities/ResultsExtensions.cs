@@ -3,6 +3,7 @@
 using FluentResults;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Identity;
 using WebApiTaskTracker.Business.FluentErrors;
 
 public static class ResultExtensions

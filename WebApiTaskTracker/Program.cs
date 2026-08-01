@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using WebApiTaskTracker.Business.Services.Accounts;
+using WebApiTaskTracker.Business.Services.Auths;
 using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Business.Services.Emails;
 using WebApiTaskTracker.Business.Services.Tasks;
@@ -14,10 +15,6 @@ using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.Endpoints;
-
-// Clear the default inbound claim type mapping to prevent automatic mapping of JWT claims to Microsoft identity claims.
-// This is important for ensuring that the claims in the JWT are preserved as-is and not transformed into different claim types by the framework.
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,12 +25,17 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, HttpUserContext>();
 
 // Identity and authentication
-builder.Services.AddAuthentication();
+builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddCookie(IdentityConstants.ApplicationScheme);
 builder.Services.AddAuthorization();
-builder.Services.AddIdentityApiEndpoints<UserEntity>(options => {
+
+builder.Services.AddIdentityCore<UserEntity>(options =>
+{
     options.SignIn.RequireConfirmedAccount = false;
     options.SignIn.RequireConfirmedEmail = false;
-}).AddEntityFrameworkStores<TaskTrackerDbContext>();
+})
+    .AddEntityFrameworkStores<TaskTrackerDbContext>()
+    .AddDefaultTokenProviders()
+    .AddSignInManager<SignInManager<UserEntity>>();
 
 // CORS configuration to allow requests from the frontend application running on a different origin
 builder.Services.AddCors(options =>
@@ -51,6 +53,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IEmailSender<UserEntity>, EmailSenderService>();
 
 // Validators and exception handling
@@ -123,7 +126,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 
-app.MapAccountEndpoints();
+app.MapAuthEndpoints();
 app.MapTaskEndpoints();
 app.MapCategoryEndpoints();
 

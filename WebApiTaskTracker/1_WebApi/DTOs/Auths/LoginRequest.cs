@@ -1,0 +1,21 @@
+using FluentValidation;
+
+namespace WebApiTaskTracker.WebApi.DTOs.Auth;
+
+public record LoginRequest(
+    string Email, 
+    string Password
+)
+{
+    public class Validator : AbstractValidator<LoginRequest>
+    {
+        public Validator()
+        {
+            RuleFor(x => x.Email)
+                .NotEmpty()
+                .EmailAddress();
+            RuleFor(x => x.Password)
+                .NotEmpty();
+        }
+    }
+}

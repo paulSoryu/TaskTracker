@@ -1,5 +1,6 @@
 ﻿using FluentResults;
 using Microsoft.AspNetCore.Identity;
+using System.Collections;
 
 namespace WebApiTaskTracker.Business.FluentErrors;
 
@@ -80,18 +81,25 @@ public class ValidationError : Error
         Errors = errors;
         Metadata.Add("ErrorCode", "BUSINESS_VALIDATION_ERROR");
     }
+
+    // Could add a constructor that takes a list of errors and groups them by field name, similar to IdentityValidationError, if needed.
 }
 
 public class IdentityValidationError : Error
 {
-    public IEnumerable<string> Errors { get; }
+    public Dictionary<string, string[]> Errors { get; }
 
-    public IdentityValidationError(IEnumerable<IdentityError> identityErrors)       
-        : base("Identity validation failed.")
+    public IdentityValidationError(string message, IEnumerable<IdentityError> identityErrors)
+        : base(message)
     {
-        Errors = identityErrors.Select(e => e.Description);
         Metadata.Add("ErrorCode", "IDENTITY_VALIDATION_ERROR");
 
-        Message = string.Join(" ", Errors);
+        Errors = identityErrors
+            .GroupBy(e => e.Code)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(e => e.Description).ToArray()
+            );
+
     }
 }

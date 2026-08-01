@@ -9,7 +9,7 @@ public class TaskEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
     public required string Title { get; set; }
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public DateOnly? DueDate { get; set; }
     public TaskPriority Priority { get; set; }
     public bool IsCompleted { get; set; } = false;
@@ -20,6 +20,6 @@ public class TaskEntity : IAuditableEntity
     public UserEntity User { get; set; } = null!;
 
     
-    public required Guid CategoryId { get; set; } 
+    public Guid? CategoryId { get; set; } 
     public CategoryEntity? Category { get; set; }
 }

@@ -10,6 +10,6 @@ public static class IdentityExtensions
     {
         return identityResult.Succeeded
             ? Result.Ok()
-            : Result.Fail(new IdentityValidationError(identityResult.Errors));
+            : Result.Fail(new IdentityValidationError("Identity validation failed.", identityResult.Errors));
     }
 }

@@ -10,6 +10,7 @@ using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
+using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.Business.Services.Categories;
 
@@ -44,7 +45,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
     public async Task<Result<CategoryView>> CreateAsync(CategorySaveCommand dto, Guid userId)
     {
         bool categoryExists = await db.Categories
-            .AnyAsync(c => c.Title.ToLower() == dto.Title.ToLower());
+            .AnyAsync(c => c.Title == dto.Title);
 
         if (categoryExists)
             return Result.Fail(new ValidationError($"Category with name '{dto.Title}' already exists."));
@@ -55,7 +56,9 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
             .FirstOrDefaultAsync();
 
         int currentCategoriesCount = await db.Categories.CountAsync();
-        int maxAllowedCategories = isEmailConfirmed ? 100 : 5;
+        int maxAllowedCategories = isEmailConfirmed 
+            ? CategoryConstraints.MaxCategoriesForConfirmedEmail 
+            : CategoryConstraints.MaxCategoriesForUnconfirmedEmail;
 
         // Check if the user has reached the maximum allowed categories
         if (currentCategoriesCount >= maxAllowedCategories)

@@ -9,6 +9,5 @@ public record TaskSaveCommand(
     DateOnly? DueDate,        
     TaskPriority Priority,
     bool IsCompleted,
-    Guid CategoryId,         
-    string CategoryTitle     
+    Guid? CategoryId     
 );

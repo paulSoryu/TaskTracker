@@ -10,6 +10,5 @@ public record TaskView(
     TaskPriority Priority,
     bool IsCompleted,
     DateTime CreatedAt,
-    Guid CategoryId,
-    string CategoryTitle
+    Guid? CategoryId
 );

@@ -10,5 +10,5 @@ public record TaskResponse(
     TaskPriority Priority,
     bool IsCompleted,
     DateTime CreatedAt,
-    string CategoryTitle
+    Guid? CategoryId
 );

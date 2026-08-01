@@ -29,13 +29,13 @@ public static class AuthEndpoints
             .RequireAuthorization();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> Register(RegisterDto dto, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> Register(RegisterRequest dto, IAuthService authService)
     {
         Result result = await authService.RegisterAsync(dto.Email, dto.Password);
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> Login(LoginDto dto, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> Login(LoginRequest dto, IAuthService authService)
     {
         Result result = await authService.LoginAsync(dto.Email, dto.Password);
         return result.ToTypedHttpResult();
@@ -47,13 +47,13 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> ChangePassword(ChangePasswordDto dto, ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ChangePassword(ChangePasswordRequest dto, ClaimsPrincipal user, IAuthService authService)
     {
         Result result = await authService.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<Ok<object>, ProblemHttpResult>> RequestChangeEmail(RequestChangeEmailDto dto, ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<Ok<object>, ProblemHttpResult>> RequestChangeEmail(ChangeEmailRequest dto, ClaimsPrincipal user, IAuthService authService)
     {
         Result<string> result = await authService.RequestChangeEmailAsync(user, dto.NewEmail);
 
@@ -66,7 +66,7 @@ public static class AuthEndpoints
         return responseResult.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmChangeEmail(ConfirmChangeEmailDto dto, ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmChangeEmail(ConfirmChangeEmailRequest dto, ClaimsPrincipal user, IAuthService authService)
     {
         Result result = await authService.ConfirmChangeEmailAsync(user, dto.NewEmail, dto.Token);
         return result.ToTypedHttpResult();
@@ -78,9 +78,9 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Ok<string>> Logout(IAuthService authService)
+    private static async Task<NoContent> Logout(IAuthService authService)
     {
         await authService.LogoutAsync();
-        return TypedResults.Ok("Logged out.");
+        return TypedResults.NoContent();
     }
 }

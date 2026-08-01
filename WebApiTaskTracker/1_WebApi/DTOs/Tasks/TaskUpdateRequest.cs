@@ -12,7 +12,7 @@ public record TaskUpdateRequest(
     DateOnly? DueDate,
     TaskPriority Priority,
     bool IsCompleted,
-    string CategoryTitle
+    Guid? CategoryId
 )
 {
     public class Validator : AbstractValidator<TaskUpdateRequest>
@@ -30,9 +30,6 @@ public record TaskUpdateRequest(
             RuleFor(x => x.Priority)
                 .NotEmpty().WithMessage("Priority cannot be empty.")
                 .IsInEnum().WithMessage("Priority must be between 1 and 3.");
-
-            RuleFor(x => x.CategoryTitle)
-                .NotEmpty().WithMessage("Category title cannot be empty.");
         }
     }
 }

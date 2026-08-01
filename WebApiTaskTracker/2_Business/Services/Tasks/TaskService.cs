@@ -10,6 +10,7 @@ using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
+using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 
@@ -50,7 +51,9 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             .FirstOrDefaultAsync();
 
         int currentTasksCount = await db.Tasks.CountAsync();
-        int maxAllowedTasks = isEmailConfirmed ? 1000 : 20;
+        int maxAllowedTasks = isEmailConfirmed 
+            ? TaskConstraints.MaxTasksForConfirmedEmail 
+            : TaskConstraints.MaxTasksForUnconfirmedEmail;
 
         // Check if the user has reached the maximum allowed tasks
         if (currentTasksCount >= maxAllowedTasks)

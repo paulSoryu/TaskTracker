@@ -20,7 +20,7 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         {
             var identityResult = await userManager.CreateAsync(user, password);
             if (!identityResult.Succeeded)
-                return Result.Fail(new IdentityValidationError(identityResult.Errors));
+                return Result.Fail(new IdentityValidationError("Email or password is invalid.", identityResult.Errors));
 
             Guid[] guids = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
             var defaultCategories = new List<CategoryEntity>

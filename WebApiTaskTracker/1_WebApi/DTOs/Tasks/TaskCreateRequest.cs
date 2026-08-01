@@ -11,7 +11,7 @@ public record TaskCreateRequest(
     string Description,
     DateOnly? DueDate,
     TaskPriority Priority,
-    string CategoryTitle
+    Guid? CategoryId
 )
 {
     public class Validator : AbstractValidator<TaskCreateRequest>
@@ -32,9 +32,6 @@ public record TaskCreateRequest(
             RuleFor(x => x.Priority)
                 .NotEmpty().WithMessage("Priority cannot be empty.")
                 .IsInEnum().WithMessage("Priority must be between 1 and 3.");
-
-            RuleFor(x => x.CategoryTitle)
-                .NotEmpty().WithMessage("Category title cannot be empty.");
 
         }
 

@@ -1,7 +1,6 @@
 ﻿namespace WebApiTaskTracker.Business.Services.Auths;
 
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.DataAccess.Databases;

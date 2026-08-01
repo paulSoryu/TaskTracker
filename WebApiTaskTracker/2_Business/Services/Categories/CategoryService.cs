@@ -90,6 +90,10 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 
     public async Task<Result> DeleteAsync(Guid categoryId)
     {
+        var categoriesCount = await db.Categories.CountAsync();
+        if (categoriesCount <= 1)
+            return Result.Fail(new ValidationError("Cannot delete the last category."));
+
         int affectedRows = await db.Categories
             .Where(c => c.Id == categoryId)
             .ExecuteDeleteAsync();

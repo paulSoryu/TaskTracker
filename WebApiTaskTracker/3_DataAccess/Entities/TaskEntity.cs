@@ -20,6 +20,6 @@ public class TaskEntity : IAuditableEntity
     public UserEntity User { get; set; } = null!;
 
     
-    public Guid? CategoryId { get; set; } 
+    public required Guid CategoryId { get; set; } 
     public CategoryEntity? Category { get; set; }
 }

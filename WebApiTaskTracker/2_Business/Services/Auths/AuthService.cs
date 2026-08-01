@@ -11,34 +11,57 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
     public async Task<IdentityResult> RegisterAsync(string email, string password)
     {
         var user = new UserEntity { UserName = email, Email = email };
-        var result = await userManager.CreateAsync(user, password);
 
-        if (result.Succeeded)
+        using var transaction = await db.Database.BeginTransactionAsync();
+        try
         {
-            // Add default tasks and categories
-            Guid[] guids = [Guid.NewGuid() , Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
-            
-            db.Categories.Add(new CategoryEntity { Id = guids[0], Title = "Work", Colour = "", UserId = user.Id });
-            db.Categories.Add(new CategoryEntity { Id = guids[1], Title = "Personal", Colour = "", UserId = user.Id });
-            db.Categories.Add(new CategoryEntity { Id = guids[2], Title = "Errands", Colour = "", UserId = user.Id });
-            db.Categories.Add(new CategoryEntity { Id = guids[3], Title = "Health", Colour = "", UserId = user.Id });
-            db.Categories.Add(new CategoryEntity { Id = guids[4], Title = "Other", Colour = "", UserId = user.Id });
+            var result = await userManager.CreateAsync(user, password);
 
-            db.Tasks.Add(new TaskEntity { Title = "Prepare quarterly report", UserId = user.Id, CategoryId = guids[0] });
-            db.Tasks.Add(new TaskEntity { Title = "Book dentist appointment", UserId = user.Id, CategoryId = guids[1] });
-            db.Tasks.Add(new TaskEntity { Title = "Renew apartment insurance", UserId = user.Id, CategoryId = guids[2] });
-            db.Tasks.Add(new TaskEntity { Title = "Grocery run", UserId = user.Id, CategoryId = guids[3] });
-            db.Tasks.Add(new TaskEntity { Title = "Buy a present for my wife", UserId = user.Id, CategoryId = guids[4] });
+            if (!result.Succeeded)
+                return result;
+
+            Guid[] guids = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
+
+            var defaultCategories = new List<CategoryEntity>
+            {
+                new() { Id = guids[0], Title = "Work", Colour = "", UserId = user.Id },
+                new() { Id = guids[1], Title = "Personal", Colour = "", UserId = user.Id },
+                new() { Id = guids[2], Title = "Errands", Colour = "", UserId = user.Id },
+                new() { Id = guids[3], Title = "Health", Colour = "", UserId = user.Id },
+                new() { Id = guids[4], Title = "Other", Colour = "", UserId = user.Id }
+            };
+
+            var defaultTasks = new List<TaskEntity>
+            {
+                new() { Title = "Prepare quarterly report", UserId = user.Id, CategoryId = guids[0] },
+                new() { Title = "Book dentist appointment", UserId = user.Id, CategoryId = guids[1] },
+                new() { Title = "Renew apartment insurance", UserId = user.Id, CategoryId = guids[2] },
+                new() { Title = "Grocery run", UserId = user.Id, CategoryId = guids[3] },
+                new() { Title = "Buy presents for kids", UserId = user.Id, CategoryId = guids[4] }
+            };
+
+            db.Categories.AddRange(defaultCategories);
+            db.Tasks.AddRange(defaultTasks);
 
             await db.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+
+            await signInManager.SignInAsync(user, isPersistent: true);
+
+            return IdentityResult.Success;
         }
-        return result;
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<SignInResult> LoginAsync(string email, string password)
     {
         var user = await userManager.FindByEmailAsync(email);
-        if (user == null) 
+        if (user == null)
             return SignInResult.Failed;
 
         return await signInManager.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: false);
@@ -47,7 +70,7 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
     public async Task<IdentityResult> ConfirmEmailAsync(string userId, string token)
     {
         var user = await userManager.FindByIdAsync(userId);
-        if (user == null) 
+        if (user == null)
             return IdentityResult.Failed(new IdentityError { Description = "User not found." });
 
         return await userManager.ConfirmEmailAsync(user, token);
@@ -56,7 +79,7 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
     public async Task<IdentityResult> ChangePasswordAsync(ClaimsPrincipal userPrincipal, string currentPassword, string newPassword)
     {
         var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null) 
+        if (user == null)
             return IdentityResult.Failed(new IdentityError { Description = "Unauthorized." });
 
         return await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
@@ -65,7 +88,7 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
     public async Task<(IdentityResult, string?)> RequestChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail)
     {
         var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null) 
+        if (user == null)
             return (IdentityResult.Failed(new IdentityError { Description = "Unauthorized." }), null);
 
         var token = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
@@ -75,7 +98,7 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
     public async Task<IdentityResult> ConfirmChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail, string token)
     {
         var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null) 
+        if (user == null)
             return IdentityResult.Failed(new IdentityError { Description = "Unauthorized." });
 
         var result = await userManager.ChangeEmailAsync(user, newEmail, token);

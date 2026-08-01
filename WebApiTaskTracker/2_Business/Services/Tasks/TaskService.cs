@@ -56,13 +56,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         if (currentTasksCount >= maxAllowedTasks)
             return Result.Fail(new TaskLimitExceededError(maxAllowedTasks, isEmailConfirmed));
 
-        var existingCategory = await GetOrCreateCategoryAsync(dto.CategoryTitle!, userId);
-        Guid? categoryId = existingCategory?.Id;
-
         var entity = dto.Adapt<TaskEntity>();
-
-        entity.UserId = userId;
-        entity.CategoryId = categoryId;
 
         db.Tasks.Add(entity);
         await db.SaveChangesAsync();
@@ -82,12 +76,6 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
         dto.Adapt(task);
 
-        if (dto.CategoryTitle != null)
-        {
-            var category = await GetOrCreateCategoryAsync(dto.CategoryTitle, task.UserId);
-            task.CategoryId = category?.Id;
-        }
-
         await db.SaveChangesAsync();
         return Result.Ok();
     }
@@ -102,31 +90,5 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         await db.SaveChangesAsync();
 
         return Result.Ok();
-    }
-
-    private async Task<CategoryEntity?> GetOrCreateCategoryAsync(string? categoryTitle, Guid userId)
-    {
-        if (string.IsNullOrWhiteSpace(categoryTitle))
-            return null;
-
-        var cleanedTitle = categoryTitle.Trim();
-        var normalizedTitle = cleanedTitle.ToLower();
-
-        var category = await db.Categories
-            .FirstOrDefaultAsync(c => c.Title.ToLower() == normalizedTitle);
-
-        if (category == null)
-        {
-            category = new CategoryEntity
-            {
-                Title = cleanedTitle,
-                UserId = userId
-            };
-
-            db.Categories.Add(category);
-            await db.SaveChangesAsync();
-        }
-
-        return category;
     }
 }

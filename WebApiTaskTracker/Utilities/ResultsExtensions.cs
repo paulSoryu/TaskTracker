@@ -42,6 +42,15 @@ public static class ResultExtensions
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Category Limit Exceeded"),
 
+            IdentityValidationError identityError => TypedResults.Problem(
+                detail: identityError.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Validation Error",
+                extensions: new Dictionary<string, object?>
+                { 
+                    { "errors", identityError.Errors }
+                }),
+
             // In case we will add other roles like Admin, Moderator, etc., we can handle them here.
             //UnauthorizedError => TypedResults.Problem(
             //    detail: error.Message,

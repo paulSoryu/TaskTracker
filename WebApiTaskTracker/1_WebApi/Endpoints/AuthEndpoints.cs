@@ -1,5 +1,8 @@
-﻿using System.Security.Claims;
+﻿using FluentResults;
+using Microsoft.AspNetCore.Http.HttpResults;
+using System.Security.Claims;
 using WebApiTaskTracker.Business.Services.Auths;
+using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.DTOs.Auth;
 
 namespace WebApiTaskTracker.WebApi.Endpoints;
@@ -12,7 +15,8 @@ public static class AuthEndpoints
 
         group.MapPost("/register", Register);
         group.MapPost("/login", Login);
-        group.MapGet("/confirm-email", ConfirmEmail);
+        group.MapGet("/confirm-email", ConfirmEmail)
+            .RequireAuthorization();
         group.MapPost("/change-password", ChangePassword)
             .RequireAuthorization();
         group.MapPost("/request-change-email", RequestChangeEmail)
@@ -25,53 +29,58 @@ public static class AuthEndpoints
             .RequireAuthorization();
     }
 
-    private static async Task<IResult> Register(RegisterDto dto, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> Register(RegisterDto dto, IAuthService authService)
     {
-        var result = await authService.RegisterAsync(dto.Email, dto.Password);
-        return result.Succeeded ? Results.Ok("User registered.") : Results.BadRequest(result.Errors);
+        Result result = await authService.RegisterAsync(dto.Email, dto.Password);
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<IResult> Login(LoginDto dto, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> Login(LoginDto dto, IAuthService authService)
     {
-        var result = await authService.LoginAsync(dto.Email, dto.Password);
-        if (result.Succeeded) return Results.Ok("Logged in.");
-        if (result.IsNotAllowed) return Results.BadRequest("Email not confirmed.");
-        return Results.BadRequest("Invalid login attempt.");
+        Result result = await authService.LoginAsync(dto.Email, dto.Password);
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<IResult> ConfirmEmail(string userId, string token, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmEmail(string userId, string token, IAuthService authService)
     {
-        var result = await authService.ConfirmEmailAsync(userId, token);
-        return result.Succeeded ? Results.Ok("Email confirmed.") : Results.BadRequest(result.Errors);
+        Result result = await authService.ConfirmEmailAsync(userId, token);
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<IResult> ChangePassword(ChangePasswordDto dto, ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ChangePassword(ChangePasswordDto dto, ClaimsPrincipal user, IAuthService authService)
     {
-        var result = await authService.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
-        return result.Succeeded ? Results.Ok("Password changed.") : Results.BadRequest(result.Errors);
+        Result result = await authService.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<IResult> RequestChangeEmail(RequestChangeEmailDto dto, ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<Ok<object>, ProblemHttpResult>> RequestChangeEmail(RequestChangeEmailDto dto, ClaimsPrincipal user, IAuthService authService)
     {
-        var (result, token) = await authService.RequestChangeEmailAsync(user, dto.NewEmail);
-        return result.Succeeded ? Results.Ok(new { Message = "Token sent.", DebugToken = token }) : Results.BadRequest(result.Errors);
+        Result<string> result = await authService.RequestChangeEmailAsync(user, dto.NewEmail);
+
+        Result<object> responseResult = result.Map(token => (object)new
+        {
+            Message = "Token sent.",
+            DebugToken = token
+        });
+
+        return responseResult.ToTypedHttpResult();
     }
 
-    private static async Task<IResult> ConfirmChangeEmail(ConfirmChangeEmailDto dto, ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmChangeEmail(ConfirmChangeEmailDto dto, ClaimsPrincipal user, IAuthService authService)
     {
-        var result = await authService.ConfirmChangeEmailAsync(user, dto.NewEmail, dto.Token);
-        return result.Succeeded ? Results.Ok("Email changed. Please verify it if required.") : Results.BadRequest(result.Errors);
+        Result result = await authService.ConfirmChangeEmailAsync(user, dto.NewEmail, dto.Token);
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<IResult> Logout(IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAccount(ClaimsPrincipal user, IAuthService authService)
+    {
+        Result result = await authService.DeleteAccountAsync(user);
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Ok<string>> Logout(IAuthService authService)
     {
         await authService.LogoutAsync();
-        return Results.Ok("Logged out.");
-    }
-
-    private static async Task<IResult> DeleteAccount(ClaimsPrincipal user, IAuthService authService)
-    {
-        var result = await authService.DeleteAccountAsync(user);
-        return result.Succeeded ? Results.Ok("Account deleted.") : Results.BadRequest(result.Errors);
+        return TypedResults.Ok("Logged out.");
     }
 }

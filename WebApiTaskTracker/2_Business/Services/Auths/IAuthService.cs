@@ -1,16 +1,17 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using FluentResults;
+using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 
 namespace WebApiTaskTracker.Business.Services.Auths;
 
 public interface IAuthService
 {
-    Task<IdentityResult> RegisterAsync(string email, string password);
-    Task<SignInResult> LoginAsync(string email, string password);
-    Task<IdentityResult> ConfirmEmailAsync(string userId, string token);
-    Task<IdentityResult> ChangePasswordAsync(ClaimsPrincipal userPrincipal, string currentPassword, string newPassword);
-    Task<(IdentityResult, string?)> RequestChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail);
-    Task<IdentityResult> ConfirmChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail, string token);
-    Task<IdentityResult> DeleteAccountAsync(ClaimsPrincipal userPrincipal);
+    Task<Result> RegisterAsync(string email, string password);
+    Task<Result> LoginAsync(string email, string password);
+    Task<Result> ConfirmEmailAsync(string userId, string token);
+    Task<Result> ChangePasswordAsync(ClaimsPrincipal userPrincipal, string currentPassword, string newPassword);
+    Task<Result<string>> RequestChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail);
+    Task<Result> ConfirmChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail, string token);
+    Task<Result> DeleteAccountAsync(ClaimsPrincipal userPrincipal);
     Task LogoutAsync();
 }

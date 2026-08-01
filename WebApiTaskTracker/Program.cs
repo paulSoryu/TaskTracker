@@ -3,10 +3,8 @@ using Mapster;
 using MicroElements.Swashbuckle.FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text.Json.Serialization;
-using WebApiTaskTracker.Business.Services.Accounts;
 using WebApiTaskTracker.Business.Services.Auths;
 using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Business.Services.Emails;
@@ -52,7 +50,6 @@ builder.Services.AddCors(options =>
 // Business services
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IEmailSender<UserEntity>, EmailSenderService>();
 

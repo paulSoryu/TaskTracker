@@ -1,27 +1,28 @@
 ﻿namespace WebApiTaskTracker.Business.Services.Auths;
 
+using FluentResults;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
+using WebApiTaskTracker.Business.Extensions;
+using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 
 public class AuthService(UserManager<UserEntity> userManager, SignInManager<UserEntity> signInManager, TaskTrackerDbContext db) : IAuthService
 {
-    public async Task<IdentityResult> RegisterAsync(string email, string password)
+    public async Task<Result> RegisterAsync(string email, string password)
     {
         var user = new UserEntity { UserName = email, Email = email };
 
         using var transaction = await db.Database.BeginTransactionAsync();
         try
         {
-            var result = await userManager.CreateAsync(user, password);
-
-            if (!result.Succeeded)
-                return result;
+            var identityResult = await userManager.CreateAsync(user, password);
+            if (!identityResult.Succeeded)
+                return Result.Fail(new IdentityValidationError(identityResult.Errors));
 
             Guid[] guids = [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()];
-
             var defaultCategories = new List<CategoryEntity>
             {
                 new() { Id = guids[0], Title = "Work", Colour = "#B5602D", UserId = user.Id },
@@ -30,7 +31,6 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
                 new() { Id = guids[3], Title = "Health", Colour = "#2F6F6B", UserId = user.Id },
                 new() { Id = guids[4], Title = "Other", Colour = "#8A8577", UserId = user.Id }
             };
-
             var defaultTasks = new List<TaskEntity>
             {
                 new() { Title = "Prepare quarterly report",  Description = "Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.",   Priority = TaskPriority.High,   DueDate = DateOnly.Parse("2026-08-04"), UserId = user.Id, CategoryId = guids[0] },
@@ -42,64 +42,63 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
 
             db.Categories.AddRange(defaultCategories);
             db.Tasks.AddRange(defaultTasks);
-
             await db.SaveChangesAsync();
 
             await transaction.CommitAsync();
-
             await signInManager.SignInAsync(user, isPersistent: true);
 
-            return IdentityResult.Success;
+            return Result.Ok();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            throw;
+            return Result.Fail(new ExceptionalError("Registration failed due to an internal database error.", ex));
         }
     }
 
-    public async Task<SignInResult> LoginAsync(string email, string password)
+    public async Task<Result> LoginAsync(string email, string password)
     {
-        var user = await userManager.FindByEmailAsync(email);
-        if (user == null)
-            return SignInResult.Failed;
+        var user = await (userManager.FindByEmailAsync(email))!;
 
-        return await signInManager.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: false);
+        if (user == null)
+            return Result.Fail(new ValidationError("Invalid email or password."));
+
+        var signInResult = await signInManager.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: false);
+
+        if (signInResult.IsLockedOut)  return Result.Fail(new ValidationError("Account is locked out."));
+        if (signInResult.IsNotAllowed) return Result.Fail(new ValidationError("Login is not allowed. Check email confirmation."));
+        if (!signInResult.Succeeded)   return Result.Fail(new ValidationError("Invalid email or password."));
+
+        return Result.Ok();
     }
 
-    public async Task<IdentityResult> ConfirmEmailAsync(string userId, string token)
+    public async Task<Result> ConfirmEmailAsync(string userId, string token)
     {
-        var user = await userManager.FindByIdAsync(userId);
-        if (user == null)
-            return IdentityResult.Failed(new IdentityError { Description = "User not found." });
+        var user = (await userManager.FindByIdAsync(userId))!;
 
-        return await userManager.ConfirmEmailAsync(user, token);
+        var result = await userManager.ConfirmEmailAsync(user, token);
+        return result.ToFluentResult();
     }
 
-    public async Task<IdentityResult> ChangePasswordAsync(ClaimsPrincipal userPrincipal, string currentPassword, string newPassword)
+    public async Task<Result> ChangePasswordAsync(ClaimsPrincipal userPrincipal, string currentPassword, string newPassword)
     {
-        var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null)
-            return IdentityResult.Failed(new IdentityError { Description = "Unauthorized." });
+        var user = (await userManager.GetUserAsync(userPrincipal))!;
 
-        return await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        var result = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        return result.ToFluentResult();
     }
 
-    public async Task<(IdentityResult, string?)> RequestChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail)
+    public async Task<Result<string>> RequestChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail)
     {
-        var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null)
-            return (IdentityResult.Failed(new IdentityError { Description = "Unauthorized." }), null);
+        var user = (await userManager.GetUserAsync(userPrincipal))!;
 
         var token = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
-        return (IdentityResult.Success, token);
+        return Result.Ok(token);
     }
 
-    public async Task<IdentityResult> ConfirmChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail, string token)
+    public async Task<Result> ConfirmChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail, string token)
     {
-        var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null)
-            return IdentityResult.Failed(new IdentityError { Description = "Unauthorized." });
+        var user = (await userManager.GetUserAsync(userPrincipal))!;
 
         var result = await userManager.ChangeEmailAsync(user, newEmail, token);
         if (result.Succeeded)
@@ -107,14 +106,12 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
             await userManager.SetUserNameAsync(user, newEmail);
             await signInManager.RefreshSignInAsync(user);
         }
-        return result;
+        return result.ToFluentResult();
     }
 
-    public async Task<IdentityResult> DeleteAccountAsync(ClaimsPrincipal userPrincipal)
+    public async Task<Result> DeleteAccountAsync(ClaimsPrincipal userPrincipal)
     {
-        var user = await userManager.GetUserAsync(userPrincipal);
-        if (user == null)
-            return IdentityResult.Failed(new IdentityError { Description = "Unauthorized." });
+        var user = (await userManager.GetUserAsync(userPrincipal))!;
 
         using var transaction = await db.Database.BeginTransactionAsync();
         try
@@ -127,23 +124,21 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
             await db.SaveChangesAsync();
 
             var result = await userManager.DeleteAsync(user);
-
             if (!result.Succeeded)
             {
                 await transaction.RollbackAsync();
-                return result;
+                return result.ToFluentResult();
             }
 
             await transaction.CommitAsync();
-
             await signInManager.SignOutAsync();
 
-            return IdentityResult.Success;
+            return Result.Ok();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            throw;
+            return Result.Fail(new Error("Failed to delete account due to a server error.").CausedBy(ex));
         }
     }
 

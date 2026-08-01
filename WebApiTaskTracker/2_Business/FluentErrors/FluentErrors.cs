@@ -1,4 +1,5 @@
 ﻿using FluentResults;
+using Microsoft.AspNetCore.Identity;
 
 namespace WebApiTaskTracker.Business.FluentErrors;
 
@@ -78,5 +79,19 @@ public class ValidationError : Error
     {
         Errors = errors;
         Metadata.Add("ErrorCode", "BUSINESS_VALIDATION_ERROR");
+    }
+}
+
+public class IdentityValidationError : Error
+{
+    public IEnumerable<string> Errors { get; }
+
+    public IdentityValidationError(IEnumerable<IdentityError> identityErrors)       
+        : base("Identity validation failed.")
+    {
+        Errors = identityErrors.Select(e => e.Description);
+        Metadata.Add("ErrorCode", "IDENTITY_VALIDATION_ERROR");
+
+        Message = string.Join(" ", Errors);
     }
 }

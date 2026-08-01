@@ -10,7 +10,7 @@ public record TaskCreateRequest(
     string Title,
     string Description,
     DateOnly? DueDate,
-    Priority Priority,
+    TaskPriority Priority,
     string CategoryTitle
 )
 {

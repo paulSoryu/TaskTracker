@@ -3,6 +3,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 
@@ -24,20 +25,20 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
 
             var defaultCategories = new List<CategoryEntity>
             {
-                new() { Id = guids[0], Title = "Work", Colour = "", UserId = user.Id },
-                new() { Id = guids[1], Title = "Personal", Colour = "", UserId = user.Id },
-                new() { Id = guids[2], Title = "Errands", Colour = "", UserId = user.Id },
-                new() { Id = guids[3], Title = "Health", Colour = "", UserId = user.Id },
-                new() { Id = guids[4], Title = "Other", Colour = "", UserId = user.Id }
+                new() { Id = guids[0], Title = "Work", Colour = "#B5602D", UserId = user.Id },
+                new() { Id = guids[1], Title = "Personal", Colour = "#9C4A5C", UserId = user.Id },
+                new() { Id = guids[2], Title = "Errands", Colour = "#5B6E9C", UserId = user.Id },
+                new() { Id = guids[3], Title = "Health", Colour = "#2F6F6B", UserId = user.Id },
+                new() { Id = guids[4], Title = "Other", Colour = "#8A8577", UserId = user.Id }
             };
 
             var defaultTasks = new List<TaskEntity>
             {
-                new() { Title = "Prepare quarterly report", UserId = user.Id, CategoryId = guids[0] },
-                new() { Title = "Book dentist appointment", UserId = user.Id, CategoryId = guids[1] },
-                new() { Title = "Renew apartment insurance", UserId = user.Id, CategoryId = guids[2] },
-                new() { Title = "Grocery run", UserId = user.Id, CategoryId = guids[3] },
-                new() { Title = "Buy presents for kids", UserId = user.Id, CategoryId = guids[4] }
+                new() { Title = "Prepare quarterly report",  Description = "Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.",   Priority = TaskPriority.High,   DueDate = DateOnly.Parse("2026-08-04"), UserId = user.Id, CategoryId = guids[0] },
+                new() { Title = "Book dentist appointment",  Description = "Call the clinic on Karl Marx ave, ask for a morning slot next week.",                           Priority = TaskPriority.Medium, DueDate = DateOnly.Parse("2026-09-25"), UserId = user.Id, CategoryId = guids[1] },
+                new() { Title = "Renew apartment insurance", Description = "Compare two offers, pick the cheaper one with the same coverage, pay online.",                  Priority = TaskPriority.Low,    DueDate = DateOnly.Parse("2026-08-12"), UserId = user.Id, CategoryId = guids[2] },
+                new() { Title = "Grocery run",               Description = "Milk, eggs, bread, coffee, something for Sunday dinner.",                                       Priority = TaskPriority.Low,    DueDate = null,                         UserId = user.Id, CategoryId = guids[3] },
+                new() { Title = "Buy presents for kids",     Description = "Check 3 options, compare prices, and purchase the best gifts.",                                 Priority = TaskPriority.High,   DueDate = DateOnly.Parse("2026-09-01"), UserId = user.Id, CategoryId = guids[4] }
             };
 
             db.Categories.AddRange(defaultCategories);

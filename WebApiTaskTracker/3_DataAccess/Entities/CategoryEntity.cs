@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using WebApiTaskTracker.Utilities;
+﻿
 
 namespace WebApiTaskTracker.DataAccess.Entities;
 
@@ -8,7 +7,7 @@ namespace WebApiTaskTracker.DataAccess.Entities;
 public class CategoryEntity
 {
     public Guid Id { get; set; }
-    public required string Title { get; set; } = null!;
+    public required string Title { get; set; }
     public string Colour { get; set; } = "#FFFFFF";
 
 

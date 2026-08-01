@@ -11,7 +11,7 @@ public record GetTasksRequest(
     // Filter parameters
     string? SearchTerm = null,
     string? CategoryTitle = null,
-    Priority? Priority = null,
+    TaskPriority? Priority = null,
     bool? IsCompleted = null,
 
     TaskDueDateFilterPreset? DueDateFilterPreset = null,

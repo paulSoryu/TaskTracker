@@ -12,7 +12,7 @@ public record GetTasksQuery(
     string? CategoryTitle,
     DateOnly? DueDate,
     bool? IsCompleted,
-    Priority? Priority,
+    TaskPriority? Priority,
 
     TaskDueDateFilterPreset? DueDateFilterPreset,
     DateOnly? SpecificMonth,

@@ -1,7 +1,7 @@
 ﻿namespace WebApiTaskTracker.Business.Models.Enums;
 
 
-public enum Priority
+public enum TaskPriority
 {
     Low = 1,
     Medium = 2,

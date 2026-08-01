@@ -8,11 +8,11 @@ namespace WebApiTaskTracker.DataAccess.Entities;
 public class TaskEntity : IAuditableEntity
 {
     public Guid Id { get; set; }
-    public required string Title { get; set; } = string.Empty;
+    public required string Title { get; set; }
     public string Description { get; set; } = string.Empty;
     public DateOnly? DueDate { get; set; }
-    public Priority Priority { get; set; }
-    public bool IsCompleted { get; set; }
+    public TaskPriority Priority { get; set; }
+    public bool IsCompleted { get; set; } = false;
     public DateTime CreatedAt { get; set; }
 
 

@@ -7,7 +7,7 @@ public record TaskSummaryResponse(
     string Title,
     string Description,
     DateOnly? DueDate,
-    Priority Priority,
+    TaskPriority Priority,
     bool IsCompleted,
     DateTime CreatedAt,
     string CategoryTitle

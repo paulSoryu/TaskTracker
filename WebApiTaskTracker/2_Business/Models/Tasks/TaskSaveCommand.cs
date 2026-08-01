@@ -7,7 +7,7 @@ public record TaskSaveCommand(
     string Title,
     string Description,
     DateOnly? DueDate,        
-    Priority Priority,
+    TaskPriority Priority,
     bool IsCompleted,
     Guid? CategoryId,         
     string? CategoryTitle     

@@ -7,7 +7,7 @@ public record TaskView(
     string Title,
     string Description,
     DateOnly? DueDate,
-    Priority Priority,
+    TaskPriority Priority,
     bool IsCompleted,
     DateTime CreatedAt,
     Guid CategoryId,

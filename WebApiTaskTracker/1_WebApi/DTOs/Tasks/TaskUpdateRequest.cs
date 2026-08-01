@@ -10,7 +10,7 @@ public record TaskUpdateRequest(
     string Title,
     string Description,
     DateOnly? DueDate,
-    Priority Priority,
+    TaskPriority Priority,
     bool IsCompleted,
     string? CategoryTitle
 )

@@ -1,4 +1,4 @@
-namespace WebApiTaskTracker.WebApi.DTOs.Auth;
+namespace WebApiTaskTracker.WebApi.DTOs.Auths;
 
 public record ConfirmChangeEmailRequest(
     string NewEmail, 

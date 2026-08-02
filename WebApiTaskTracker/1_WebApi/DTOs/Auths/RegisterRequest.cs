@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace WebApiTaskTracker.WebApi.DTOs.Auth;
+namespace WebApiTaskTracker.WebApi.DTOs.Auths;
 
 public record RegisterRequest(
     string Email,

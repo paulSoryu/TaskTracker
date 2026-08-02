@@ -5,7 +5,6 @@ namespace WebApiTaskTracker.Utilities;
 
 public class GlobalExceptionHandler : IExceptionHandler
 {
-    // Внедряем стандартный логгер через DI. Никаких middleware для этого не нужно.
     private readonly ILogger<GlobalExceptionHandler> _logger;
 
     public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
@@ -18,7 +17,21 @@ public class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        // 1. Exception handling for validation errors, such as those thrown by FluentValidation or custom validation logic
+        // Exception handling for format errors, such as invalid input formats or parsing issues
+        if (exception is FormatException formatException)
+        {
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid Format",
+                Detail = formatException.Message
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+            return true;
+        }
+
+        // Exception handling for validation errors, such as those thrown by FluentValidation or custom validation logic
         if (exception is BadHttpRequestException badRequestException)
         {
             var problemDetails = new ProblemDetails

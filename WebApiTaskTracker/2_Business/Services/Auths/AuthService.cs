@@ -2,14 +2,17 @@
 
 using FluentResults;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using System.Security.Claims;
+using System.Text;
 using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Enums;
+using WebApiTaskTracker.Business.Services.Emails;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 
-public class AuthService(UserManager<UserEntity> userManager, SignInManager<UserEntity> signInManager, TaskTrackerDbContext db) : IAuthService
+public class AuthService(UserManager<UserEntity> userManager, SignInManager<UserEntity> signInManager, IEmailSender<UserEntity> emailSender, TaskTrackerDbContext db) : IAuthService
 {
     public async Task<Result> RegisterAsync(string email, string password)
     {
@@ -61,23 +64,55 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         var user = await (userManager.FindByEmailAsync(email))!;
 
         if (user == null)
-            return Result.Fail(new ValidationError("Invalid email or password."));
+            return Result.Fail(new ValidationError("Invalid email"));
 
         var signInResult = await signInManager.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: false);
 
-        if (signInResult.IsLockedOut)  return Result.Fail(new ValidationError("Account is locked out."));
-        if (signInResult.IsNotAllowed) return Result.Fail(new ValidationError("Login is not allowed. Check email confirmation."));
-        if (!signInResult.Succeeded)   return Result.Fail(new ValidationError("Invalid email or password."));
+        // Currently both IsLockedOut and IsNotAllowed are not used, but they can be enabled in the future if needed.
+        //if (signInResult.IsLockedOut)  return Result.Fail(new ValidationError("Account is locked out."));
+        //if (signInResult.IsNotAllowed) return Result.Fail(new ValidationError("Login is not allowed. Check email confirmation."));
+        if (!signInResult.Succeeded)   return Result.Fail(new ValidationError("Invalid password."));
 
         return Result.Ok();
     }
 
-    public async Task<Result> ConfirmEmailAsync(string userId, string token)
+    public async Task<Result> ConfirmEmailAsync(string userId, string encodedToken)
     {
-        var user = (await userManager.FindByIdAsync(userId))!;
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+            return Result.Fail(new ValidationError("Invalid user."));
 
-        var result = await userManager.ConfirmEmailAsync(user, token);
-        return result.ToFluentResult();
+        if (user.EmailConfirmed)
+            return Result.Fail(new ValidationError("Email already confirmed."));
+
+        var decodedBytes = WebEncoders.Base64UrlDecode(encodedToken);
+        var originalToken = Encoding.UTF8.GetString(decodedBytes);
+
+        var result = await userManager.ConfirmEmailAsync(user, originalToken);
+        if (!result.Succeeded)
+        {
+            return Result.Fail(new ValidationError("Invalid or expired token."));
+        }
+
+        return Result.Ok();
+    }
+
+    public async Task<Result> SendEmailConfirmationAsync(ClaimsPrincipal userPrincipal)
+    {
+        var user = (await userManager.GetUserAsync(userPrincipal))!;
+
+        if (user.EmailConfirmed)
+            return Result.Fail(new ValidationError("Email already confirmed."));
+
+        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+        var frontendBaseUrl = "https://localhost:7154/api/auth/confirm-email";
+        var confirmationLink = $"{frontendBaseUrl}?userId={user.Id}&token={encodedToken}";
+
+        await emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink);
+
+        return Result.Ok();
     }
 
     public async Task<Result> ChangePasswordAsync(ClaimsPrincipal userPrincipal, string currentPassword, string newPassword)
@@ -138,7 +173,7 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            return Result.Fail(new Error("Failed to delete account due to a server error.").CausedBy(ex));
+            return Result.Fail(new ExceptionalError("Failed to delete account due to an internal database error.", ex));
         }
     }
 

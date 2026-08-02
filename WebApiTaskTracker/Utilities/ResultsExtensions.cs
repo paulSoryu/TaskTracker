@@ -70,6 +70,11 @@ public static class ResultExtensions
                 title: "Identity Validation Error",
                 extensions: new Dictionary<string, object?> { { "errors", identityError.Errors } }),
 
+            ExceptionalError => TypedResults.Problem(
+                detail: error.Message,
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Server or Database Error"),
+
             // In case we add roles or permissions in the future, we can handle UnauthorizedError here.
             // But generally authorization errors are handled by the ASP.NET Core middleware, so we might not need to handle them here.
             //UnauthorizedError => TypedResults.Problem(

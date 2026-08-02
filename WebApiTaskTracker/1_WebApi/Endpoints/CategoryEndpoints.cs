@@ -8,7 +8,6 @@ using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.DTOs;
 using WebApiTaskTracker.WebApi.DTOs.Categories;
-using WebApiTaskTracker.WebApi.DTOs.Tasks;
 
 namespace WebApiTaskTracker.WebApi.Endpoints;
 

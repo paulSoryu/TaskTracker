@@ -1,9 +1,10 @@
-﻿using FluentResults;
+using FluentResults;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using WebApiTaskTracker.Business.Services.Auths;
 using WebApiTaskTracker.Utilities;
-using WebApiTaskTracker.WebApi.DTOs.Auth;
+using WebApiTaskTracker.WebApi.DTOs;
+using WebApiTaskTracker.WebApi.DTOs.Auths;
 
 namespace WebApiTaskTracker.WebApi.Endpoints;
 
@@ -11,22 +12,44 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/auth");
+        var group = routes.MapGroup("/api/auth");
 
-        group.MapPost("/register", Register);
-        group.MapPost("/login", Login);
+        group.MapPost("/register", Register)
+            .WithValidation<RegisterRequest>()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/login", Login)
+            .WithValidation<LoginRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
         group.MapGet("/confirm-email", ConfirmEmail)
-            .RequireAuthorization();
-        group.MapPost("/change-password", ChangePassword)
-            .RequireAuthorization();
-        group.MapPost("/request-change-email", RequestChangeEmail)
-            .RequireAuthorization();
-        group.MapPost("/confirm-change-email", ConfirmChangeEmail)
-            .RequireAuthorization();
-        group.MapPost("/logout", Logout)
-            .RequireAuthorization();
-        group.MapDelete("/delete-account", DeleteAccount)
-            .RequireAuthorization();
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        var lockedGroup = group.MapGroup("")
+            .RequireAuthorization()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        lockedGroup.MapGet("/send-email-confirmation", SendEmailConfirmation)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        lockedGroup.MapPost("/change-password", ChangePassword)
+            .WithValidation<ChangePasswordRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        lockedGroup.MapPost("/request-change-email", RequestChangeEmail)
+            .WithValidation<ChangeEmailRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        lockedGroup.MapPost("/confirm-change-email", ConfirmChangeEmail)
+            .WithValidation<ConfirmChangeEmailRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        lockedGroup.MapPost("/logout", Logout);
+
+        lockedGroup.MapDelete("/delete-account", DeleteAccount)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> Register(RegisterRequest dto, IAuthService authService)
@@ -41,9 +64,15 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmEmail(string userId, string token, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmEmail([AsParameters]ConfirmEmailRequest dto, IAuthService authService)
     {
-        Result result = await authService.ConfirmEmailAsync(userId, token);
+        Result result = await authService.ConfirmEmailAsync(dto.UserId, dto.Token);
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> SendEmailConfirmation(ClaimsPrincipal userPrincipal, IAuthService authService)
+    {
+        Result result = await authService.SendEmailConfirmationAsync(userPrincipal);
         return result.ToTypedHttpResult();
     }
 

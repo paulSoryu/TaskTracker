@@ -3,5 +3,6 @@
 public record CategorySummaryResponse(
     Guid Id,
     string Title,
-    int TaskCount
+    int TaskCount,
+    int CompletedTaskCount
 );

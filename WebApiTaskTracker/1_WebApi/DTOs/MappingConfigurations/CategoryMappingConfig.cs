@@ -14,7 +14,8 @@ public class CategoryMappingConfig : IRegister
 
         // Configure mapping from CategoryBusinessModel to CategorySummaryResponse
         config.NewConfig<CategoryView, CategorySummaryResponse>()
-            .Map(dest => dest.TaskCount, src => src.Tasks.Count);
+            .Map(dest => dest.TaskCount, src => src.Tasks.Count)
+            .Map(dest => dest.CompletedTaskCount, src => src.Tasks.Count(t => t.IsCompleted));
 
         // Configure mapping from CategoryCreateRequest to CategorySaveCommand
         config.NewConfig<CategoryCreateRequest, CategorySaveCommand>()

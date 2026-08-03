@@ -8,7 +8,6 @@ using System.Text;
 using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Enums;
-using WebApiTaskTracker.Business.Services.Emails;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 
@@ -107,7 +106,7 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
         var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
-        var frontendBaseUrl = "https://localhost:7154/api/auth/confirm-email";
+        var frontendBaseUrl = "http://localhost:5001/api/auth/confirm-email";
         var confirmationLink = $"{frontendBaseUrl}?userId={user.Id}&token={encodedToken}";
 
         await emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink);

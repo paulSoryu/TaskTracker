@@ -30,6 +30,9 @@ public static class CategoryQueryExtensions
             CategorySortField.TaskCount => query.IsDescending
                 ? dbQuery.OrderByDescending(c => c.Tasks.Count)
                 : dbQuery.OrderBy(c => c.Tasks.Count),
+            CategorySortField.CompletedTaskCount => query.IsDescending
+                ? dbQuery.OrderByDescending(c => c.Tasks.Count(t => t.IsCompleted))
+                : dbQuery.OrderBy(c => c.Tasks.Count(t => t.IsCompleted)),
 
             _ => dbQuery
         };

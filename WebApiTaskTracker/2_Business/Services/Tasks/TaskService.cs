@@ -73,6 +73,10 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         if (task == null)
             return Result.Fail(new NotFoundError("Task", dto.Id));
 
+        var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+        if (dto.CategoryId != null && !categoryExists)
+            return Result.Fail(new NotFoundError("Category", dto.CategoryId));
+
         // Validate that the due date is not set to a past date, but only if the due date is being changed
         if (dto.DueDate != task.DueDate && dto.DueDate < DateOnly.FromDateTime(DateTime.Today))
             return Result.Fail(new ValidationError("You cannot change the due date to a past date."));

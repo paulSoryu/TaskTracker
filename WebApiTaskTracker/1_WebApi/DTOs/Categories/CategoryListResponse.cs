@@ -1,6 +1,6 @@
 ﻿namespace WebApiTaskTracker.WebApi.DTOs.Categories;
 
-public record CategorySummaryResponse(
+public record CategoryListResponse(
     Guid Id,
     string Title,
     int TaskCount,

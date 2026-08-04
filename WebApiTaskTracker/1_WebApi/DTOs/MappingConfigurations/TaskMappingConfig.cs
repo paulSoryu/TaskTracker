@@ -12,13 +12,13 @@ public class TaskMappingConfig : IRegister
         config.NewConfig<TaskView, TaskResponse>();
 
         // Configure mapping from TaskView to TaskSummaryResponse
-        config.NewConfig<TaskView, TaskSummaryResponse>();
+        config.NewConfig<TaskView, TaskListResponse>();
 
         // Configure mapping from from TaskCreateRequest to SaveTaskCommand
-        config.NewConfig<TaskCreateRequest, SaveTaskCommand>()
+        config.NewConfig<CreateTaskRequest, SaveTaskCommand>()
             .Map(dest => dest.Id, src => (Guid?)null);
 
         // Configure mapping from TaskUpdateRequest to SaveTaskCommand
-        config.NewConfig<TaskUpdateRequest, SaveTaskCommand>();
+        config.NewConfig<UpdateTaskRequest, SaveTaskCommand>();
     }
 }

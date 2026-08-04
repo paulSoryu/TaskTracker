@@ -13,15 +13,15 @@ public class CategoryMappingConfig : IRegister
             
 
         // Configure mapping from CategoryView to CategorySummaryResponse
-        config.NewConfig<CategoryView, CategorySummaryResponse>()
+        config.NewConfig<CategoryView, CategoryListResponse>()
             .Map(dest => dest.TaskCount, src => src.Tasks.Count)
             .Map(dest => dest.CompletedTaskCount, src => src.Tasks.Count(t => t.IsCompleted));
 
         // Configure mapping from CategoryCreateRequest to SaveCategoryCommand
-        config.NewConfig<CategoryCreateRequest, SaveCategoryCommand>()
+        config.NewConfig<CreateCategoryRequest, SaveCategoryCommand>()
             .Map(dest => dest.Id, src => (Guid?)null);
 
         // Configure mapping from CategoryUpdateRequest to SaveCategoryCommand
-        config.NewConfig<CategoryUpdateRequest, SaveCategoryCommand>();
+        config.NewConfig<UpdateCategoryRequest, SaveCategoryCommand>();
     }
 }

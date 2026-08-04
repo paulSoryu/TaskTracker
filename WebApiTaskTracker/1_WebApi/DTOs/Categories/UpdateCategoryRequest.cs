@@ -1,16 +1,16 @@
 ﻿using FluentValidation;
 using WebApiTaskTracker.Utilities;
 
-// this is a DTO for creating a category, including validation rules
+// this is a DTO for updating a category, including validation rules
 // this breaks the single responsibility principle, as the DTO is responsible for data transfer and validation, but it is convenient for this simple app
 namespace WebApiTaskTracker.WebApi.DTOs.Categories;
 
-public record CategoryCreateRequest(
+public record UpdateCategoryRequest(
     string Title,
     string Colour
 )
 {
-    public class Validator : AbstractValidator<CategoryCreateRequest>
+    public class Validator : AbstractValidator<UpdateCategoryRequest>
     {
         public Validator()
         {
@@ -26,6 +26,3 @@ public record CategoryCreateRequest(
         }
     }
 }
-
-
-

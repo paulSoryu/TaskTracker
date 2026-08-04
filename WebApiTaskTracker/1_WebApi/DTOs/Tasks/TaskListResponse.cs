@@ -2,7 +2,7 @@
 
 namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 
-public record TaskSummaryResponse(
+public record TaskListResponse(
     Guid Id,
     string Title,
     string Description,

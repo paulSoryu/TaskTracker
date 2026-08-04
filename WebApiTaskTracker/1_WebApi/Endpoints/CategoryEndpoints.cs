@@ -27,11 +27,11 @@ public static class CategoryEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         routeGroup.MapPost("/", CreateCategory)
-            .AddEndpointFilter<ValidationFilter<CategoryCreateRequest>>()
+            .AddEndpointFilter<ValidationFilter<CreateCategoryRequest>>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapPut("/{id:Guid}", UpdateCategory)
-            .AddEndpointFilter<ValidationFilter<CategoryUpdateRequest>>()
+            .AddEndpointFilter<ValidationFilter<UpdateCategoryRequest>>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -39,12 +39,12 @@ public static class CategoryEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
-    private static async Task<Ok<IReadOnlyCollection<CategorySummaryResponse>>> GetAllCategories(ICategoryService categoryService, [AsParameters] GetCategoriesRequest request)
+    private static async Task<Ok<IReadOnlyCollection<CategoryListResponse>>> GetAllCategories(ICategoryService categoryService, [AsParameters] GetCategoriesRequest request)
     {
         var query = request.Adapt<GetCategoriesQuery>();
         IReadOnlyCollection<CategoryView> categories = await categoryService.GetAllAsync(query);
 
-        var response = categories.Adapt<IReadOnlyCollection<CategorySummaryResponse>>();
+        var response = categories.Adapt<IReadOnlyCollection<CategoryListResponse>>();
         return TypedResults.Ok(response);
     }
 
@@ -57,7 +57,7 @@ public static class CategoryEndpoints
         return responseResult.ToTypedHttpResult();
     }
 
-    private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CategoryCreateRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)
+    private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CreateCategoryRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)
     {
         var command = categoryRequest.Adapt<SaveCategoryCommand>();
 
@@ -70,7 +70,7 @@ public static class CategoryEndpoints
             routeValues: new { id = responseResult.ValueOrDefault?.Id });
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateCategory(Guid id, CategoryUpdateRequest categoryRequest, ICategoryService categoryService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateCategory(Guid id, UpdateCategoryRequest categoryRequest, ICategoryService categoryService)
     {
         var command = categoryRequest.Adapt<SaveCategoryCommand>() with { Id = id };
 

@@ -26,11 +26,11 @@ public static class TaskEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         routeGroup.MapPost("/", CreateTask)
-            .WithValidation<TaskCreateRequest>()
+            .WithValidation<CreateTaskRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapPut("/{id:Guid}", UpdateTask)
-            .WithValidation<TaskUpdateRequest>()
+            .WithValidation<UpdateTaskRequest>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -42,12 +42,12 @@ public static class TaskEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
-    private static async Task<Ok<IReadOnlyCollection<TaskSummaryResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
+    private static async Task<Ok<IReadOnlyCollection<TaskListResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
     {
         var query = request.Adapt<GetTasksQuery>();
         IReadOnlyCollection<TaskView> businessTasks = await taskService.GetAllAsync(query);
 
-        var response = businessTasks.Adapt<IReadOnlyCollection<TaskSummaryResponse>>();
+        var response = businessTasks.Adapt<IReadOnlyCollection<TaskListResponse>>();
         return TypedResults.Ok(response);
     }
 
@@ -60,7 +60,7 @@ public static class TaskEndpoints
         return responseResult.ToTypedHttpResult();
     }
 
-    private static async Task<Results<CreatedAtRoute<TaskResponse>, ProblemHttpResult>> CreateTask(TaskCreateRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
+    private static async Task<Results<CreatedAtRoute<TaskResponse>, ProblemHttpResult>> CreateTask(CreateTaskRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
     {
         var command = taskRequest.Adapt<SaveTaskCommand>();
         Guid userId = user.GetUserId();
@@ -74,7 +74,7 @@ public static class TaskEndpoints
             routeValues: new { id = responseResult.ValueOrDefault?.Id });
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateTask(Guid id, TaskUpdateRequest taskRequest, ITaskService taskService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateTask(Guid id, UpdateTaskRequest taskRequest, ITaskService taskService)
     {
         var command = taskRequest.Adapt<SaveTaskCommand>() with { Id = id };
 

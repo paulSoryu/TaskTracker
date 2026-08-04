@@ -40,10 +40,21 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000", "https://192.168.0.102:3000")
+        //policy.SetIsOriginAllowed(origin =>
+        //{
+        //    var uri = new Uri(origin);
+        //    var host = uri.Host;
+        //    var port = uri.Port;
+
+        //    bool isCorrectPort = port == 3000;
+
+        //    return (host == "localhost" || host == "127.0.0.1" || host.StartsWith("192.168.") || host.EndsWith("devtunnels.ms"))
+        //           && isCorrectPort;
+        //})
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 

@@ -105,10 +105,11 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
             return Result.Fail(new ValidationError("Email already confirmed."));
 
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
-        var frontendBaseUrl = "http://localhost:5001/api/auth/confirm-email";
-        var confirmationLink = $"{frontendBaseUrl}?userId={user.Id}&token={encodedToken}";
+        var frontendBaseUrl = "http://localhost:3000/index.html";
+
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var confirmationLink = $"{frontendBaseUrl}?confirmEmail=1&userId={user.Id}&encodedToken={encodedToken}";
 
         await emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink);
 
@@ -123,17 +124,35 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         return result.ToFluentResult();
     }
 
-    public async Task<Result<string>> RequestChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail)
+    public async Task<Result> RequestChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail)
     {
         var user = (await userManager.GetUserAsync(userPrincipal))!;
+
+        if (newEmail == user.Email)
+            return Result.Fail(new ValidationError("New email cannot be the same as the current email."));
+
+        bool emailExists = await userManager.FindByEmailAsync(newEmail) != null;
+        if (emailExists)
+            return Result.Fail(new ValidationError("Email is already in use."));
 
         var token = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
-        return Result.Ok(token);
+        
+        var frontendBaseUrl = "http://localhost:3000/index.html";
+
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var confirmationLink = $"{frontendBaseUrl}?confirmChangeEmail=1&newEmail={newEmail}&encodedToken={encodedToken}";
+
+        await emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink);
+
+        return Result.Ok();
     }
 
-    public async Task<Result> ConfirmChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail, string token)
+    public async Task<Result> ConfirmChangeEmailAsync(ClaimsPrincipal userPrincipal, string newEmail, string encodedToken)
     {
         var user = (await userManager.GetUserAsync(userPrincipal))!;
+
+        var decodedBytes = WebEncoders.Base64UrlDecode(encodedToken);
+        var token = Encoding.UTF8.GetString(decodedBytes);
 
         var result = await userManager.ChangeEmailAsync(user, newEmail, token);
         if (result.Succeeded)
@@ -161,9 +180,13 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         await signInManager.SignOutAsync();
     }
 
-    public async Task<Result> DeleteAccountAsync(ClaimsPrincipal userPrincipal)
+    public async Task<Result> DeleteAccountAsync(ClaimsPrincipal userPrincipal, string password)
     {
         var user = (await userManager.GetUserAsync(userPrincipal))!;
+
+        var isPasswordValid = await userManager.CheckPasswordAsync(user, password);
+        if (!isPasswordValid)
+            return Result.Fail(new ValidationError("Invalid password."));
 
         using var transaction = await db.Database.BeginTransactionAsync();
         try

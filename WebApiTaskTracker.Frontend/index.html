@@ -889,6 +889,7 @@
     padding:20px;
   }
   .auth-gate.hidden{ display:none; }
+  #confirmLinkOverlay{ z-index:1100; }
   .auth-loading{
     text-align:center;
     font-size:13px;
@@ -1022,6 +1023,15 @@
           <button type="button" class="btn-solid" id="signupSubmitBtn" style="width:100%; margin-top:4px;">Create Account</button>
         </form>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= EMAIL CONFIRMATION LANDING ================= -->
+  <div class="auth-gate hidden" id="confirmLinkOverlay">
+    <div class="auth-card" style="text-align:center;">
+      <div class="auth-brand"><span class="brand-mark"></span><span>Ledger</span></div>
+      <div class="auth-loading" id="confirmLinkStatus">Confirming…</div>
+      <button type="button" class="btn-solid" id="confirmLinkCloseBtn" style="width:100%; margin-top:14px; display:none;">Continue</button>
     </div>
   </div>
 
@@ -1210,9 +1220,9 @@
       <!-- List view: main account menu -->
       <div id="accountListView">
         <h2>Account</h2>
-        <p class="hint">anna.kovalenko — manage your email and password.</p>
+        <p class="hint" id="accountEmailHint">manage your email and password.</p>
         <div class="account-actions">
-          <button class="account-action-row" data-action="confirm-email">Confirm Email <span class="chev">›</span></button>
+          <button class="account-action-row" id="confirmEmailRow" data-action="confirm-email">Confirm Email <span class="chev">›</span></button>
           <button class="account-action-row" data-action="change-email">Change Email <span class="chev">›</span></button>
           <button class="account-action-row" data-action="change-password">Change Password <span class="chev">›</span></button>
           <button class="account-action-row danger" data-action="delete-account">Delete Account <span class="chev">›</span></button>
@@ -1296,6 +1306,19 @@
 
 <script>
 (function(){
+
+  /* ---------------- UTIL ---------------- */
+  // Closes an overlay on backdrop click, but only when the press AND release both
+  // started on the backdrop itself — selecting text inside the modal and releasing
+  // the mouse outside of it (a normal thing to do) should not close the modal.
+  function bindOverlayOutsideClose(overlay, onClose){
+    let pressedOnBackdrop = false;
+    overlay.addEventListener('mousedown', e=>{ pressedOnBackdrop = (e.target === overlay); });
+    overlay.addEventListener('click', e=>{
+      if(pressedOnBackdrop && e.target === overlay) onClose();
+      pressedOnBackdrop = false;
+    });
+  }
 
   /* ---------------- STATE ---------------- */
   // Curated palette so random colors still feel intentional against the paper/ink theme
@@ -1521,7 +1544,7 @@
   }
 
   document.getElementById('deleteTaskCancelBtn').addEventListener('click', closeDeleteTaskModal);
-  deleteTaskOverlay.addEventListener('click', e=>{ if(e.target === deleteTaskOverlay) closeDeleteTaskModal(); });
+  bindOverlayOutsideClose(deleteTaskOverlay, closeDeleteTaskModal);
 
   document.getElementById('deleteTaskConfirmBtn').addEventListener('click', ()=>{
     if(!pendingDeleteTaskId) return;
@@ -1687,7 +1710,7 @@
 
   document.getElementById('addTaskBtn').addEventListener('click', openNewTaskModal);
   document.getElementById('cancelNewTaskBtn').addEventListener('click', requestCloseNewTaskModal);
-  newTaskOverlay.addEventListener('click', e=>{ if(e.target === newTaskOverlay) requestCloseNewTaskModal(); });
+  bindOverlayOutsideClose(newTaskOverlay, requestCloseNewTaskModal);
 
   document.getElementById('keepEditingNewTaskBtn').addEventListener('click', ()=>{
     discardNewTaskOverlay.classList.remove('open');
@@ -1698,9 +1721,7 @@
   });
   // clicking the backdrop here is treated the same as "Keep Editing" — an
   // accidental click shouldn't be the thing that actually discards the task
-  discardNewTaskOverlay.addEventListener('click', e=>{
-    if(e.target === discardNewTaskOverlay) discardNewTaskOverlay.classList.remove('open');
-  });
+  bindOverlayOutsideClose(discardNewTaskOverlay, ()=> discardNewTaskOverlay.classList.remove('open'));
 
   [newTaskTitle, newTaskDescription].forEach(el=>{
     el.addEventListener('input', ()=> el.classList.remove('field-invalid'));
@@ -1913,7 +1934,7 @@
     catOverlay.classList.add('open');
   });
   document.getElementById('closeCatBtn').addEventListener('click', closeCatModal);
-  catOverlay.addEventListener('click', e=>{ if(e.target === catOverlay) closeCatModal(); });
+  bindOverlayOutsideClose(catOverlay, closeCatModal);
 
   document.getElementById('catSearchInput').addEventListener('input', e=>{
     catSearchQuery = e.target.value;
@@ -2100,57 +2121,64 @@
   const accountDetailView = document.getElementById('accountDetailView');
   const accountDetailTitle = document.getElementById('accountDetailTitle');
   const accountDetailBody = document.getElementById('accountDetailBody');
-  const userEmail = "anna.kovalenko@example.com";
+  const accountEmailHint = document.getElementById('accountEmailHint');
+  const confirmEmailRow = document.getElementById('confirmEmailRow');
 
-  const accountScreens = {
-    'confirm-email': {
-      title: 'Confirm Email',
-      body: `
-        <p class="form-note">We sent a confirmation link to <strong>${userEmail}</strong>. Check your inbox and follow the link to confirm your email address.</p>
-        <div class="modal-actions" style="justify-content:flex-start;">
-          <button class="btn-plain" data-submit="confirm-email">Resend Email</button>
-        </div>
-        <div class="inline-status ok" data-status="confirm-email">Confirmation email resent.</div>
-      `
-    },
-    'change-email': {
-      title: 'Change Email',
-      body: `
-        <p class="form-note">Enter your password and a new email address. We'll send a confirmation link to the new address.</p>
-        <div class="field"><label>Password</label><input type="password" data-field="password" placeholder="Current password" autocomplete="current-password"></div>
-        <div class="field"><label>New Email</label><input type="email" data-field="newEmail" placeholder="new@email.com" autocomplete="email"></div>
-        <div class="inline-status warn" data-status="change-email"></div>
-        <div class="modal-actions" style="justify-content:flex-end;">
-          <button class="btn-solid" data-submit="change-email">Update Email</button>
-        </div>
-      `
-    },
-    'change-password': {
-      title: 'Change Password',
-      body: `
-        <p class="form-note">Enter your current password and choose a new one.</p>
-        <div class="field"><label>Current Password</label><input type="password" data-field="currentPassword" placeholder="Current password" autocomplete="current-password"></div>
-        <div class="field"><label>New Password</label><input type="password" data-field="newPassword" placeholder="New password" autocomplete="new-password"></div>
-        <div class="inline-status warn" data-status="change-password"></div>
-        <div class="modal-actions" style="justify-content:flex-end;">
-          <button class="btn-solid" data-submit="change-password">Update Password</button>
-        </div>
-      `
-    },
-    'delete-account': {
-      title: 'Delete Account',
-      body: `
-        <p class="form-note">This permanently deletes your account and all of your tasks. This action cannot be undone. Enter your password to confirm.</p>
-        <div class="field"><label>Password</label><input type="password" data-field="deletePassword" placeholder="Current password" autocomplete="current-password"></div>
-        <div class="inline-status warn" data-status="delete-account"></div>
-        <div class="modal-actions" style="justify-content:flex-end;">
-          <button class="btn-solid btn-solid-danger" data-submit="delete-account">Delete Account Permanently</button>
-        </div>
-      `
-    }
-  };
+  let currentUser = { email: '', isEmailConfirmed: false };
+
+  function accountScreens(){
+    return {
+      'confirm-email': {
+        title: 'Confirm Email',
+        body: `
+          <p class="form-note">We sent a confirmation link to <strong>${currentUser.email}</strong>. Check your inbox (or the server console for now) and follow the link to confirm your email address.</p>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button class="btn-plain" data-submit="confirm-email">Resend Email</button>
+          </div>
+          <div class="inline-status warn" data-status="confirm-email"></div>
+        `
+      },
+      'change-email': {
+        title: 'Change Email',
+        body: `
+          <p class="form-note">Enter your password and a new email address. We'll send a confirmation link to the new address — your email won't change until you follow it.</p>
+          <div class="field"><label>Password</label><input type="password" data-field="password" placeholder="Current password" autocomplete="current-password"></div>
+          <div class="field"><label>New Email</label><input type="email" data-field="newEmail" placeholder="new@email.com" autocomplete="email"></div>
+          <div class="inline-status warn" data-status="change-email"></div>
+          <div class="modal-actions" style="justify-content:flex-end;">
+            <button class="btn-solid" data-submit="change-email">Send Confirmation Link</button>
+          </div>
+        `
+      },
+      'change-password': {
+        title: 'Change Password',
+        body: `
+          <p class="form-note">Enter your current password and choose a new one.</p>
+          <div class="field"><label>Current Password</label><input type="password" data-field="currentPassword" placeholder="Current password" autocomplete="current-password"></div>
+          <div class="field"><label>New Password</label><input type="password" data-field="newPassword" placeholder="New password" autocomplete="new-password"></div>
+          <div class="inline-status warn" data-status="change-password"></div>
+          <div class="modal-actions" style="justify-content:flex-end;">
+            <button class="btn-solid" data-submit="change-password">Update Password</button>
+          </div>
+        `
+      },
+      'delete-account': {
+        title: 'Delete Account',
+        body: `
+          <p class="form-note">This permanently deletes your account and all of your tasks. This action cannot be undone. Enter your password to confirm.</p>
+          <div class="field"><label>Password</label><input type="password" data-field="deletePassword" placeholder="Current password" autocomplete="current-password"></div>
+          <div class="inline-status warn" data-status="delete-account"></div>
+          <div class="modal-actions" style="justify-content:flex-end;">
+            <button class="btn-solid btn-solid-danger" data-submit="delete-account">Delete Account Permanently</button>
+          </div>
+        `
+      }
+    };
+  }
 
   function openAccountModal(){
+    accountEmailHint.textContent = `${currentUser.email} — manage your email and password.`;
+    confirmEmailRow.style.display = currentUser.isEmailConfirmed ? 'none' : 'flex';
     showAccountList();
     accountOverlay.classList.add('open');
   }
@@ -2162,7 +2190,7 @@
     accountListView.style.display = 'block';
   }
   function showAccountDetail(action){
-    const screen = accountScreens[action];
+    const screen = accountScreens()[action];
     if(!screen) return;
     accountDetailTitle.textContent = screen.title;
     accountDetailBody.innerHTML = screen.body;
@@ -2170,12 +2198,28 @@
     accountDetailView.style.display = 'block';
     const firstInput = accountDetailBody.querySelector('input');
     if(firstInput) firstInput.focus();
+    if(action === 'confirm-email'){
+      requestEmailConfirmation(accountDetailBody.querySelector('[data-submit="confirm-email"]'));
+    }
+  }
+
+  async function requestEmailConfirmation(button){
+    const status = accountDetailBody.querySelector('[data-status="confirm-email"]');
+    setBusy(button, true, 'Sending…');
+    try{
+      await apiFetch('/api/auth/send-email-confirmation');
+      showStatus(status, 'Confirmation email sent.', 'ok');
+    } catch(err){
+      showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
+    } finally {
+      setBusy(button, false);
+    }
   }
 
   document.getElementById('accountBtn').addEventListener('click', openAccountModal);
   document.getElementById('closeAccountBtn').addEventListener('click', closeAccountModal);
   document.getElementById('accountBackBtn').addEventListener('click', showAccountList);
-  accountOverlay.addEventListener('click', e=>{ if(e.target === accountOverlay) closeAccountModal(); });
+  bindOverlayOutsideClose(accountOverlay, closeAccountModal);
 
   accountListView.addEventListener('click', e=>{
     const row = e.target.closest('.account-action-row');
@@ -2183,14 +2227,14 @@
     showAccountDetail(row.dataset.action);
   });
 
-  accountDetailBody.addEventListener('click', e=>{
+  accountDetailBody.addEventListener('click', async e=>{
     const submitBtn = e.target.closest('[data-submit]');
     if(!submitBtn) return;
     const action = submitBtn.dataset.submit;
     const status = accountDetailBody.querySelector(`[data-status="${action}"]`);
 
     if(action === 'confirm-email'){
-      showStatus(status, 'Confirmation email resent.', 'ok');
+      await requestEmailConfirmation(submitBtn);
       return;
     }
 
@@ -2198,20 +2242,53 @@
       const password = accountDetailBody.querySelector('[data-field="password"]').value.trim();
       const newEmail = accountDetailBody.querySelector('[data-field="newEmail"]').value.trim();
       if(!password || !newEmail){ showStatus(status, 'Fill in both fields to continue.', 'warn'); return; }
-      showStatus(status, `Confirmation link sent to ${newEmail}.`, 'ok');
+      setBusy(submitBtn, true, 'Sending…');
+      try{
+        await apiFetch('/api/auth/request-change-email', { method:'POST', body: JSON.stringify({ password, newEmail }) });
+        showStatus(status, `Confirmation link sent to ${newEmail}. Your email stays the same until you follow it.`, 'ok');
+      } catch(err){
+        showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
+      } finally {
+        setBusy(submitBtn, false);
+      }
+      return;
     }
 
     if(action === 'change-password'){
       const current = accountDetailBody.querySelector('[data-field="currentPassword"]').value.trim();
       const next = accountDetailBody.querySelector('[data-field="newPassword"]').value.trim();
       if(!current || !next){ showStatus(status, 'Fill in both fields to continue.', 'warn'); return; }
-      showStatus(status, 'Password updated.', 'ok');
+      setBusy(submitBtn, true, 'Updating…');
+      try{
+        await apiFetch('/api/auth/change-password', { method:'POST', body: JSON.stringify({ currentPassword: current, newPassword: next }) });
+        showStatus(status, 'Password updated.', 'ok');
+        accountDetailBody.querySelector('[data-field="currentPassword"]').value = '';
+        accountDetailBody.querySelector('[data-field="newPassword"]').value = '';
+      } catch(err){
+        showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
+      } finally {
+        setBusy(submitBtn, false);
+      }
+      return;
     }
 
     if(action === 'delete-account'){
       const password = accountDetailBody.querySelector('[data-field="deletePassword"]').value.trim();
       if(!password){ showStatus(status, 'Enter your password to confirm.', 'warn'); return; }
-      showStatus(status, 'Account deletion confirmed.', 'ok');
+      setBusy(submitBtn, true, 'Deleting…');
+      try{
+        await apiFetch(`/api/auth/delete-account?password=${encodeURIComponent(password)}`, { method:'DELETE' });
+        closeAccountModal();
+        appShell.classList.remove('visible');
+        authGate.classList.remove('hidden');
+        loginForm.reset();
+        signupForm.reset();
+        showAuthTab('login');
+      } catch(err){
+        showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
+        setBusy(submitBtn, false);
+      }
+      return;
     }
   });
 
@@ -2314,8 +2391,9 @@
     }
   }
 
-  function enterApp(email){
-    const displayName = email.split('@')[0] || email;
+  function enterApp(userInfo){
+    currentUser = { email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed };
+    const displayName = currentUser.email.split('@')[0] || currentUser.email;
     userDisplayName.textContent = displayName;
     userAvatar.textContent = initialsFrom(displayName);
     authGate.classList.add('hidden');
@@ -2339,7 +2417,8 @@
     setBusy(btn, true, 'Logging in…');
     try{
       await apiFetch('/api/auth/login', { method:'POST', body: JSON.stringify({ email, password }) });
-      enterApp(email);
+      const info = await apiFetch('/api/auth/me');
+      enterApp(info);
     } catch(err){
       showStatus(loginError, (err.messages || [err.message]).join(' '), 'warn');
     } finally {
@@ -2365,7 +2444,8 @@
     try{
       await apiFetch('/api/auth/register', { method:'POST', body: JSON.stringify({ email, password }) });
       // Register logs the user in automatically on the backend
-      enterApp(email);
+      const info = await apiFetch('/api/auth/me');
+      enterApp(info);
     } catch(err){
       showStatus(signupError, (err.messages || [err.message]).join(' '), 'warn');
     } finally {
@@ -2384,19 +2464,28 @@
   });
 
   document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-    try{ await apiFetch('/api/auth/logout', { method:'POST' }); } catch(err){ /* cookie may already be gone — proceed regardless */ }
-    appShell.classList.remove('visible');
-    authGate.classList.remove('hidden');
-    loginForm.reset();
-    signupForm.reset();
-    showAuthTab('login');
+    const btn = document.getElementById('logoutBtn');
+    setBusy(btn, true, 'Logging out…');
+    try{
+      await apiFetch('/api/auth/logout', { method:'POST' });
+      setBusy(btn, false);
+      appShell.classList.remove('visible');
+      authGate.classList.remove('hidden');
+      loginForm.reset();
+      signupForm.reset();
+      showAuthTab('login');
+    } catch(err){
+      setBusy(btn, false);
+      btn.textContent = 'Logout failed — retry';
+      setTimeout(()=>{ btn.textContent = btn.dataset.originalText || 'Logout'; }, 3000);
+    }
   });
 
   async function checkSession(){
     try{
       const info = await apiFetch('/api/auth/me');
       if(info && info.email){
-        enterApp(info.email);
+        enterApp(info);
         return;
       }
     } catch(err){
@@ -2405,6 +2494,89 @@
     authLoading.classList.add('hidden');
     authCard.classList.remove('hidden');
   }
+
+  /* ---------------- EMAIL CONFIRMATION LANDING ---------------- */
+  // The link sent by email should point back at this page with query params, e.g.:
+  //   ...?confirmEmail=1&userId=<id>&encodedToken=<token>
+  //   ...?confirmChangeEmail=1&newEmail=<email>&encodedToken=<token>
+  const confirmLinkOverlay = document.getElementById('confirmLinkOverlay');
+  const confirmLinkStatus = document.getElementById('confirmLinkStatus');
+  const confirmLinkCloseBtn = document.getElementById('confirmLinkCloseBtn');
+
+  let authChannel = null;
+  try{ authChannel = new BroadcastChannel('ledger-auth'); } catch(e){ authChannel = null; }
+
+  function notifyAuthChange(type){
+    if(authChannel) authChannel.postMessage({ type });
+  }
+
+  async function refreshCurrentUserSilently(reason){
+    try{
+      const info = await apiFetch('/api/auth/me');
+      if(!info || !info.email) return;
+      currentUser = { email: info.email, isEmailConfirmed: !!info.isEmailConfirmed };
+      const displayName = currentUser.email.split('@')[0] || currentUser.email;
+      userDisplayName.textContent = displayName;
+      userAvatar.textContent = initialsFrom(displayName);
+      confirmEmailRow.style.display = currentUser.isEmailConfirmed ? 'none' : 'flex';
+      if(accountOverlay.classList.contains('open')){
+        const openTitle = accountDetailTitle.textContent;
+        // nothing left to do on these screens once the relevant change has landed
+        if(openTitle === 'Confirm Email' && currentUser.isEmailConfirmed){
+          showAccountList();
+        }
+        if(openTitle === 'Change Email' && reason === 'email-changed'){
+          showAccountList();
+        }
+      }
+    } catch(err){
+      // this tab has no active session (e.g. it's the fresh tab opened from the email link) — nothing to refresh
+    }
+  }
+
+  if(authChannel){
+    authChannel.addEventListener('message', e=>{
+      if(e.data && (e.data.type === 'email-confirmed' || e.data.type === 'email-changed')){
+        refreshCurrentUserSilently(e.data.type);
+      }
+    });
+  }
+
+  async function handleEmailConfirmationLink(){
+    const params = new URLSearchParams(window.location.search);
+    const isConfirmEmail = params.has('confirmEmail');
+    const isConfirmChangeEmail = params.has('confirmChangeEmail');
+    if(!isConfirmEmail && !isConfirmChangeEmail) return;
+
+    confirmLinkOverlay.classList.remove('hidden');
+    try{
+      if(isConfirmEmail){
+        const userId = params.get('userId') || '';
+        const encodedToken = params.get('encodedToken') || '';
+        await apiFetch(`/api/auth/confirm-email?userId=${encodeURIComponent(userId)}&encodedToken=${encodeURIComponent(encodedToken)}`);
+        confirmLinkStatus.textContent = 'Your email has been confirmed. You can close this tab and return to Ledger.';
+        notifyAuthChange('email-confirmed');
+        refreshCurrentUserSilently('email-confirmed');
+      } else {
+        const newEmail = params.get('newEmail') || '';
+        const encodedToken = params.get('encodedToken') || '';
+        await apiFetch(`/api/auth/confirm-change-email?newEmail=${encodeURIComponent(newEmail)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method:'POST' });
+        confirmLinkStatus.textContent = `Your email has been changed to ${newEmail}. You can close this tab and return to Ledger.`;
+        notifyAuthChange('email-changed');
+        refreshCurrentUserSilently('email-changed');
+      }
+    } catch(err){
+      confirmLinkStatus.textContent = (err.messages || [err.message]).join(' ');
+    }
+    confirmLinkCloseBtn.style.display = 'block';
+    history.replaceState(null, '', window.location.pathname);
+  }
+
+  confirmLinkCloseBtn.addEventListener('click', ()=>{
+    confirmLinkOverlay.classList.add('hidden');
+  });
+
+  handleEmailConfirmationLink();
   checkSession();
 
 })();

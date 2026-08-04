@@ -25,6 +25,7 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         group.MapGet("/confirm-email", ConfirmEmail)
+            .WithValidation<ConfirmEmailRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         var lockedGroup = group.MapGroup("")
@@ -55,12 +56,6 @@ public static class AuthEndpoints
 
     }
 
-    private static async Task<Results<Ok<UserInfoView>, ProblemHttpResult>> GetUserInfo(ClaimsPrincipal userPrincipal, IAuthService authService)
-    {
-        Result<UserInfoView> result = await authService.GetCurrentUserInfoAsync(userPrincipal);
-        return result.ToTypedHttpResult();
-    }
-
     private static async Task<Results<NoContent, ProblemHttpResult>> Register(RegisterRequest dto, IAuthService authService)
     {
         Result result = await authService.RegisterAsync(dto.Email, dto.Password);
@@ -75,7 +70,7 @@ public static class AuthEndpoints
 
     private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmEmail([AsParameters]ConfirmEmailRequest dto, IAuthService authService)
     {
-        Result result = await authService.ConfirmEmailAsync(dto.UserId, dto.Token);
+        Result result = await authService.ConfirmEmailAsync(dto.UserId, dto.EncodedToken);
         return result.ToTypedHttpResult();
     }
 
@@ -91,28 +86,21 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<Ok<object>, ProblemHttpResult>> RequestChangeEmail(ChangeEmailRequest dto, ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> RequestChangeEmail(ChangeEmailRequest dto, ClaimsPrincipal user, IAuthService authService)
     {
-        Result<string> result = await authService.RequestChangeEmailAsync(user, dto.NewEmail);
-
-        Result<object> responseResult = result.Map(token => (object)new
-        {
-            Message = "Token sent.",
-            DebugToken = token
-        });
-
-        return responseResult.ToTypedHttpResult();
-    }
-
-    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmChangeEmail(ConfirmChangeEmailRequest dto, ClaimsPrincipal user, IAuthService authService)
-    {
-        Result result = await authService.ConfirmChangeEmailAsync(user, dto.NewEmail, dto.Token);
+        Result result = await authService.RequestChangeEmailAsync(user, dto.NewEmail);
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAccount(ClaimsPrincipal user, IAuthService authService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ConfirmChangeEmail([AsParameters]ConfirmChangeEmailRequest dto, ClaimsPrincipal user, IAuthService authService)
     {
-        Result result = await authService.DeleteAccountAsync(user);
+        Result result = await authService.ConfirmChangeEmailAsync(user, dto.NewEmail, dto.EncodedToken);
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<Ok<UserInfoView>, ProblemHttpResult>> GetUserInfo(ClaimsPrincipal userPrincipal, IAuthService authService)
+    {
+        Result<UserInfoView> result = await authService.GetCurrentUserInfoAsync(userPrincipal);
         return result.ToTypedHttpResult();
     }
 
@@ -120,5 +108,11 @@ public static class AuthEndpoints
     {
         await authService.LogoutAsync();
         return TypedResults.NoContent();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAccount(ClaimsPrincipal user, string password, IAuthService authService)
+    {
+        Result result = await authService.DeleteAccountAsync(user, password);
+        return result.ToTypedHttpResult();
     }
 }

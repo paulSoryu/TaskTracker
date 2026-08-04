@@ -3,7 +3,6 @@
 using FluentResults;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
 using WebApiTaskTracker.Business.FluentErrors;
 
 public static class ResultExtensions
@@ -71,7 +70,7 @@ public static class ResultExtensions
                 extensions: new Dictionary<string, object?> { { "errors", identityError.Errors } }),
 
             ExceptionalError => TypedResults.Problem(
-                detail: error.Message,
+                detail: "A critical server or database error occurred. Please contact support.", // Not exposing internal exception details for security reasons.
                 statusCode: StatusCodes.Status500InternalServerError,
                 title: "Server or Database Error"),
 

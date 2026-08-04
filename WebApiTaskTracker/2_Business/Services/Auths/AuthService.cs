@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.FluentErrors;
+using WebApiTaskTracker.Business.Models.Auths;
 using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
@@ -143,6 +144,23 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         return result.ToFluentResult();
     }
 
+    public async Task<Result<UserInfoView>> GetCurrentUserInfoAsync(ClaimsPrincipal principal)
+    {
+        var user = (await userManager.GetUserAsync(principal))!;
+
+        return Result.Ok(new UserInfoView
+        {
+            UserId = user.Id,
+            Email = user.Email,
+            IsEmailConfirmed = user.EmailConfirmed
+        });
+    }
+
+    public async Task LogoutAsync()
+    {
+        await signInManager.SignOutAsync();
+    }
+
     public async Task<Result> DeleteAccountAsync(ClaimsPrincipal userPrincipal)
     {
         var user = (await userManager.GetUserAsync(userPrincipal))!;
@@ -174,10 +192,5 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
             await transaction.RollbackAsync();
             return Result.Fail(new ExceptionalError("Failed to delete account due to an internal database error.", ex));
         }
-    }
-
-    public async Task LogoutAsync()
-    {
-        await signInManager.SignOutAsync();
     }
 }

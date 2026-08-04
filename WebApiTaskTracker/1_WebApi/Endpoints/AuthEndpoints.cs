@@ -1,6 +1,7 @@
 using FluentResults;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
+using WebApiTaskTracker.Business.Models.Auths;
 using WebApiTaskTracker.Business.Services.Auths;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.DTOs;
@@ -45,11 +46,19 @@ public static class AuthEndpoints
             .WithValidation<ConfirmChangeEmailRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
+        lockedGroup.MapGet("/me", GetUserInfo);
+
         lockedGroup.MapPost("/logout", Logout);
 
         lockedGroup.MapDelete("/delete-account", DeleteAccount)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
+    }
+
+    private static async Task<Results<Ok<UserInfoView>, ProblemHttpResult>> GetUserInfo(ClaimsPrincipal userPrincipal, IAuthService authService)
+    {
+        Result<UserInfoView> result = await authService.GetCurrentUserInfoAsync(userPrincipal);
+        return result.ToTypedHttpResult();
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> Register(RegisterRequest dto, IAuthService authService)

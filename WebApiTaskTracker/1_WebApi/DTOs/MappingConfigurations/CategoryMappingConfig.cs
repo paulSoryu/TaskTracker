@@ -8,11 +8,11 @@ public class CategoryMappingConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
-        // Configure mapping from CategoryBusinessModel to CategoryResponse
+        // Configure mapping from CategoryView to CategoryResponse
         config.NewConfig<CategoryView, CategoryResponse>();
             
 
-        // Configure mapping from CategoryBusinessModel to CategorySummaryResponse
+        // Configure mapping from CategoryView to CategorySummaryResponse
         config.NewConfig<CategoryView, CategorySummaryResponse>()
             .Map(dest => dest.TaskCount, src => src.Tasks.Count)
             .Map(dest => dest.CompletedTaskCount, src => src.Tasks.Count(t => t.IsCompleted));

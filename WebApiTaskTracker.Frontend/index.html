@@ -427,7 +427,7 @@
     text-align-last:center;
     color:var(--ink-soft);
     padding:4px 20px 4px 9px;
-    width:98px;
+    width:128px;
   }
   .task-title-input{
     width:100%;
@@ -889,6 +889,13 @@
     padding:20px;
   }
   .auth-gate.hidden{ display:none; }
+  .auth-loading{
+    text-align:center;
+    font-size:13px;
+    color:var(--ink-soft);
+    padding:8px 0 4px;
+  }
+  #authCard.hidden, #authLoading.hidden{ display:none; }
   .auth-card{
     width:360px;
     max-width:100%;
@@ -977,46 +984,44 @@
     <div class="auth-card">
       <div class="auth-brand"><span class="brand-mark"></span><span>Ledger</span></div>
 
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab active" id="authTabLogin">Log In</button>
-        <button type="button" class="auth-tab" id="authTabSignup">Sign Up</button>
+      <div class="auth-loading" id="authLoading">Checking session…</div>
+
+      <div id="authCard" class="hidden">
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab active" id="authTabLogin">Log In</button>
+          <button type="button" class="auth-tab" id="authTabSignup">Sign Up</button>
+        </div>
+
+        <form id="loginForm" class="auth-form" novalidate>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <div class="inline-status warn" id="loginError"></div>
+          <button type="button" class="btn-solid" id="loginSubmitBtn" style="width:100%; margin-top:4px;">Log In</button>
+        </form>
+
+        <form id="signupForm" class="auth-form" style="display:none;" novalidate>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="signupPassword" placeholder="Your password" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label>Confirm Password</label>
+            <input type="password" id="signupPasswordConfirm" placeholder="Repeat password" autocomplete="new-password">
+          </div>
+          <div class="inline-status warn" id="signupError"></div>
+          <button type="button" class="btn-solid" id="signupSubmitBtn" style="width:100%; margin-top:4px;">Create Account</button>
+        </form>
       </div>
-
-      <form id="loginForm" class="auth-form" novalidate>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
-        </div>
-        <div class="inline-status warn" id="loginError"></div>
-        <button type="button" class="btn-solid" id="loginSubmitBtn" style="width:100%; margin-top:4px;">Log In</button>
-      </form>
-
-      <form id="signupForm" class="auth-form" style="display:none;" novalidate>
-        <div class="field">
-          <label>Name</label>
-          <input type="text" id="signupName" placeholder="Your name" autocomplete="name">
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="signupEmail" placeholder="you@example.com" autocomplete="email">
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <input type="password" id="signupPassword" placeholder="At least 6 characters" autocomplete="new-password">
-        </div>
-        <div class="field">
-          <label>Confirm Password</label>
-          <input type="password" id="signupPasswordConfirm" placeholder="Repeat password" autocomplete="new-password">
-        </div>
-        <div class="inline-status warn" id="signupError"></div>
-        <button type="button" class="btn-solid" id="signupSubmitBtn" style="width:100%; margin-top:4px;">Create Account</button>
-      </form>
-
-      <p class="hint" style="text-align:center; margin:14px 0 0;">Demo mode — any email &amp; password combination works.</p>
     </div>
   </div>
 
@@ -1410,9 +1415,11 @@
   }
 
   function categoryOptions(selected){
-    return categories.map(c => `<option value="${escapeAttr(c.name)}" ${c.name===selected?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
+    const noCategoryOption = `<option value="" ${!selected ? 'selected' : ''}>No Category</option>`;
+    return noCategoryOption + categories.map(c => `<option value="${escapeAttr(c.name)}" ${c.name===selected?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
   }
   function categoryColor(name){
+    if(!name) return 'var(--card-edge)';
     const cat = categories.find(c => c.name === name);
     return (cat && cat.color) || FALLBACK_CATEGORY_COLOR;
   }
@@ -1434,7 +1441,7 @@
         <button type="button" class="task-drag-handle" title="Drag to reorder">
           <span class="drag-dots"><i></i><i></i><i></i><i></i><i></i><i></i></span>
         </button>
-        <div class="category-flag" style="--flag-color:${categoryColor(t.category)}" title="Category: ${escapeAttr(t.category)}"></div>
+        <div class="category-flag" style="--flag-color:${categoryColor(t.category)}" title="Category: ${t.category ? escapeAttr(t.category) : 'No Category'}"></div>
         <div class="stamp">DONE</div>
         <div class="card-head">
           <select class="category-select" data-field="category">${categoryOptions(t.category)}</select>
@@ -1652,8 +1659,7 @@
   const newTaskError = document.getElementById('newTaskError');
 
   function defaultNewTaskCategory(){
-    const other = categories.find(c => c.name === "Other");
-    return (other || categories[0] || {}).name || "";
+    return "";
   }
 
   function openNewTaskModal(){
@@ -1713,7 +1719,7 @@
 
     tasks.unshift({
       id:cid(), title, description,
-      category: newTaskCategory.value || defaultNewTaskCategory(),
+      category: newTaskCategory.value,
       priority: newTaskPriority.value || "Medium",
       dueDate: newTaskDueDate.value || new Date().toISOString().slice(0,10),
       isCompleted:false, createdAt:new Date().toISOString()
@@ -1861,7 +1867,7 @@
     pendingDeleteCategoryId = id;
     const taskCount = tasks.filter(t => t.category === cat.name).length;
     catConfirmDeleteText.textContent = taskCount
-      ? `Delete the category "${cat.name}"? ${taskCount} task${taskCount === 1 ? '' : 's'} using it will keep the "${cat.name}" label but it will no longer appear in Manage Categories.`
+      ? `Delete the category "${cat.name}"? ${taskCount} task${taskCount === 1 ? '' : 's'} using it will be set to "No Category".`
       : `Delete the category "${cat.name}"? This cannot be undone.`;
     catListView.style.display = 'none';
     catConfirmDeleteView.style.display = 'block';
@@ -2001,10 +2007,15 @@
   });
   document.getElementById('catConfirmDeleteBtn').addEventListener('click', ()=>{
     if(!pendingDeleteCategoryId) return;
+    const cat = categories.find(c => c.id === pendingDeleteCategoryId);
+    if(cat){
+      tasks.forEach(t => { if(t.category === cat.name) t.category = ""; });
+    }
     categories = categories.filter(c => c.id !== pendingDeleteCategoryId);
     pendingDeleteCategoryId = null;
     renderCatList();
     showCatListView();
+    renderBoard();
   });
 
   /* ---- delete all tasks in a chosen category ---- */
@@ -2211,8 +2222,57 @@
     el.classList.add('show', kind);
   }
 
+  /* ---------------- API ---------------- */
+  const API_BASE_URL = 'http://localhost:5001';
+
+  class ApiError extends Error {
+    constructor(status, messages){
+      super(messages.join(' '));
+      this.status = status;
+      this.messages = messages;
+    }
+  }
+
+  async function apiFetch(path, options = {}){
+    let res;
+    try{
+      res = await fetch(API_BASE_URL + path, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options
+      });
+    } catch(networkErr){
+      throw new ApiError(0, ['Network error — is the server running?']);
+    }
+
+    if(res.status === 204) return null;
+
+    let body = null;
+    const contentType = res.headers.get('content-type') || '';
+    if(contentType.includes('json')){
+      try{ body = await res.json(); } catch(e){ body = null; }
+    }
+
+    if(!res.ok){
+      const messages = [];
+      if(body && body.errors && typeof body.errors === 'object'){
+        Object.values(body.errors).forEach(arr=>{
+          if(Array.isArray(arr)) messages.push(...arr);
+        });
+      }
+      if(messages.length === 0){
+        messages.push((body && (body.detail || body.title)) || `Request failed (${res.status}).`);
+      }
+      throw new ApiError(res.status, messages);
+    }
+
+    return body;
+  }
+
   /* ---------------- AUTH GATE ---------------- */
   const authGate = document.getElementById('authGate');
+  const authLoading = document.getElementById('authLoading');
+  const authCard = document.getElementById('authCard');
   const appShell = document.getElementById('appShell');
   const authTabLogin = document.getElementById('authTabLogin');
   const authTabSignup = document.getElementById('authTabSignup');
@@ -2244,7 +2304,18 @@
   authTabLogin.addEventListener('click', ()=> showAuthTab('login'));
   authTabSignup.addEventListener('click', ()=> showAuthTab('signup'));
 
-  function enterApp(displayName){
+  function setBusy(button, busy, busyText){
+    button.disabled = busy;
+    if(busy){
+      button.dataset.originalText = button.dataset.originalText || button.textContent;
+      button.textContent = busyText;
+    } else {
+      button.textContent = button.dataset.originalText || button.textContent;
+    }
+  }
+
+  function enterApp(email){
+    const displayName = email.split('@')[0] || email;
     userDisplayName.textContent = displayName;
     userAvatar.textContent = initialsFrom(displayName);
     authGate.classList.add('hidden');
@@ -2256,34 +2327,50 @@
     }
   }
 
-  function attemptLogin(){
+  async function attemptLogin(){
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     if(!email || !password){
       showStatus(loginError, 'Enter both email and password to continue.', 'warn');
       return;
     }
-    enterApp(email.split('@')[0] || email);
+    const btn = document.getElementById('loginSubmitBtn');
+    loginError.classList.remove('show');
+    setBusy(btn, true, 'Logging in…');
+    try{
+      await apiFetch('/api/auth/login', { method:'POST', body: JSON.stringify({ email, password }) });
+      enterApp(email);
+    } catch(err){
+      showStatus(loginError, (err.messages || [err.message]).join(' '), 'warn');
+    } finally {
+      setBusy(btn, false);
+    }
   }
 
-  function attemptSignup(){
-    const name = document.getElementById('signupName').value.trim();
+  async function attemptSignup(){
     const email = document.getElementById('signupEmail').value.trim();
     const password = document.getElementById('signupPassword').value;
     const confirm = document.getElementById('signupPasswordConfirm').value;
-    if(!name || !email || !password || !confirm){
+    if(!email || !password || !confirm){
       showStatus(signupError, 'Fill in every field to create your account.', 'warn');
-      return;
-    }
-    if(password.length < 6){
-      showStatus(signupError, 'Password must be at least 6 characters.', 'warn');
       return;
     }
     if(password !== confirm){
       showStatus(signupError, 'Passwords do not match.', 'warn');
       return;
     }
-    enterApp(name);
+    const btn = document.getElementById('signupSubmitBtn');
+    signupError.classList.remove('show');
+    setBusy(btn, true, 'Creating account…');
+    try{
+      await apiFetch('/api/auth/register', { method:'POST', body: JSON.stringify({ email, password }) });
+      // Register logs the user in automatically on the backend
+      enterApp(email);
+    } catch(err){
+      showStatus(signupError, (err.messages || [err.message]).join(' '), 'warn');
+    } finally {
+      setBusy(btn, false);
+    }
   }
 
   document.getElementById('loginSubmitBtn').addEventListener('click', attemptLogin);
@@ -2296,13 +2383,29 @@
     if(e.key === 'Enter'){ e.preventDefault(); attemptSignup(); }
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    try{ await apiFetch('/api/auth/logout', { method:'POST' }); } catch(err){ /* cookie may already be gone — proceed regardless */ }
     appShell.classList.remove('visible');
     authGate.classList.remove('hidden');
     loginForm.reset();
     signupForm.reset();
     showAuthTab('login');
   });
+
+  async function checkSession(){
+    try{
+      const info = await apiFetch('/api/auth/me');
+      if(info && info.email){
+        enterApp(info.email);
+        return;
+      }
+    } catch(err){
+      // not logged in (401) or server unreachable — fall through to the login screen
+    }
+    authLoading.classList.add('hidden');
+    authCard.classList.remove('hidden');
+  }
+  checkSession();
 
 })();
 </script>

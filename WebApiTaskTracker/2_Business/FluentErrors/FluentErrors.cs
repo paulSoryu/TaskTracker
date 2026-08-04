@@ -82,7 +82,6 @@ public class ValidationError : Error
         Metadata.Add("ErrorCode", "BUSINESS_VALIDATION_ERROR");
     }
 
-    // Could add a constructor that takes a list of errors and groups them by field name, similar to IdentityValidationError, if needed.
 }
 
 public class IdentityValidationError : Error

@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.FluentErrors;
+using WebApiTaskTracker.Business.Models;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
@@ -16,18 +17,25 @@ namespace WebApiTaskTracker.Business.Services.Tasks;
 
 public class TaskService(TaskTrackerDbContext db) : ITaskService
 {
-    public async Task<IReadOnlyCollection<TaskView>> GetAllAsync(GetTasksQuery query)
+    public async Task<PagedResult<TaskView>> GetAllAsync(GetTasksQuery query)
     {
         // Ideally, we should pass the current date from the frontend, but for now, we will use the server's current date
         var today = DateOnly.FromDateTime(DateTime.Today);
 
-        return await db.Tasks.AsQueryable()
+        var tasksCountAfterFiltering = await db.Tasks
+            .AsNoTracking()
+            .ApplyFilter(query, today)
+            .CountAsync();
+
+        var result = await db.Tasks
             .AsNoTracking()
             .ApplyFilter(query, today)
             .ApplySorting(query)
             .ApplyPagination(query)
             .ProjectToType<TaskView>()
             .ToListAsync();
+
+        return new PagedResult<TaskView>(result, tasksCountAfterFiltering);
     }
 
     public async Task<Result<TaskView>> GetByIdAsync(Guid id)
@@ -102,7 +110,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
     {
         var task = await db.Tasks.FindAsync(dto.Id);
         if (task == null)
-            return Result.Fail(new NotFoundError("Task", dto.Id));
+            return Result.Fail(new NotFoundError("Task", dto.Id!));
 
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
         if (dto.CategoryId != null && !categoryExists)

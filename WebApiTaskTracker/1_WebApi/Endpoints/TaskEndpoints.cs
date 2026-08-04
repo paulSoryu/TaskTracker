@@ -2,6 +2,7 @@
 using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
+using WebApiTaskTracker.Business.Models;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.Business.Services.Tasks;
 using WebApiTaskTracker.Utilities;
@@ -42,12 +43,15 @@ public static class TaskEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
-    private static async Task<Ok<IReadOnlyCollection<TaskListResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
+    private static async Task<Ok<PagedResult<TaskListResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
     {
         var query = request.Adapt<GetTasksQuery>();
-        IReadOnlyCollection<TaskView> businessTasks = await taskService.GetAllAsync(query);
+        PagedResult<TaskView> pagedTasks = await taskService.GetAllAsync(query);
 
-        var response = businessTasks.Adapt<IReadOnlyCollection<TaskListResponse>>();
+        var response = new PagedResult<TaskListResponse>(
+            pagedTasks.Items.Adapt<IReadOnlyCollection<TaskListResponse>>(),
+            pagedTasks.TotalCount);
+
         return TypedResults.Ok(response);
     }
 

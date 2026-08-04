@@ -9,10 +9,12 @@ public record GetTasksQuery(
 
     // Filter parameters
     string? SearchTerm,
-    string? CategoryTitle,
     DateOnly? DueDate,
     bool? IsCompleted,
     TaskPriority? Priority,
+    
+    Guid? CategoryId,
+    bool FilterByNoCategory,
 
     TaskDueDateFilterPreset? DueDateFilterPreset,
     DateOnly? SpecificMonth,

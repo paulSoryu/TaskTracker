@@ -11,9 +11,11 @@ public static class TaskQueryExtensions
     {
         if (query.IsCompleted.HasValue)
             dbQuery = dbQuery.Where(t => t.IsCompleted == query.IsCompleted.Value);
-
-        if (!string.IsNullOrEmpty(query.CategoryTitle))
-            dbQuery = dbQuery.Where(t => t.Category.Title == query.CategoryTitle);
+        
+        if (query.FilterByNoCategory)
+            dbQuery = dbQuery.Where(t => t.CategoryId == null);
+        else if (query.CategoryId.HasValue)
+            dbQuery = dbQuery.Where(t => t.CategoryId == query.CategoryId.Value);
 
         if (query.Priority.HasValue)
             dbQuery = dbQuery.Where(t => t.Priority == query.Priority.Value);

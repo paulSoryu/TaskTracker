@@ -10,9 +10,11 @@ public record GetTasksRequest(
 
     // Filter parameters
     string? SearchTerm = null,
-    string? CategoryTitle = null,
     TaskPriority? Priority = null,
     bool? IsCompleted = null,
+
+    Guid? CategoryId = null,
+    bool FilterByNoCategory = false,
 
     TaskDueDateFilterPreset? DueDateFilterPreset = null,
     DateOnly? SpecificMonth = null,

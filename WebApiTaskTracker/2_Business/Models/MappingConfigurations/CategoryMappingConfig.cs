@@ -12,7 +12,7 @@ public class CategoryMappingConfig : IRegister
         config.NewConfig<CategoryEntity, CategoryView>()
             .RequireDestinationMemberSource(true);
 
-        // Configure mapping from CategorySaveCommand to CategoryEntity
-        config.NewConfig<CategorySaveCommand, CategoryEntity>();
+        // Configure mapping from SaveCategoryCommand to CategoryEntity
+        config.NewConfig<SaveCategoryCommand, CategoryEntity>();
     }
 }

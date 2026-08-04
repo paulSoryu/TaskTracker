@@ -102,3 +102,44 @@ public class IdentityValidationError : Error
 
     }
 }
+
+public class ReorderingError : Error
+{
+    public string EntityName { get; }
+    public object? EntityId { get; } = null;
+    public int OldPosition { get; } = -1;
+    public int NewPosition { get; } = -1;
+
+    public ReorderingError(string entityName, int newPosition)
+        : base($"Failed to move {entityName} to position {newPosition}")
+    {
+        EntityName = entityName;
+        NewPosition = newPosition;
+        Metadata.Add("ErrorCode", "REORDER_FAILED");
+        Metadata.Add("EntityName", entityName);
+        Metadata.Add("NewPosition", newPosition);
+    }
+
+    public ReorderingError(string entityName, object entityId, int oldPosition)
+        : base($"Failed to remove {entityName} from position {oldPosition}")
+    {
+        EntityName = entityName;
+        OldPosition = oldPosition;
+        Metadata.Add("ErrorCode", "REORDER_FAILED");
+        Metadata.Add("EntityName", entityName);
+        Metadata.Add("OldPosition", oldPosition);
+    }
+
+    public ReorderingError(string entityName, object entityId, int oldPosition, int newPosition)
+        : base($"Failed to move {entityName} with ID '{entityId}' from position {oldPosition} to position {newPosition}")
+    {
+        EntityName = entityName;
+        EntityId = entityId;
+
+        Metadata.Add("ErrorCode", "REORDER_FAILED");
+        Metadata.Add("EntityName", entityName);
+        Metadata.Add("EntityId", entityId.ToString());
+        Metadata.Add("OldPosition", oldPosition);
+        Metadata.Add("NewPosition", newPosition);
+    }
+}

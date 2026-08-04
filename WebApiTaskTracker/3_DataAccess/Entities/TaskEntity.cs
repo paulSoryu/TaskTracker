@@ -14,6 +14,7 @@ public class TaskEntity : IAuditableEntity
     public TaskPriority Priority { get; set; }
     public bool IsCompleted { get; set; } = false;
     public DateTime CreatedAt { get; set; }
+    public int Position { get; set; } // Position of the task in the list, used for ordering tasks
 
 
     public required Guid UserId { get; set; }

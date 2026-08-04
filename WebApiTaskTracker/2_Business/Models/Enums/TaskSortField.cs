@@ -10,5 +10,6 @@ public enum TaskSortField
     DueDate,
     Priority,
     IsCompleted,
-    CreatedAt
+    CreatedAt,
+    Position
 }

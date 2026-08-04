@@ -426,8 +426,8 @@
     text-align:center;
     text-align-last:center;
     color:var(--ink-soft);
-    padding:4px 20px 4px 9px;
-    width:128px;
+    padding:3px 16px 3px 7px;
+    width:102px;
   }
   .task-title-input{
     width:100%;
@@ -856,6 +856,39 @@
     line-height:1.55;
     margin:0 0 14px;
   }
+  .info-list{
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+    background:var(--card-edge);
+    border:1px solid var(--card-edge);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:14px;
+  }
+  .info-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:12px;
+    background:var(--card);
+    padding:10px 12px;
+  }
+  .info-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .info-value{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink);
+    text-align:right;
+    word-break:break-all;
+  }
   .inline-status{
     font-size:12px;
     font-weight:600;
@@ -1223,6 +1256,7 @@
         <p class="hint" id="accountEmailHint">manage your email and password.</p>
         <div class="account-actions">
           <button class="account-action-row" id="confirmEmailRow" data-action="confirm-email">Confirm Email <span class="chev">›</span></button>
+          <button class="account-action-row" data-action="account-info">Account Info <span class="chev">›</span></button>
           <button class="account-action-row" data-action="change-email">Change Email <span class="chev">›</span></button>
           <button class="account-action-row" data-action="change-password">Change Password <span class="chev">›</span></button>
           <button class="account-action-row danger" data-action="delete-account">Delete Account <span class="chev">›</span></button>
@@ -1438,7 +1472,7 @@
   }
 
   function categoryOptions(selected){
-    const noCategoryOption = `<option value="" ${!selected ? 'selected' : ''}>No Category</option>`;
+    const noCategoryOption = `<option value="" ${!selected ? 'selected' : ''}>———</option>`;
     return noCategoryOption + categories.map(c => `<option value="${escapeAttr(c.name)}" ${c.name===selected?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
   }
   function categoryColor(name){
@@ -2124,10 +2158,23 @@
   const accountEmailHint = document.getElementById('accountEmailHint');
   const confirmEmailRow = document.getElementById('confirmEmailRow');
 
-  let currentUser = { email: '', isEmailConfirmed: false };
+  let currentUser = { userId: '', email: '', isEmailConfirmed: false };
 
   function accountScreens(){
     return {
+      'account-info': {
+        title: 'Account Info',
+        body: `
+          <p class="form-note">Live data from <code>GET /api/auth/me</code>.</p>
+          <div class="info-list" id="accountInfoList">
+            <div class="info-row"><span class="info-label">Loading…</span></div>
+          </div>
+          <div class="inline-status warn" data-status="account-info"></div>
+          <div class="modal-actions" style="justify-content:flex-start;">
+            <button class="btn-plain" data-submit="account-info">Refresh</button>
+          </div>
+        `
+      },
       'confirm-email': {
         title: 'Confirm Email',
         body: `
@@ -2201,6 +2248,27 @@
     if(action === 'confirm-email'){
       requestEmailConfirmation(accountDetailBody.querySelector('[data-submit="confirm-email"]'));
     }
+    if(action === 'account-info'){
+      loadAccountInfo();
+    }
+  }
+
+  async function loadAccountInfo(){
+    const list = accountDetailBody.querySelector('#accountInfoList');
+    const status = accountDetailBody.querySelector('[data-status="account-info"]');
+    if(!list) return;
+    status.classList.remove('show');
+    try{
+      const info = await apiFetch('/api/auth/me');
+      list.innerHTML = `
+        <div class="info-row"><span class="info-label">User ID</span><span class="info-value">${escapeHtml(info.userId ?? '')}</span></div>
+        <div class="info-row"><span class="info-label">Email</span><span class="info-value">${escapeHtml(info.email ?? '')}</span></div>
+        <div class="info-row"><span class="info-label">Email Confirmed</span><span class="info-value">${info.isEmailConfirmed ? 'Yes' : 'No'}</span></div>
+      `;
+    } catch(err){
+      list.innerHTML = `<div class="info-row"><span class="info-label">Error</span></div>`;
+      showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
+    }
   }
 
   async function requestEmailConfirmation(button){
@@ -2232,6 +2300,13 @@
     if(!submitBtn) return;
     const action = submitBtn.dataset.submit;
     const status = accountDetailBody.querySelector(`[data-status="${action}"]`);
+
+    if(action === 'account-info'){
+      setBusy(submitBtn, true, 'Loading…');
+      await loadAccountInfo();
+      setBusy(submitBtn, false);
+      return;
+    }
 
     if(action === 'confirm-email'){
       await requestEmailConfirmation(submitBtn);
@@ -2392,7 +2467,7 @@
   }
 
   function enterApp(userInfo){
-    currentUser = { email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed };
+    currentUser = { userId: userInfo.userId, email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed };
     const displayName = currentUser.email.split('@')[0] || currentUser.email;
     userDisplayName.textContent = displayName;
     userAvatar.textContent = initialsFrom(displayName);
@@ -2514,7 +2589,7 @@
     try{
       const info = await apiFetch('/api/auth/me');
       if(!info || !info.email) return;
-      currentUser = { email: info.email, isEmailConfirmed: !!info.isEmailConfirmed };
+      currentUser = { userId: info.userId, email: info.email, isEmailConfirmed: !!info.isEmailConfirmed };
       const displayName = currentUser.email.split('@')[0] || currentUser.email;
       userDisplayName.textContent = displayName;
       userAvatar.textContent = initialsFrom(displayName);

@@ -81,6 +81,11 @@ public static class ResultExtensions
             //    statusCode: StatusCodes.Status401Unauthorized,
             //    title: "Unauthorized"),
 
+            ReorderingError => TypedResults.Problem(
+                detail: error.Message,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Reordering Error"),
+
             _ => TypedResults.Problem(
                 detail: error?.Message ?? "An unexpected error occurred.",
                 statusCode: StatusCodes.Status500InternalServerError,

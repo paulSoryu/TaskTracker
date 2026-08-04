@@ -36,11 +36,11 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
             };
             var defaultTasks = new List<TaskEntity>
             {
-                new() { Title = "Prepare quarterly report",  Description = "Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.",   Priority = TaskPriority.High,   DueDate = DateOnly.Parse("2026-08-04"), UserId = user.Id, CategoryId = guids[0] },
-                new() { Title = "Book dentist appointment",  Description = "Call the clinic on Karl Marx ave, ask for a morning slot next week.",                           Priority = TaskPriority.Medium, DueDate = DateOnly.Parse("2026-09-25"), UserId = user.Id, CategoryId = guids[1] },
-                new() { Title = "Renew apartment insurance", Description = "Compare two offers, pick the cheaper one with the same coverage, pay online.",                  Priority = TaskPriority.Low,    DueDate = DateOnly.Parse("2026-08-12"), UserId = user.Id, CategoryId = guids[2] },
-                new() { Title = "Grocery run",               Description = "Milk, eggs, bread, coffee, something for Sunday dinner.",                                       Priority = TaskPriority.Low,    DueDate = null,                         UserId = user.Id, CategoryId = guids[3] },
-                new() { Title = "Buy presents for kids",     Description = "Check 3 options, compare prices, and purchase the best gifts.",                                 Priority = TaskPriority.High,   DueDate = DateOnly.Parse("2026-09-01"), UserId = user.Id, CategoryId = guids[4] }
+                new() { Title = "Prepare quarterly report",  Description = "Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.",   Priority = TaskPriority.High,   DueDate = DateOnly.Parse("2026-08-04"), UserId = user.Id, CategoryId = guids[0], Position = 1 },
+                new() { Title = "Book dentist appointment",  Description = "Call the clinic on Karl Marx ave, ask for a morning slot next week.",                           Priority = TaskPriority.Medium, DueDate = DateOnly.Parse("2026-09-25"), UserId = user.Id, CategoryId = guids[1], Position = 2 },
+                new() { Title = "Renew apartment insurance", Description = "Compare two offers, pick the cheaper one with the same coverage, pay online.",                  Priority = TaskPriority.Low,    DueDate = DateOnly.Parse("2026-08-12"), UserId = user.Id, CategoryId = guids[2], Position = 3 },
+                new() { Title = "Grocery run",               Description = "Milk, eggs, bread, coffee, something for Sunday dinner.",                                       Priority = TaskPriority.Low,    DueDate = null,                         UserId = user.Id, CategoryId = guids[3], Position = 4 },
+                new() { Title = "Buy presents for kids",     Description = "Check 3 options, compare prices, and purchase the best gifts.",                                 Priority = TaskPriority.High,   DueDate = DateOnly.Parse("2026-09-01"), UserId = user.Id, CategoryId = guids[4], Position = 5 }
             };
 
             db.Categories.AddRange(defaultCategories);

@@ -96,6 +96,10 @@ public static class TaskQueryExtensions
                 ? dbQuery.OrderByDescending(t => t.CreatedAt)
                 : dbQuery.OrderBy(t => t.CreatedAt),
 
+            TaskSortField.Position => query.IsDescending
+                ? dbQuery.OrderByDescending(t => t.Position)
+                : dbQuery.OrderBy(t => t.Position),
+
             _ => dbQuery
         };
     }

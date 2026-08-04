@@ -59,7 +59,7 @@ public static class CategoryEndpoints
 
     private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CategoryCreateRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)
     {
-        var command = categoryRequest.Adapt<CategorySaveCommand>();
+        var command = categoryRequest.Adapt<SaveCategoryCommand>();
 
         Result<CategoryView> result = await categoryService.CreateAsync(command, user.GetUserId());
 
@@ -72,7 +72,7 @@ public static class CategoryEndpoints
 
     private static async Task<Results<NoContent, ProblemHttpResult>> UpdateCategory(Guid id, CategoryUpdateRequest categoryRequest, ICategoryService categoryService)
     {
-        var command = categoryRequest.Adapt<CategorySaveCommand>() with { Id = id };
+        var command = categoryRequest.Adapt<SaveCategoryCommand>() with { Id = id };
 
         Result result = await categoryService.UpdateAsync(command);
 

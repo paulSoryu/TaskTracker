@@ -42,7 +42,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         return Result.Ok(response);
     }
 
-    public async Task<Result<CategoryView>> CreateAsync(CategorySaveCommand dto, Guid userId)
+    public async Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand dto, Guid userId)
     {
         bool categoryExists = await db.Categories
             .AnyAsync(c => c.Title == dto.Title);
@@ -74,7 +74,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
     }
 
 
-    public async Task<Result> UpdateAsync(CategorySaveCommand dto)
+    public async Task<Result> UpdateAsync(SaveCategoryCommand dto)
     {
         var category = await db.Categories.FindAsync(dto.Id);
 

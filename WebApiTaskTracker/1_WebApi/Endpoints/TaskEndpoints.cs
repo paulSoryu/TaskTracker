@@ -36,6 +36,10 @@ public static class TaskEndpoints
 
         routeGroup.MapDelete("/{id:Guid}", DeleteTask)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        routeGroup.MapPatch("/reorder", ReorderTask)
+            .WithValidation<MoveTaskRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
     private static async Task<Ok<IReadOnlyCollection<TaskSummaryResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
@@ -58,7 +62,7 @@ public static class TaskEndpoints
 
     private static async Task<Results<CreatedAtRoute<TaskResponse>, ProblemHttpResult>> CreateTask(TaskCreateRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
     {
-        var command = taskRequest.Adapt<TaskSaveCommand>();
+        var command = taskRequest.Adapt<SaveTaskCommand>();
         Guid userId = user.GetUserId();
 
         Result<TaskView> result = await taskService.CreateAsync(command, userId);
@@ -72,7 +76,7 @@ public static class TaskEndpoints
 
     private static async Task<Results<NoContent, ProblemHttpResult>> UpdateTask(Guid id, TaskUpdateRequest taskRequest, ITaskService taskService)
     {
-        var command = taskRequest.Adapt<TaskSaveCommand>() with { Id = id };
+        var command = taskRequest.Adapt<SaveTaskCommand>() with { Id = id };
 
         Result result = await taskService.UpdateAsync(command);
 
@@ -83,6 +87,13 @@ public static class TaskEndpoints
     {
         Result result = await taskService.DeleteAsync(id);
 
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> ReorderTask(MoveTaskRequest moveRequest, ITaskService taskService)
+    {
+        var command = moveRequest.Adapt<MoveTaskCommand>();
+        Result result = await taskService.ReorderTaskAsync(command);
         return result.ToTypedHttpResult();
     }
 }

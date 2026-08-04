@@ -10,9 +10,9 @@ public class TaskMappingConfig : IRegister
     {
         // Configure mapping from TaskEntity to TaskView
         config.NewConfig<TaskEntity, TaskView>()
-            .RequireDestinationMemberSource(true);
+              .RequireDestinationMemberSource(true);
 
-        // Configure mapping from TaskSaveCommand to TaskEntity
-        config.NewConfig<TaskSaveCommand, TaskEntity>();
+        // Configure mapping from SaveTaskCommand to TaskEntity
+        config.NewConfig<SaveTaskCommand, TaskEntity>();
     }
 }

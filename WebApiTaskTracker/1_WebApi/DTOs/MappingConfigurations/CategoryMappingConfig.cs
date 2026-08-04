@@ -17,11 +17,11 @@ public class CategoryMappingConfig : IRegister
             .Map(dest => dest.TaskCount, src => src.Tasks.Count)
             .Map(dest => dest.CompletedTaskCount, src => src.Tasks.Count(t => t.IsCompleted));
 
-        // Configure mapping from CategoryCreateRequest to CategorySaveCommand
-        config.NewConfig<CategoryCreateRequest, CategorySaveCommand>()
+        // Configure mapping from CategoryCreateRequest to SaveCategoryCommand
+        config.NewConfig<CategoryCreateRequest, SaveCategoryCommand>()
             .Map(dest => dest.Id, src => (Guid?)null);
 
-        // Configure mapping from CategoryUpdateRequest to CategorySaveCommand
-        config.NewConfig<CategoryUpdateRequest, CategorySaveCommand>();
+        // Configure mapping from CategoryUpdateRequest to SaveCategoryCommand
+        config.NewConfig<CategoryUpdateRequest, SaveCategoryCommand>();
     }
 }

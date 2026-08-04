@@ -43,31 +43,62 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             : Result.Ok(response);
     }
 
-    public async Task<Result<TaskView>> CreateAsync(TaskSaveCommand dto, Guid userId)
+    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand dto, Guid userId)
     {
-        // Global SQL filter already filters everything by userId, so we don't need to filter here
+        var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+        if (dto.CategoryId != null && !categoryExists)
+            return Result.Fail(new NotFoundError("Category", dto.CategoryId));
+
+        var pageExists = await db.Tasks
+            .Skip((dto.PageNumber - 1) * dto.PageSize)
+            .Take(dto.PageSize)
+            .AnyAsync();
+        if (!pageExists)
+            return Result.Fail(new NotFoundError("Page", dto.PageNumber));
+
         var isEmailConfirmed = await db.Users
             .Select(u => u.EmailConfirmed)
             .FirstOrDefaultAsync();
 
         int currentTasksCount = await db.Tasks.CountAsync();
-        int maxAllowedTasks = isEmailConfirmed 
-            ? TaskConstraints.MaxTasksForConfirmedEmail 
+        int maxAllowedTasks = isEmailConfirmed
+            ? TaskConstraints.MaxTasksForConfirmedEmail
             : TaskConstraints.MaxTasksForUnconfirmedEmail;
 
         // Check if the user has reached the maximum allowed tasks
         if (currentTasksCount >= maxAllowedTasks)
             return Result.Fail(new TaskLimitExceededError(maxAllowedTasks, isEmailConfirmed));
 
-        var entity = dto.Adapt<TaskEntity>();
+        // Position calculations
+        int offset = (dto.PageNumber - 1) * dto.PageSize;
+        int targetPosition = offset + 1;
 
-        db.Tasks.Add(entity);
-        await db.SaveChangesAsync();
+        using var transaction = await db.Database.BeginTransactionAsync();
+        try
+        {
+            await db.Tasks
+             .Where(t => t.Position >= targetPosition)
+             .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
 
-        return Result.Ok(entity.Adapt<TaskView>());
+            // Create the new task entity and set its position
+            var entity = dto.Adapt<TaskEntity>();
+            entity.Position = targetPosition;
+            entity.UserId = userId;
+
+            db.Tasks.Add(entity);
+            await db.SaveChangesAsync();
+
+            await transaction.CommitAsync();
+            return Result.Ok(entity.Adapt<TaskView>());
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            return Result.Fail(new ReorderingError("Task", targetPosition));
+        }
     }
 
-    public async Task<Result> UpdateAsync(TaskSaveCommand dto)
+    public async Task<Result> UpdateAsync(SaveTaskCommand dto)
     {
         var task = await db.Tasks.FindAsync(dto.Id);
         if (task == null)
@@ -89,13 +120,91 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
     public async Task<Result> DeleteAsync(Guid taskId)
     {
-        var existingTask = await db.Tasks.FindAsync(taskId);
-        if (existingTask == null)
+        var task = await db.Tasks
+                .Select(t => new { t.Id, t.Position })
+                .FirstOrDefaultAsync(t => t.Id == taskId);
+        if (task == null)
             return Result.Fail(new NotFoundError("Task", taskId));
 
-        db.Remove(existingTask);
-        await db.SaveChangesAsync();
+        int deletedPos = task.Position;
 
-        return Result.Ok();
+        try
+        {
+            await db.Database.BeginTransactionAsync();
+            
+            await db.Tasks
+                .Where(t => t.Id == taskId)
+                .ExecuteDeleteAsync();
+
+            // Shift up the positions of tasks that were below the deleted task
+            await db.Tasks
+                .Where(t => t.Position > deletedPos)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position - 1));
+
+            await db.Database.CommitTransactionAsync();
+            return Result.Ok();
+        }
+        catch
+        {
+            await db.Database.RollbackTransactionAsync();
+            return Result.Fail(new ReorderingError("Task", taskId, deletedPos));
+        }
     }
+
+    public async Task<Result> ReorderTaskAsync(MoveTaskCommand dto)
+    {
+        var task = await db.Tasks
+                .Select(t => new { t.Id, t.Position })
+                .FirstOrDefaultAsync(t => t.Id == dto.TaskId);
+        if (task == null)
+            return Result.Fail(new NotFoundError("Task", dto.TaskId));
+
+        var pageExists = await db.Tasks
+            .Skip((dto.PageNumber - 1) * dto.PageSize)
+            .Take(dto.PageSize)
+            .AnyAsync();
+        if (!pageExists)
+            return Result.Fail(new NotFoundError("Page", dto.PageNumber));
+
+        int offset = (dto.PageNumber - 1) * dto.PageSize;
+
+        int oldPos = task.Position;
+        int newPos = offset + dto.NewLocalIndex;
+
+        if (oldPos == newPos) return Result.Ok();
+
+        using var transaction = await db.Database.BeginTransactionAsync();
+        try
+        {
+            if (oldPos < newPos)
+            {
+                // Downshift
+                await db.Tasks
+                    .Where(t => t.Position > oldPos && t.Position <= newPos)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position - 1));
+            }
+            else
+            {
+                // Upshift
+                await db.Tasks
+                    .Where(t => t.Position >= newPos && t.Position < oldPos)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
+            }
+
+            // Update the position of the moved task
+            await db.Tasks
+                .Where(t => t.Id == dto.TaskId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, newPos));
+
+            await transaction.CommitAsync();
+            return Result.Ok();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            return Result.Fail(new ReorderingError("Task", dto.TaskId, oldPos, newPos));
+        }
+    }
+
+
 }

@@ -2,6 +2,7 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -17,21 +18,21 @@ namespace WebApiTaskTracker.Business.Services.Tasks;
 
 public class TaskService(TaskTrackerDbContext db) : ITaskService
 {
-    public async Task<PagedResult<TaskView>> GetAllAsync(GetTasksQuery query)
+    public async Task<PagedResult<TaskView>> GetAllAsync(FilterTasksQuery filterQuery, SortTasksQuery sortQuery, PaginateTasksQuery paginateQuery)
     {
         // Ideally, we should pass the current date from the frontend, but for now, we will use the server's current date
         var today = DateOnly.FromDateTime(DateTime.Today);
 
         var tasksCountAfterFiltering = await db.Tasks
             .AsNoTracking()
-            .ApplyFilter(query, today)
+            .ApplyFilter(filterQuery, today)
             .CountAsync();
 
         var result = await db.Tasks
             .AsNoTracking()
-            .ApplyFilter(query, today)
-            .ApplySorting(query)
-            .ApplyPagination(query)
+            .ApplyFilter(filterQuery, today)
+            .ApplySorting(sortQuery)
+            .ApplyPagination(paginateQuery)
             .ProjectToType<TaskView>()
             .ToListAsync();
 
@@ -51,18 +52,18 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             : Result.Ok(response);
     }
 
-    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand dto, Guid userId)
+    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, Guid userId)
     {
-        var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-        if (dto.CategoryId != null && !categoryExists)
-            return Result.Fail(new NotFoundError("Category", dto.CategoryId));
+        var categoryExists = await db.Categories.AnyAsync(c => c.Id == command.CategoryId);
+        if (command.CategoryId != null && !categoryExists)
+            return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
         var pageExists = await db.Tasks
-            .Skip((dto.PageNumber - 1) * dto.PageSize)
-            .Take(dto.PageSize)
+            .Skip((command.PageNumber - 1) * command.PageSize)
+            .Take(command.PageSize)
             .AnyAsync();
         if (!pageExists)
-            return Result.Fail(new NotFoundError("Page", dto.PageNumber));
+            return Result.Fail(new NotFoundError("Page", command.PageNumber));
 
         var isEmailConfirmed = await db.Users
             .Select(u => u.EmailConfirmed)
@@ -78,7 +79,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             return Result.Fail(new TaskLimitExceededError(maxAllowedTasks, isEmailConfirmed));
 
         // Position calculations
-        int offset = (dto.PageNumber - 1) * dto.PageSize;
+        int offset = (command.PageNumber - 1) * command.PageSize;
         int targetPosition = offset + 1;
 
         using var transaction = await db.Database.BeginTransactionAsync();
@@ -89,7 +90,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
              .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
 
             // Create the new task entity and set its position
-            var entity = dto.Adapt<TaskEntity>();
+            var entity = command.Adapt<TaskEntity>();
             entity.Position = targetPosition;
             entity.UserId = userId;
 
@@ -106,21 +107,21 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
     }
 
-    public async Task<Result> UpdateAsync(SaveTaskCommand dto)
+    public async Task<Result> UpdateAsync(SaveTaskCommand command)
     {
-        var task = await db.Tasks.FindAsync(dto.Id);
+        var task = await db.Tasks.FindAsync(command.Id);
         if (task == null)
-            return Result.Fail(new NotFoundError("Task", dto.Id!));
+            return Result.Fail(new NotFoundError("Task", command.Id!));
 
-        var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-        if (dto.CategoryId != null && !categoryExists)
-            return Result.Fail(new NotFoundError("Category", dto.CategoryId));
+        var categoryExists = await db.Categories.AnyAsync(c => c.Id == command.CategoryId);
+        if (command.CategoryId != null && !categoryExists)
+            return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
         // Validate that the due date is not set to a past date, but only if the due date is being changed
-        if (dto.DueDate != task.DueDate && dto.DueDate < DateOnly.FromDateTime(DateTime.Today))
+        if (command.DueDate != task.DueDate && command.DueDate < DateOnly.FromDateTime(DateTime.Today))
             return Result.Fail(new ValidationError("You cannot change the due date to a past date."));
 
-        dto.Adapt(task);
+        command.Adapt(task);
 
         await db.SaveChangesAsync();
         return Result.Ok();
@@ -139,7 +140,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         try
         {
             await db.Database.BeginTransactionAsync();
-            
+
             await db.Tasks
                 .Where(t => t.Id == taskId)
                 .ExecuteDeleteAsync();
@@ -159,25 +160,22 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
     }
 
-    public async Task<Result> ReorderTaskAsync(MoveTaskCommand dto)
+    public async Task<Result> ReorderTaskAsync(MoveTaskCommand command)
     {
         var task = await db.Tasks
-                .Select(t => new { t.Id, t.Position })
-                .FirstOrDefaultAsync(t => t.Id == dto.TaskId);
+           .Select(t => new { t.Id, t.Position })
+           .FirstOrDefaultAsync(t => t.Id == command.TaskId);
         if (task == null)
-            return Result.Fail(new NotFoundError("Task", dto.TaskId));
+            return Result.Fail(new NotFoundError("Task", command.TaskId));
 
-        var pageExists = await db.Tasks
-            .Skip((dto.PageNumber - 1) * dto.PageSize)
-            .Take(dto.PageSize)
-            .AnyAsync();
-        if (!pageExists)
-            return Result.Fail(new NotFoundError("Page", dto.PageNumber));
+        int offset = (command.PageNumber - 1) * command.PageSize;
 
-        int offset = (dto.PageNumber - 1) * dto.PageSize;
+        int totalTasks = await db.Tasks.CountAsync();
+        if (offset >= totalTasks && totalTasks > 0)
+            return Result.Fail(new NotFoundError("Page", command.PageNumber));
 
         int oldPos = task.Position;
-        int newPos = offset + dto.NewLocalIndex;
+        int newPos = Math.Clamp(command.NewLocalIndex + offset, 1, totalTasks);
 
         if (oldPos == newPos) return Result.Ok();
 
@@ -201,18 +199,58 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
             // Update the position of the moved task
             await db.Tasks
-                .Where(t => t.Id == dto.TaskId)
+                .Where(t => t.Id == command.TaskId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, newPos));
 
             await transaction.CommitAsync();
             return Result.Ok();
         }
-        catch
+        catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            return Result.Fail(new ReorderingError("Task", dto.TaskId, oldPos, newPos));
+            return Result.Fail(new ReorderingError("Task", command.TaskId, oldPos, newPos, ex.Message));
         }
     }
 
+    public async Task<Result> ResetAllPositionsAsync(MoveTaskCommand command, SortTasksQuery query)
+    {
+        var allTasks = await db.Tasks
+            .ApplySorting(query)
+            .ToListAsync();
 
+        var movedTask = allTasks.FirstOrDefault(t => t.Id == command.TaskId);
+        if (movedTask == null)
+            return Result.Fail(new NotFoundError("Task", command.TaskId));
+
+        int offset = (command.PageNumber - 1) * command.PageSize;
+        if (offset >= allTasks.Count && allTasks.Count > 0)
+            return Result.Fail(new NotFoundError("Page", command.PageNumber));
+
+        // Save the old and new positions for logging purposes
+        int loggedOldPos = movedTask.Position;
+        int loggedNewPos = offset + command.NewLocalIndex;
+
+        using var transaction = await db.Database.BeginTransactionAsync();
+        try
+        {
+            allTasks.Remove(movedTask);
+
+            int targetIndex = Math.Clamp(offset + command.NewLocalIndex - 1, 0, allTasks.Count);
+
+            allTasks.Insert(targetIndex, movedTask);
+
+            for (int i = 0; i < allTasks.Count; i++)
+                allTasks[i].Position = i + 1;
+
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return Result.Ok();
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return Result.Fail(new ReorderingError("Task", command.TaskId, loggedOldPos, loggedNewPos, ex.Message));
+        }
+    }
 }

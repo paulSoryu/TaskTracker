@@ -38,5 +38,10 @@ public class TaskConfiguration : IEntityTypeConfiguration<TaskEntity>
                .IsRequired();
 
         builder.HasIndex(t => t.UserId);
+
+        // This would be nice for additional security, but it can't be used with ExecuteUpdateAsync.
+        // And even usual SaveChangesAsync will throw an exception if you try to update the Position of a task to a value that already exists for another task of the same user. So, this index is commented out for now.
+        //builder.HasIndex(c => new { c.UserId, c.Position })
+        //       .IsUnique();
     }
 }

@@ -142,4 +142,18 @@ public class ReorderingError : Error
         Metadata.Add("OldPosition", oldPosition);
         Metadata.Add("NewPosition", newPosition);
     }
+
+    public ReorderingError(string entityName, object entityId, int oldPosition, int newPosition, string exceptionMessage)
+        : base($"Failed to move {entityName} with ID '{entityId}' from position {oldPosition} to position {newPosition}: {exceptionMessage}")
+    {
+        EntityName = entityName;
+        EntityId = entityId;
+
+        Metadata.Add("ErrorCode", "REORDER_FAILED");
+        Metadata.Add("EntityName", entityName);
+        Metadata.Add("EntityId", entityId.ToString());
+        Metadata.Add("OldPosition", oldPosition);
+        Metadata.Add("NewPosition", newPosition);
+        Metadata.Add("ExceptionMessage", exceptionMessage);
+    }
 }

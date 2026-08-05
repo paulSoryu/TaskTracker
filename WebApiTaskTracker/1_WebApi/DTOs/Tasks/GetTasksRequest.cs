@@ -6,7 +6,7 @@ namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 public record GetTasksRequest(
     // Sorting parameters
     TaskSortField? SortBy = null,
-    bool IsDescending = false,
+    bool? IsDescending = false,
 
     // Filter parameters
     string? SearchTerm = null,
@@ -14,7 +14,7 @@ public record GetTasksRequest(
     bool? IsCompleted = null,
 
     Guid? CategoryId = null,
-    bool FilterByNoCategory = false,
+    bool? FilterByNoCategory = false,
 
     TaskDueDateFilterPreset? DueDateFilterPreset = null,
     DateOnly? SpecificMonth = null,
@@ -29,7 +29,7 @@ public record GetTasksRequest(
         public Validator()
         {
             RuleFor(x => x.PageSize)
-                .GreaterThan(0).WithMessage("PageSize must be greater than 0.")
+                .GreaterThanOrEqualTo(10).WithMessage("PageSize must be at least 10.")
                 .LessThanOrEqualTo(100).WithMessage("PageSize must be at most 100.");
 
             RuleFor(x => x.PageNumber)

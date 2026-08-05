@@ -41,12 +41,18 @@ public static class TaskEndpoints
         routeGroup.MapPatch("/reorder", ReorderTask)
             .WithValidation<MoveTaskRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
+
+        routeGroup.MapPatch("/reset-positions", ResetAllPositionsAsync)
+            .WithValidation<ResetTasksPositionsRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
     private static async Task<Ok<PagedResult<TaskListResponse>>> GetAllTasks(ITaskService taskService, [AsParameters] GetTasksRequest request)
     {
-        var query = request.Adapt<GetTasksQuery>();
-        PagedResult<TaskView> pagedTasks = await taskService.GetAllAsync(query);
+        var filterQuery = request.Adapt<FilterTasksQuery>();
+        var sortQuery = request.Adapt<SortTasksQuery>();
+        var paginationQuery = request.Adapt<PaginateTasksQuery>();
+        PagedResult<TaskView> pagedTasks = await taskService.GetAllAsync(filterQuery, sortQuery, paginationQuery);
 
         var response = new PagedResult<TaskListResponse>(
             pagedTasks.Items.Adapt<IReadOnlyCollection<TaskListResponse>>(),
@@ -98,6 +104,14 @@ public static class TaskEndpoints
     {
         var command = moveRequest.Adapt<MoveTaskCommand>();
         Result result = await taskService.ReorderTaskAsync(command);
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> ResetAllPositionsAsync(ResetTasksPositionsRequest resetRequest, ITaskService taskService)
+    {
+        var command = resetRequest.Adapt<MoveTaskCommand>();
+        var sortQuery = resetRequest.Adapt<SortTasksQuery>();
+        Result result = await taskService.ResetAllPositionsAsync(command, sortQuery);
         return result.ToTypedHttpResult();
     }
 }

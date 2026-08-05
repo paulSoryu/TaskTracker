@@ -1,15 +1,19 @@
 ﻿using FluentValidation;
+using WebApiTaskTracker.Business.Models.Enums;
 
 namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 
-public record MoveTaskRequest(
+public record ResetTasksPositionsRequest(
     Guid TaskId,
     int PageNumber,
     int PageSize,
-    int NewLocalIndex
+    int NewLocalIndex,
+
+    TaskSortField SortBy,
+    bool IsDescending
 )
 {
-    public class Validator : AbstractValidator<MoveTaskRequest>
+    public class Validator : AbstractValidator<ResetTasksPositionsRequest>
     {
         public Validator()
         {
@@ -26,6 +30,9 @@ public record MoveTaskRequest(
             RuleFor(x => x.NewLocalIndex)
                 .GreaterThan(0).WithMessage("NewLocalIndex must be greater than to 0.")
                 .LessThanOrEqualTo(x => x.PageSize).WithMessage("NewLocalIndex must be less than or equal to PageSize.");
+
+            RuleFor(x => x.SortBy)
+                .IsInEnum().WithMessage("SortBy must be a valid TaskSortField value.");
 
         }
     }

@@ -72,6 +72,7 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 // Configure JSON options to use string representation for enums in the API responses
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 

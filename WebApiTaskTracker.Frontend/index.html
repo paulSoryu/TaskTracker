@@ -1143,6 +1143,7 @@
       <button class="pill sort-btn" data-sort="priority">Priority</button>
       <button class="pill sort-btn" data-sort="isCompleted">Is Completed</button>
       <button class="pill sort-btn" data-sort="createdAt">Created At</button>
+      <button class="pill sort-btn" data-sort="position">Custom Order</button>
 
       <div class="page-size-group">
         <label for="pageSizeSelect" class="page-size-label">Per Page</label>
@@ -1331,9 +1332,22 @@
     <div class="modal">
       <h2>Delete Task</h2>
       <p class="hint" id="deleteTaskText">Delete this task permanently?</p>
+      <div class="inline-status warn" id="deleteTaskError"></div>
       <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
         <button class="btn-plain" id="deleteTaskCancelBtn">Cancel</button>
         <button class="btn-solid btn-solid-danger" id="deleteTaskConfirmBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= REORDER WARNING MODAL ================= -->
+  <div class="overlay" id="reorderWarningOverlay">
+    <div class="modal">
+      <h2>Switch to Custom Order?</h2>
+      <p class="hint">You're currently viewing a sorted list. Dragging a task to reorder it will overwrite the saved position of <strong>every</strong> task with this new order, replacing whatever custom order existed before.</p>
+      <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
+        <button class="btn-plain" id="reorderWarningCancelBtn">Cancel</button>
+        <button class="btn-solid" id="reorderWarningConfirmBtn">Reorder Anyway</button>
       </div>
     </div>
   </div>
@@ -1381,18 +1395,16 @@
   ];
   const priorities = ["High","Medium","Low"];
 
-  let tasks = [
-    { id: cid(), title:"Prepare quarterly report", description:"Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.", category:"Work", priority:"High", dueDate:"2026-08-03", isCompleted:false, createdAt:"2026-07-20T09:15:00" },
-    { id: cid(), title:"Book dentist appointment", description:"Call the clinic on Karl Marx ave, ask for a morning slot next week.", category:"Health", priority:"Low", dueDate:"2026-08-10", isCompleted:false, createdAt:"2026-07-22T14:02:00" },
-    { id: cid(), title:"Renew apartment insurance", description:"Compare two offers, pick the cheaper one with the same coverage, pay online.", category:"Personal", priority:"Medium", dueDate:"2026-08-01", isCompleted:true, createdAt:"2026-07-15T11:40:00" },
-    { id: cid(), title:"Grocery run", description:"Milk, eggs, bread, coffee, something for Sunday dinner.", category:"Errands", priority:"Low", dueDate:"2026-07-30", isCompleted:false, createdAt:"2026-07-27T08:00:00" }
-  ];
+  // Real task data now comes from the server (GET /api/tasks) — see loadTasks().
+  let tasks = [];
+  let totalTaskCount = 0;
 
   const filters = { category:"", priority:"", completed:"", dueDate:"" };
   let searchQuery = "";
   let catSearchQuery = "";
   let sortKey = null;
   let sortDir = 1; // 1 asc, -1 desc
+  let currentPage = 1; // reset to 1 whenever a filter changes; wired into real pagination once the board talks to the backend
 
   function cid(){ return 't' + Math.random().toString(36).slice(2,9); }
 
@@ -1403,73 +1415,116 @@
       categories.map(c => `<div class="dropdown-item" data-value="${escapeAttr(c.name)}">${escapeHtml(c.name)}</div>`).join('');
   }
 
-  /* ---------------- DUE DATE FILTER HELPERS ---------------- */
-  function matchesDueDateFilter(task, filterValue){
-    if(!filterValue) return true;
-    if(!task.dueDate) return filterValue === 'none';
-    if(filterValue === 'none') return false;
-
-    // Month filter: filterValue is a literal "YYYY-MM" picked from the month input.
-    if(/^\d{4}-\d{2}$/.test(filterValue)){
-      return task.dueDate.slice(0, 7) === filterValue;
-    }
-
-    const due = new Date(task.dueDate + 'T00:00:00');
-    const todayStart = new Date();
-    todayStart.setHours(0,0,0,0);
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
-
-    if(filterValue === 'overdue') return due < todayStart;
-    if(filterValue === 'today') return due >= todayStart && due < todayEnd;
-    if(filterValue === 'week'){
-      const weekEnd = new Date(todayStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
-      return due >= todayStart && due < weekEnd;
-    }
-    if(filterValue === 'month'){
-      const monthEnd = new Date(todayStart);
-      monthEnd.setMonth(monthEnd.getMonth() + 1);
-      return due >= todayStart && due < monthEnd;
-    }
-    return true;
+  /* ---------------- RENDER: BOARD ---------------- */
+  function getPageSize(){
+    return parseInt(document.getElementById('pageSizeSelect').value, 10) || 25;
   }
 
-  /* ---------------- RENDER: BOARD ---------------- */
-  function getFilteredSortedTasks(){
-    const query = searchQuery.trim().toLowerCase();
-    let list = tasks.filter(t=>{
-      if(filters.category && t.category !== filters.category) return false;
-      if(filters.priority && t.priority !== filters.priority) return false;
-      if(filters.completed !== "" && String(t.isCompleted) !== filters.completed) return false;
-      if(!matchesDueDateFilter(t, filters.dueDate)) return false;
-      if(query){
-        const haystack = `${t.title} ${t.description}`.toLowerCase();
-        if(!haystack.includes(query)) return false;
+  function buildTasksQuery(){
+    const params = new URLSearchParams();
+    params.set('pageNumber', currentPage);
+    params.set('pageSize', getPageSize());
+
+    if(searchQuery.trim()) params.set('searchTerm', searchQuery.trim());
+    if(filters.priority) params.set('priority', filters.priority);
+    if(filters.completed !== '') params.set('isCompleted', filters.completed);
+    // NOTE: filters.category is intentionally not sent yet — the backend filters by
+    // CategoryId, and real categories aren't wired up to the server yet (next step).
+
+    if(filters.dueDate){
+      if(/^\d{4}-\d{2}$/.test(filters.dueDate)){
+        params.set('specificMonth', filters.dueDate + '-01');
+      } else {
+        const presetMap = { overdue:'Overdue', today:'Today', week:'ThisWeek', month:'ThisMonth', none:'NoDueDate' };
+        const preset = presetMap[filters.dueDate];
+        if(preset) params.set('dueDateFilterPreset', preset);
       }
-      return true;
-    });
+    }
 
     if(sortKey){
-      list = list.slice().sort((a,b)=>{
-        let va = a[sortKey], vb = b[sortKey];
-        if(sortKey === "priority"){
-          const order = {High:0, Medium:1, Low:2};
-          va = order[va]; vb = order[vb];
-        } else if(sortKey === "isCompleted"){
-          va = va ? 1 : 0; vb = vb ? 1 : 0;
-        } else if(sortKey === "dueDate" || sortKey === "createdAt"){
-          va = new Date(va).getTime(); vb = new Date(vb).getTime();
-        } else {
-          va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
-        }
-        if(va < vb) return -1 * sortDir;
-        if(va > vb) return 1 * sortDir;
-        return 0;
-      });
+      const sortFieldMap = { title:'Title', category:'CategoryTitle', dueDate:'DueDate', priority:'Priority', isCompleted:'IsCompleted', createdAt:'CreatedAt', position:'Position' };
+      const field = sortFieldMap[sortKey];
+      if(field){
+        params.set('sortBy', field);
+        params.set('isDescending', sortDir === -1 ? 'true' : 'false');
+      }
     }
-    return list;
+    return params.toString();
   }
+
+  async function loadTasks(){
+    const board = document.getElementById('board');
+    board.innerHTML = '<div class="empty-state">Loading tasks…</div>';
+    try{
+      const query = buildTasksQuery();
+      const result = await apiFetch(`/api/tasks?${query}`);
+      const totalPages = Math.max(1, Math.ceil((result.totalCount || 0) / getPageSize()));
+      if(currentPage > totalPages){
+        // the page we asked for no longer exists (e.g. a filter shrank the result set) — fall back and refetch once
+        currentPage = totalPages;
+        return loadTasks();
+      }
+      tasks = (result.items || []).map(t => ({
+        id: t.id,
+        title: t.title,
+        description: t.description || '',
+        dueDate: t.dueDate || '',
+        priority: t.priority,
+        isCompleted: t.isCompleted,
+        createdAt: t.createdAt,
+        categoryId: t.categoryId,
+        position: t.position,
+        // Categories aren't wired to the server yet — every task shows as
+        // "no category" (———) on the board until that's connected.
+        category: ""
+      }));
+      totalTaskCount = result.totalCount || 0;
+      renderPagination();
+      renderBoardFromState();
+    } catch(err){
+      board.innerHTML = `<div class="empty-state">Couldn't load tasks: ${escapeHtml((err.messages || [err.message]).join(' '))}</div>`;
+    }
+  }
+
+  function renderPagination(){
+    const nav = document.querySelector('nav.pagination');
+    if(!nav) return;
+    const pageSize = getPageSize();
+    const totalPages = Math.max(1, Math.ceil(totalTaskCount / pageSize));
+
+    function pageButtonList(current, total){
+      if(total <= 7) return Array.from({length: total}, (_,i)=>i+1);
+      const pages = [1];
+      if(current > 3) pages.push('…');
+      for(let p = Math.max(2, current-1); p <= Math.min(total-1, current+1); p++) pages.push(p);
+      if(current < total-2) pages.push('…');
+      pages.push(total);
+      return pages;
+    }
+
+    let html = `<button class="page-nav" data-page="${currentPage-1}" ${currentPage<=1?'disabled':''}>‹</button>`;
+    pageButtonList(currentPage, totalPages).forEach(p=>{
+      html += (p === '…')
+        ? `<span class="page-ellipsis">…</span>`
+        : `<button class="page-btn ${p===currentPage?'active':''}" data-page="${p}">${p}</button>`;
+    });
+    html += `<button class="page-nav" data-page="${currentPage+1}" ${currentPage>=totalPages?'disabled':''}>›</button>`;
+    nav.innerHTML = html;
+  }
+
+  document.querySelector('nav.pagination').addEventListener('click', e=>{
+    const btn = e.target.closest('[data-page]');
+    if(!btn || btn.disabled) return;
+    const page = parseInt(btn.dataset.page, 10);
+    if(!page || page === currentPage) return;
+    currentPage = page;
+    loadTasks();
+  });
+
+  document.getElementById('pageSizeSelect').addEventListener('change', ()=>{
+    currentPage = 1;
+    loadTasks();
+  });
 
   function categoryOptions(selected){
     const noCategoryOption = `<option value="" ${!selected ? 'selected' : ''}>———</option>`;
@@ -1484,9 +1539,9 @@
     return priorities.map(p => `<option value="${p}" ${p===selected?'selected':''}>${p}</option>`).join('');
   }
 
-  function renderBoard(){
+  function renderBoardFromState(){
     const board = document.getElementById('board');
-    const list = getFilteredSortedTasks();
+    const list = tasks;
 
     if(list.length === 0){
       board.innerHTML = '<div class="empty-state">No tasks match the current filters. Try clearing a filter, or add a new task.</div>';
@@ -1542,7 +1597,7 @@
     task[field] = e.target.value;
     if(field === 'category'){
       // flag color depends on category, needs a re-render
-      renderBoard();
+      renderBoardFromState();
     }
   });
 
@@ -1555,12 +1610,13 @@
 
     if(actionBtn.dataset.action === 'toggle-complete'){
       task.isCompleted = !task.isCompleted;
-      renderBoard();
+      renderBoardFromState();
     }
     if(actionBtn.dataset.action === 'delete'){
       pendingDeleteTaskId = task.id;
       document.getElementById('deleteTaskText').textContent =
         `Delete "${task.title || 'this task'}" permanently? This cannot be undone.`;
+      document.getElementById('deleteTaskError').classList.remove('show');
       document.getElementById('deleteTaskOverlay').classList.add('open');
     }
   });
@@ -1580,11 +1636,21 @@
   document.getElementById('deleteTaskCancelBtn').addEventListener('click', closeDeleteTaskModal);
   bindOverlayOutsideClose(deleteTaskOverlay, closeDeleteTaskModal);
 
-  document.getElementById('deleteTaskConfirmBtn').addEventListener('click', ()=>{
+  document.getElementById('deleteTaskConfirmBtn').addEventListener('click', async ()=>{
     if(!pendingDeleteTaskId) return;
-    tasks = tasks.filter(t => t.id !== pendingDeleteTaskId);
-    closeDeleteTaskModal();
-    renderBoard();
+    const confirmBtn = document.getElementById('deleteTaskConfirmBtn');
+    const status = document.getElementById('deleteTaskError');
+    status.classList.remove('show');
+    setBusy(confirmBtn, true, 'Deleting…');
+    try{
+      await apiFetch(`/api/tasks/${pendingDeleteTaskId}`, { method: 'DELETE' });
+      closeDeleteTaskModal();
+      await loadTasks(); // refetch — deleting the last item on this page can shift totals/pages
+    } catch(err){
+      showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
+    } finally {
+      setBusy(confirmBtn, false);
+    }
   });
 
   /* ---- drag-to-reorder tasks, initiated only from the top-left handle ---- */
@@ -1642,6 +1708,7 @@
     const draggingCard = e.target.closest('.task-card');
     if(dropTargetCard) dropTargetCard.classList.remove('drop-target');
 
+    let moved = false;
     if(draggingCard && dropTargetCard && dropTargetCard !== draggingCard){
       // Was the target originally after the dragged card? Then landing "in"
       // it means moving past it — insert after. Otherwise insert before it.
@@ -1652,6 +1719,7 @@
       } else {
         board.insertBefore(draggingCard, dropTargetCard);
       }
+      moved = true;
     }
     dropTargetCard = null;
 
@@ -1660,6 +1728,21 @@
       draggingCard.setAttribute('draggable','false');
     }
 
+    if(!moved) return; // card was picked up and dropped back in place — nothing to commit
+
+    // Reordering while a "real" sort is applied (not the natural/Custom Order
+    // view) rewrites every task's saved Position to match the new on-screen
+    // order — worth a heads-up before it happens, since it discards whatever
+    // custom order existed before.
+    const isRealSort = sortKey && sortKey !== 'position';
+    if(isRealSort){
+      reorderWarningOverlay.classList.add('open');
+    } else {
+      commitDragReorder();
+    }
+  });
+
+  function commitDragReorder(){
     // fold the new on-screen order back into `tasks`, leaving any filtered-out
     // (currently hidden) tasks exactly where they were
     const visibleIds = [...board.querySelectorAll('.task-card')].map(el => el.dataset.id);
@@ -1672,15 +1755,29 @@
       return byId.get(nextId) || t; // fallback keeps the original task if anything is ever unmatched
     });
 
-    // a manual drag implies a custom order, so any active sort no longer applies
-    if(sortKey){
+    // a manual drag implies a custom order, so any active "real" sort no longer applies
+    if(sortKey && sortKey !== 'position'){
       sortKey = null; sortDir = 1;
       document.querySelectorAll('.sort-btn').forEach(b=>{
         b.classList.remove('active');
         b.innerHTML = b.textContent.replace(/ [▲▼]$/,'');
       });
     }
-    renderBoard();
+    renderBoardFromState();
+  }
+
+  const reorderWarningOverlay = document.getElementById('reorderWarningOverlay');
+  document.getElementById('reorderWarningConfirmBtn').addEventListener('click', ()=>{
+    reorderWarningOverlay.classList.remove('open');
+    commitDragReorder();
+  });
+  document.getElementById('reorderWarningCancelBtn').addEventListener('click', ()=>{
+    reorderWarningOverlay.classList.remove('open');
+    renderBoardFromState(); // discard the visual drag move, tasks[] was never touched
+  });
+  bindOverlayOutsideClose(reorderWarningOverlay, ()=>{
+    reorderWarningOverlay.classList.remove('open');
+    renderBoardFromState();
   });
 
   function getDropTarget(container, x, y, exclude){
@@ -1761,7 +1858,7 @@
     el.addEventListener('input', ()=> el.classList.remove('field-invalid'));
   });
 
-  document.getElementById('saveNewTaskBtn').addEventListener('click', ()=>{
+  document.getElementById('saveNewTaskBtn').addEventListener('click', async ()=>{
     const title = newTaskTitle.value.trim();
     const description = newTaskDescription.value.trim();
     let valid = true;
@@ -1772,21 +1869,38 @@
       return;
     }
 
-    tasks.unshift({
-      id:cid(), title, description,
-      category: newTaskCategory.value,
-      priority: newTaskPriority.value || "Medium",
-      dueDate: newTaskDueDate.value || new Date().toISOString().slice(0,10),
-      isCompleted:false, createdAt:new Date().toISOString()
-    });
-    closeNewTaskModal();
-    renderBoard();
+    const saveBtn = document.getElementById('saveNewTaskBtn');
+    newTaskError.classList.remove('show');
+    setBusy(saveBtn, true, 'Saving…');
+    try{
+      await apiFetch('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          description,
+          dueDate: newTaskDueDate.value || null,
+          priority: newTaskPriority.value || "Medium",
+          // Categories aren't wired to the server yet — the dropdown here is
+          // still the local placeholder list, so it can't map to a real CategoryId.
+          categoryId: null,
+          pageNumber: currentPage,
+          pageSize: getPageSize()
+        })
+      });
+      closeNewTaskModal();
+      await loadTasks(); // refetch so the new task appears with its real id/position from the server
+    } catch(err){
+      showStatus(newTaskError, (err.messages || [err.message]).join(' '), 'warn');
+    } finally {
+      setBusy(saveBtn, false);
+    }
   });
 
   /* ---------------- SEARCH ---------------- */
   document.getElementById('searchInput').addEventListener('input', e=>{
     searchQuery = e.target.value;
-    renderBoard();
+    currentPage = 1;
+    loadTasks();
   });
 
   /* ---------------- FILTER DROPDOWNS ---------------- */
@@ -1809,6 +1923,7 @@
     const key = panel.dataset.panel;
 
     filters[key] = item.dataset.value;
+    currentPage = 1;
 
     const btn = document.querySelector(`.filter-btn[data-filter="${key}"]`);
     btn.classList.toggle('active', !!item.dataset.value);
@@ -1816,13 +1931,14 @@
     panel.querySelectorAll('.dropdown-item').forEach(i=>i.classList.remove('selected'));
     item.classList.add('selected');
     panel.classList.remove('open');
-    renderBoard();
+    loadTasks();
   });
 
   document.getElementById('dueMonthInput').addEventListener('change', e=>{
     const value = e.target.value; // "YYYY-MM"
     if(!value) return;
     filters.dueDate = value;
+    currentPage = 1;
 
     const btn = document.querySelector('.filter-btn[data-filter="dueDate"]');
     btn.classList.add('active');
@@ -1836,7 +1952,7 @@
     // closing the panel mid-edit yanks focus and cuts off typing. It closes
     // naturally once the user clicks elsewhere or tabs off the field.
 
-    renderBoard();
+    loadTasks();
   });
 
   document.getElementById('dueMonthInput').addEventListener('blur', ()=>{
@@ -1866,7 +1982,7 @@
     });
     btn.classList.add('active');
     btn.innerHTML = btn.textContent + (sortDir === 1 ? ' ▲' : ' ▼');
-    renderBoard();
+    loadTasks();
   });
 
   /* ---------------- MANAGE CATEGORIES MODAL ---------------- */
@@ -2013,7 +2129,7 @@
     commitCategoryEditsFromDom();
     catOverlay.classList.remove('open');
     renderCategoryPanel();
-    renderBoard();
+    renderBoardFromState();
   }
 
   let catNameSortAsc = true;
@@ -2070,7 +2186,7 @@
     pendingDeleteCategoryId = null;
     renderCatList();
     showCatListView();
-    renderBoard();
+    renderBoardFromState();
   });
 
   /* ---- delete all tasks in a chosen category ---- */
@@ -2082,7 +2198,7 @@
     const name = deleteTasksCategorySelect.value;
     const status = getDeleteTasksStatus();
     tasks = tasks.filter(t => !(t.category === name && matchesDeleteTasksStatus(t, status)));
-    renderBoard();
+    renderBoardFromState();
     showCatListView();
   });
 
@@ -2476,7 +2592,7 @@
     if(!appStarted){
       appStarted = true;
       renderCategoryPanel();
-      renderBoard();
+      loadTasks();
     }
   }
 

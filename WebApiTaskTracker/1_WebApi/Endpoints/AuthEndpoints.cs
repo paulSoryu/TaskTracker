@@ -24,7 +24,7 @@ public static class AuthEndpoints
             .WithValidation<LoginRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        group.MapGet("/confirm-email", ConfirmEmail)
+        group.MapPost("/confirm-email", ConfirmEmail)
             .WithValidation<ConfirmEmailRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
@@ -32,7 +32,7 @@ public static class AuthEndpoints
             .RequireAuthorization()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        lockedGroup.MapGet("/send-email-confirmation", SendEmailConfirmation)
+        lockedGroup.MapPost("/send-email-confirmation", SendEmailConfirmation)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         lockedGroup.MapPost("/change-password", ChangePassword)

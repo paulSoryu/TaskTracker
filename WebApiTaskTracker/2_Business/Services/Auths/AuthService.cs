@@ -14,6 +14,8 @@ using WebApiTaskTracker.DataAccess.Entities;
 
 public class AuthService(UserManager<UserEntity> userManager, SignInManager<UserEntity> signInManager, IEmailSender<UserEntity> emailSender, TaskTrackerDbContext db) : IAuthService
 {
+    private const string _frontendBaseUrl = "http://localhost:3000/index.html";
+
     public async Task<Result> RegisterAsync(string email, string password)
     {
         var user = new UserEntity { UserName = email, Email = email };
@@ -106,10 +108,8 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
 
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
 
-        var frontendBaseUrl = "http://localhost:3000/index.html";
-
         var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var confirmationLink = $"{frontendBaseUrl}?confirmEmail=1&userId={user.Id}&encodedToken={encodedToken}";
+        var confirmationLink = $"{_frontendBaseUrl}?confirmEmail=1&userId={user.Id}&encodedToken={encodedToken}";
 
         await emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink);
 
@@ -136,11 +136,9 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
             return Result.Fail(new ValidationError("Email is already in use."));
 
         var token = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
-        
-        var frontendBaseUrl = "http://localhost:3000/index.html";
 
         var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var confirmationLink = $"{frontendBaseUrl}?confirmChangeEmail=1&newEmail={newEmail}&encodedToken={encodedToken}";
+        var confirmationLink = $"{_frontendBaseUrl}?confirmChangeEmail=1&newEmail={newEmail}&encodedToken={encodedToken}";
 
         await emailSender.SendConfirmationLinkAsync(user, user.Email!, confirmationLink);
 
@@ -154,13 +152,23 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         var decodedBytes = WebEncoders.Base64UrlDecode(encodedToken);
         var token = Encoding.UTF8.GetString(decodedBytes);
 
-        var result = await userManager.ChangeEmailAsync(user, newEmail, token);
-        if (result.Succeeded)
+        using var transaction = await db.Database.BeginTransactionAsync();
+        try
         {
-            await userManager.SetUserNameAsync(user, newEmail);
-            await signInManager.RefreshSignInAsync(user);
+            var result = await userManager.ChangeEmailAsync(user, newEmail, token);
+            if (result.Succeeded)
+            {
+                await userManager.SetUserNameAsync(user, newEmail);
+                await signInManager.RefreshSignInAsync(user);
+            }
+            await transaction.CommitAsync();
+            return result.ToFluentResult();
         }
-        return result.ToFluentResult();
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            return Result.Fail(new ExceptionalError("Failed to change email due to an internal database error.", ex));
+        }
     }
 
     public async Task<Result<UserInfoView>> GetCurrentUserInfoAsync(ClaimsPrincipal principal)
@@ -191,8 +199,8 @@ public class AuthService(UserManager<UserEntity> userManager, SignInManager<User
         using var transaction = await db.Database.BeginTransactionAsync();
         try
         {
-            var userTasks = db.Tasks.Where(t => t.UserId == user.Id);
-            var userCategories = db.Categories.Where(c => c.UserId == user.Id);
+            var userTasks = db.Tasks;
+            var userCategories = db.Categories;
 
             db.Tasks.RemoveRange(userTasks);
             db.Categories.RemoveRange(userCategories);

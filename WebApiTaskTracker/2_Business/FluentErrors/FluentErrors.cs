@@ -109,6 +109,7 @@ public class ReorderingError : Error
     public object? EntityId { get; } = null;
     public int OldPosition { get; } = -1;
     public int NewPosition { get; } = -1;
+    public string ExceptionMessage { get; } = String.Empty;
 
     public ReorderingError(string entityName, int newPosition)
         : base($"Failed to move {entityName} to position {newPosition}")
@@ -135,6 +136,8 @@ public class ReorderingError : Error
     {
         EntityName = entityName;
         EntityId = entityId;
+        OldPosition = oldPosition;
+        NewPosition = newPosition;
 
         Metadata.Add("ErrorCode", "REORDER_FAILED");
         Metadata.Add("EntityName", entityName);
@@ -148,6 +151,8 @@ public class ReorderingError : Error
     {
         EntityName = entityName;
         EntityId = entityId;
+        OldPosition = oldPosition;
+        NewPosition = newPosition;
 
         Metadata.Add("ErrorCode", "REORDER_FAILED");
         Metadata.Add("EntityName", entityName);

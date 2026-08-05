@@ -66,6 +66,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             return Result.Fail(new NotFoundError("Page", command.PageNumber));
 
         var isEmailConfirmed = await db.Users
+            .Where(u => u.Id == userId)
             .Select(u => u.EmailConfirmed)
             .FirstOrDefaultAsync();
 
@@ -89,7 +90,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
              .Where(t => t.Position >= targetPosition)
              .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
 
-            // Create the new task entity and set its position
+            // Create  new task entity and set its position
             var entity = command.Adapt<TaskEntity>();
             entity.Position = targetPosition;
             entity.UserId = userId;
@@ -226,31 +227,16 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         if (offset >= allTasks.Count && allTasks.Count > 0)
             return Result.Fail(new NotFoundError("Page", command.PageNumber));
 
-        // Save the old and new positions for logging purposes
-        int loggedOldPos = movedTask.Position;
-        int loggedNewPos = offset + command.NewLocalIndex;
+        allTasks.Remove(movedTask);
 
-        using var transaction = await db.Database.BeginTransactionAsync();
-        try
-        {
-            allTasks.Remove(movedTask);
+        int targetIndex = Math.Clamp(offset + command.NewLocalIndex - 1, 0, allTasks.Count);
+        allTasks.Insert(targetIndex, movedTask);
 
-            int targetIndex = Math.Clamp(offset + command.NewLocalIndex - 1, 0, allTasks.Count);
+        for (int i = 0; i < allTasks.Count; i++)
+            allTasks[i].Position = i + 1;
 
-            allTasks.Insert(targetIndex, movedTask);
+        await db.SaveChangesAsync();
 
-            for (int i = 0; i < allTasks.Count; i++)
-                allTasks[i].Position = i + 1;
-
-            await db.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            return Result.Ok();
-        }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync();
-            return Result.Fail(new ReorderingError("Task", command.TaskId, loggedOldPos, loggedNewPos, ex.Message));
-        }
+        return Result.Ok();
     }
 }

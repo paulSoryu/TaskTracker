@@ -33,6 +33,10 @@ public class TaskTrackerDbContext : IdentityDbContext<UserEntity, IdentityRole<G
 
         modelBuilder.Entity<TaskEntity>()
             .HasQueryFilter(t => !_userContext.IsAuthenticated || t.UserId == _userContext.CurrentUserId);
+
+        // Breaks userManager.FindByIdAsync(userId) in AuthService.cs, so commented out for now
+        //modelBuilder.Entity<UserEntity>()
+        //    .HasQueryFilter(u => !_userContext.IsAuthenticated || u.Id == _userContext.CurrentUserId);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

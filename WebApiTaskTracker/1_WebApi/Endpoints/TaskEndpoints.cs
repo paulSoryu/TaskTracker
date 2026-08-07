@@ -75,7 +75,7 @@ public static class TaskEndpoints
         var command = taskRequest.Adapt<SaveTaskCommand>();
         Guid userId = user.GetUserId();
 
-        Result<TaskView> result = await taskService.CreateAsync(command, userId);
+        Result<TaskView> result = await taskService.CreateAsync(command, taskRequest.IsDescending, userId);
 
         Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
 
@@ -103,7 +103,7 @@ public static class TaskEndpoints
     private static async Task<Results<NoContent, ProblemHttpResult>> ReorderTask(MoveTaskRequest moveRequest, ITaskService taskService)
     {
         var command = moveRequest.Adapt<MoveTaskCommand>();
-        Result result = await taskService.ReorderTaskAsync(command);
+        Result result = await taskService.ReorderTaskAsync(command, moveRequest.IsDescending);
         return result.ToTypedHttpResult();
     }
 

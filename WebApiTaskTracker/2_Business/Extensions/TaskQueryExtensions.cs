@@ -69,7 +69,7 @@ public static class TaskQueryExtensions
     {
         if (!query.SortBy.HasValue)
         {
-            return dbQuery.OrderByDescending(t => t.CreatedAt);
+            return dbQuery.OrderByDescending(t => t.Position);
         }
 
         return query.SortBy.Value switch

@@ -6,7 +6,9 @@ public record MoveTaskRequest(
     Guid TaskId,
     int PageNumber,
     int PageSize,
-    int NewLocalIndex
+    int NewLocalIndex,
+
+    bool IsDescending
 )
 {
     public class Validator : AbstractValidator<MoveTaskRequest>
@@ -24,7 +26,7 @@ public record MoveTaskRequest(
                 .GreaterThan(0).WithMessage("PageNumber must be greater than 0.");
 
             RuleFor(x => x.NewLocalIndex)
-                .GreaterThan(0).WithMessage("NewLocalIndex must be greater than to 0.")
+                .GreaterThan(0).WithMessage("NewLocalIndex must be greater than 0.")
                 .LessThanOrEqualTo(x => x.PageSize).WithMessage("NewLocalIndex must be less than or equal to PageSize.");
 
         }

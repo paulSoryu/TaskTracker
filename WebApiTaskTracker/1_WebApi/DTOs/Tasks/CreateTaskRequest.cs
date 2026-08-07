@@ -15,7 +15,9 @@ public record CreateTaskRequest(
 
     // Pagination parameters for the task list, used to determine the position of the new task
     int PageNumber,
-    int PageSize
+    int PageSize,
+
+    bool IsDescending
 )
 {
     public class Validator : AbstractValidator<CreateTaskRequest>

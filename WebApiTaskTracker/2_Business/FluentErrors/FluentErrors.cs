@@ -121,29 +121,15 @@ public class ReorderingError : Error
         Metadata.Add("NewPosition", newPosition);
     }
 
-    public ReorderingError(string entityName, object entityId, int oldPosition)
-        : base($"Failed to remove {entityName} from position {oldPosition}")
+    public ReorderingError(string entityName, object entityId, int oldPosition, string exceptionMessage)
+        : base($"Failed to remove {entityName} from position {oldPosition}: {exceptionMessage}")
     {
         EntityName = entityName;
         OldPosition = oldPosition;
+        ExceptionMessage = exceptionMessage;
         Metadata.Add("ErrorCode", "REORDER_FAILED");
         Metadata.Add("EntityName", entityName);
         Metadata.Add("OldPosition", oldPosition);
-    }
-
-    public ReorderingError(string entityName, object entityId, int oldPosition, int newPosition)
-        : base($"Failed to move {entityName} with ID '{entityId}' from position {oldPosition} to position {newPosition}")
-    {
-        EntityName = entityName;
-        EntityId = entityId;
-        OldPosition = oldPosition;
-        NewPosition = newPosition;
-
-        Metadata.Add("ErrorCode", "REORDER_FAILED");
-        Metadata.Add("EntityName", entityName);
-        Metadata.Add("EntityId", entityId.ToString());
-        Metadata.Add("OldPosition", oldPosition);
-        Metadata.Add("NewPosition", newPosition);
     }
 
     public ReorderingError(string entityName, object entityId, int oldPosition, int newPosition, string exceptionMessage)

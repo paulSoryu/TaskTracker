@@ -14,8 +14,8 @@ COPY --from=build /app/publish .
 # Создаем структуру папок для базы данных, чтобы путь совпал с appsettings.json
 # и выдаём права пользователю app (встроен в образ aspnet), чтобы приложение
 # могло писать в эту папку не от root
-RUN mkdir -p /app/3_dataaccess/databases /home/app/.aspnet/DataProtection-Keys && \
-    chown -R app:app /app/3_dataaccess/databases /home/app/.aspnet/DataProtection-Keys
+RUN mkdir -p /app/3_DataAccess/Databases /home/app/.aspnet/DataProtection-Keys && \
+    chown -R app:app /app/3_DataAccess/Databases /home/app/.aspnet/DataProtection-Keys
 
 # Постоянное хранение данных БД между пересозданиями контейнера
 VOLUME ["/app/3_DataAccess/Databases", "/home/app/.aspnet/DataProtection-Keys"]

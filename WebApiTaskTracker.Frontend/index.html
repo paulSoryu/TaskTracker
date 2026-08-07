@@ -25,6 +25,22 @@
 
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
+  html{
+    scrollbar-gutter: stable; /* always reserve the scrollbar's space, even on short pages */
+    scrollbar-width: thin;    /* Firefox */
+    scrollbar-color: rgba(35,43,54,0.45) transparent;
+  }
+  ::-webkit-scrollbar{ width:10px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-button{ display:none; width:0; height:0; }
+  ::-webkit-scrollbar-corner{ background:transparent; }
+  ::-webkit-scrollbar-thumb{
+    background-color: rgba(35,43,54,0.45);
+    background-clip: padding-box;
+    border:2px solid transparent;
+    border-radius:6px;
+  }
+  ::-webkit-scrollbar-thumb:hover{ background-color: rgba(35,43,54,0.65); }
   body{
     background:var(--paper);
     background-image:
@@ -49,7 +65,7 @@
     color:#EDE7D6;
     padding:0 22px;
     height:62px;
-    box-shadow:0 3px 0 var(--ochre);
+    box-shadow:0 3px 0 var(--ochre), 100vw 0 0 var(--ink);
     position:sticky;
     top:0;
     z-index:40;
@@ -465,6 +481,16 @@
     border-top:1px dashed var(--card-edge);
     padding:12px 14px 14px;
   }
+  .card-save-status{
+    display:none;
+    font-size:11px;
+    font-weight:600;
+    color:var(--rust-deep);
+    background:rgba(181,96,45,0.1);
+    padding:7px 14px;
+    border-top:1px solid var(--card-edge);
+  }
+  .card-save-status.show{ display:block; }
   .foot-row{
     display:flex;
     align-items:flex-end;
@@ -1340,11 +1366,11 @@
     </div>
   </div>
 
-  <!-- ================= REORDER WARNING MODAL ================= -->
+  <!-- ================= SORT OVERRIDE WARNING MODAL ================= -->
   <div class="overlay" id="reorderWarningOverlay">
     <div class="modal">
-      <h2>Switch to Custom Order?</h2>
-      <p class="hint">You're currently viewing a sorted list. Dragging a task to reorder it will overwrite the saved position of <strong>every</strong> task with this new order, replacing whatever custom order existed before.</p>
+      <h2 id="reorderWarningTitle">Switch to Custom Order?</h2>
+      <p class="hint" id="reorderWarningText">You're currently viewing a sorted list. Dragging a task to reorder it will overwrite the saved position of <strong>every</strong> task with this new order, replacing whatever custom order existed before.</p>
       <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
         <button class="btn-plain" id="reorderWarningCancelBtn">Cancel</button>
         <button class="btn-solid" id="reorderWarningConfirmBtn">Reorder Anyway</button>
@@ -1354,6 +1380,25 @@
 
 <script>
 (function(){
+
+  /* ---------------- SCROLL RESTORATION ---------------- */
+  // The board is populated asynchronously (after loadTasks() resolves), so the
+  // browser's automatic scroll restoration fires too early — against a mostly
+  // empty page — and effectively resets it to the top. Take over manually and
+  // restore it ourselves once the first real render lands.
+  try{ history.scrollRestoration = 'manual'; } catch(e){}
+  let scrollRestoredOnce = false;
+  window.addEventListener('beforeunload', ()=>{
+    try{ sessionStorage.setItem('ledger-scroll-y', String(window.scrollY)); } catch(e){}
+  });
+  function restoreScrollOnce(){
+    if(scrollRestoredOnce) return;
+    scrollRestoredOnce = true;
+    try{
+      const savedY = sessionStorage.getItem('ledger-scroll-y');
+      if(savedY !== null) window.scrollTo(0, parseInt(savedY, 10));
+    } catch(e){}
+  }
 
   /* ---------------- UTIL ---------------- */
   // Closes an overlay on backdrop click, but only when the press AND release both
@@ -1366,6 +1411,15 @@
       if(pressedOnBackdrop && e.target === overlay) onClose();
       pressedOnBackdrop = false;
     });
+  }
+
+  // Generic 500ms debounce for text inputs that talk to the backend on every keystroke.
+  function debounce(fn, wait){
+    let timer = null;
+    return function(...args){
+      clearTimeout(timer);
+      timer = setTimeout(()=> fn.apply(this, args), wait);
+    };
   }
 
   /* ---------------- STATE ---------------- */
@@ -1420,6 +1474,8 @@
     return parseInt(document.getElementById('pageSizeSelect').value, 10) || 25;
   }
 
+  const SORT_FIELD_MAP = { title:'Title', category:'CategoryTitle', dueDate:'DueDate', priority:'Priority', isCompleted:'IsCompleted', createdAt:'CreatedAt', position:'Position' };
+
   function buildTasksQuery(){
     const params = new URLSearchParams();
     params.set('pageNumber', currentPage);
@@ -1442,8 +1498,7 @@
     }
 
     if(sortKey){
-      const sortFieldMap = { title:'Title', category:'CategoryTitle', dueDate:'DueDate', priority:'Priority', isCompleted:'IsCompleted', createdAt:'CreatedAt', position:'Position' };
-      const field = sortFieldMap[sortKey];
+      const field = SORT_FIELD_MAP[sortKey];
       if(field){
         params.set('sortBy', field);
         params.set('isDescending', sortDir === -1 ? 'true' : 'false');
@@ -1454,7 +1509,11 @@
 
   async function loadTasks(){
     const board = document.getElementById('board');
-    board.innerHTML = '<div class="empty-state">Loading tasks…</div>';
+    const hasExistingCards = !!board.querySelector('.task-card');
+    const scrollYBeforeLoad = window.scrollY;
+    if(!hasExistingCards){
+      board.innerHTML = '<div class="empty-state">Loading tasks…</div>';
+    }
     try{
       const query = buildTasksQuery();
       const result = await apiFetch(`/api/tasks?${query}`);
@@ -1481,6 +1540,11 @@
       totalTaskCount = result.totalCount || 0;
       renderPagination();
       renderBoardFromState();
+      if(!scrollRestoredOnce){
+        restoreScrollOnce(); // the very first load after a real browser refresh — restore the saved position
+      } else {
+        window.scrollTo(0, scrollYBeforeLoad); // every later reload (filter, sort, drag reorder…) — don't jump around
+      }
     } catch(err){
       board.innerHTML = `<div class="empty-state">Couldn't load tasks: ${escapeHtml((err.messages || [err.message]).join(' '))}</div>`;
     }
@@ -1576,6 +1640,7 @@
             </div>
           </div>
         </div>
+        <div class="card-save-status" data-save-status></div>
       </article>
     `).join('');
   }
@@ -1588,6 +1653,64 @@
   }
 
   /* ---------------- EVENTS: BOARD ---------------- */
+  /* ---------------- TASK UPDATE (PUT /api/tasks/{id}) ---------------- */
+  const taskUpdateTimers = new Map(); // taskId -> pending debounce timer
+
+  function cardSaveStatusEl(taskId){
+    const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
+    return card ? card.querySelector('[data-save-status]') : null;
+  }
+
+  async function sendTaskUpdate(taskId){
+    const task = tasks.find(t => t.id === taskId);
+    if(!task) return;
+    try{
+      await apiFetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description,
+          dueDate: task.dueDate || null,
+          priority: task.priority,
+          isCompleted: task.isCompleted,
+          // Categories aren't wired to the server yet — always keep whatever
+          // categoryId the task already had (never derived from the local
+          // placeholder category dropdown).
+          categoryId: task.categoryId ?? null
+        })
+      });
+      const el = cardSaveStatusEl(taskId);
+      if(el) el.classList.remove('show');
+    } catch(err){
+      const el = cardSaveStatusEl(taskId);
+      if(el){
+        el.textContent = `Couldn't save: ${(err.messages || [err.message]).join(' ')}`;
+        el.classList.add('show');
+      }
+    }
+  }
+
+  // debounced = true for continuous typing (title/description), false for
+  // discrete field changes (priority, due date, completed toggle) that should
+  // save right away without waiting.
+  function scheduleTaskUpdate(taskId, debounced){
+    if(taskUpdateTimers.has(taskId)){
+      clearTimeout(taskUpdateTimers.get(taskId));
+      taskUpdateTimers.delete(taskId);
+    }
+    if(debounced){
+      const timer = setTimeout(()=>{
+        taskUpdateTimers.delete(taskId);
+        sendTaskUpdate(taskId);
+      }, 500);
+      taskUpdateTimers.set(taskId, timer);
+    } else {
+      sendTaskUpdate(taskId);
+    }
+  }
+
+  const DEBOUNCED_TASK_FIELDS = new Set(['title', 'description']);
+
   document.getElementById('board').addEventListener('input', e=>{
     const card = e.target.closest('.task-card');
     if(!card) return;
@@ -1595,10 +1718,15 @@
     const field = e.target.dataset.field;
     if(!task || !field) return;
     task[field] = e.target.value;
+
     if(field === 'category'){
-      // flag color depends on category, needs a re-render
+      // Categories aren't wired to the server yet — this is a purely visual,
+      // client-only change (the flag color), never sent to the backend.
       renderBoardFromState();
+      return;
     }
+
+    scheduleTaskUpdate(task.id, DEBOUNCED_TASK_FIELDS.has(field));
   });
 
   document.getElementById('board').addEventListener('click', e=>{
@@ -1611,6 +1739,7 @@
     if(actionBtn.dataset.action === 'toggle-complete'){
       task.isCompleted = !task.isCompleted;
       renderBoardFromState();
+      scheduleTaskUpdate(task.id, false);
     }
     if(actionBtn.dataset.action === 'delete'){
       pendingDeleteTaskId = task.id;
@@ -1668,6 +1797,48 @@
     });
   });
 
+  /* ---------------- AUTO-SCROLL WHILE DRAGGING ----------------
+     Native HTML5 drag-and-drop suppresses mouse-wheel scrolling in most
+     browsers while a drag is in progress — there's no way to re-enable the
+     wheel itself, so instead: scroll the page automatically when the
+     dragged card is held near the top/bottom edge of the viewport. */
+  let autoScrollY = null;
+  let autoScrollRAF = null;
+  const AUTO_SCROLL_EDGE = 90;   // px from the viewport edge that triggers scrolling
+  const AUTO_SCROLL_SPEED = 18;  // px per frame at the very edge
+
+  function autoScrollTick(){
+    if(autoScrollY === null){ autoScrollRAF = null; return; }
+    const vh = window.innerHeight;
+    let dy = 0;
+    if(autoScrollY < AUTO_SCROLL_EDGE){
+      dy = -AUTO_SCROLL_SPEED * (1 - autoScrollY / AUTO_SCROLL_EDGE);
+    } else if(autoScrollY > vh - AUTO_SCROLL_EDGE){
+      dy = AUTO_SCROLL_SPEED * (1 - (vh - autoScrollY) / AUTO_SCROLL_EDGE);
+    }
+    if(dy !== 0) window.scrollBy(0, dy);
+    autoScrollRAF = requestAnimationFrame(autoScrollTick);
+  }
+
+  function updateAutoScroll(clientY){
+    autoScrollY = clientY;
+    if(autoScrollRAF === null) autoScrollRAF = requestAnimationFrame(autoScrollTick);
+  }
+
+  function stopAutoScroll(){
+    autoScrollY = null;
+    if(autoScrollRAF !== null){ cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+  }
+
+  // Board-wide fallback so auto-scroll still tracks the cursor even when it's
+  // over the header or empty space, not just directly over a task card.
+  document.addEventListener('dragover', e=>{
+    if(!board.querySelector('.task-card.dragging')) return;
+    e.preventDefault();
+    updateAutoScroll(e.clientY);
+  });
+  document.addEventListener('drop', e=>{ if(board.querySelector('.task-card.dragging')) e.preventDefault(); });
+
   board.addEventListener('dragstart', e=>{
     const card = e.target.closest('.task-card');
     if(!card || card.getAttribute('draggable') !== 'true'){ e.preventDefault(); return; }
@@ -1704,12 +1875,22 @@
     }
   });
 
+  let pendingReorder = null; // { taskId, newLocalIndex, useResetPositions }
+
   board.addEventListener('dragend', e=>{
+    stopAutoScroll();
     const draggingCard = e.target.closest('.task-card');
     if(dropTargetCard) dropTargetCard.classList.remove('drop-target');
 
     let moved = false;
     if(draggingCard && dropTargetCard && dropTargetCard !== draggingCard){
+      // Pick some other card as a stable visual anchor — if reordering shifts
+      // row heights around (grid reflow), we can measure exactly how far it
+      // drifted and cancel that out, instead of letting the whole page jump.
+      const anchorCard = [...board.querySelectorAll('.task-card')]
+        .find(c => c !== draggingCard && c !== dropTargetCard);
+      const anchorYBefore = anchorCard ? anchorCard.getBoundingClientRect().top : null;
+
       // Was the target originally after the dragged card? Then landing "in"
       // it means moving past it — insert after. Otherwise insert before it.
       const cmp = draggingCard.compareDocumentPosition(dropTargetCard);
@@ -1718,6 +1899,11 @@
         board.insertBefore(draggingCard, dropTargetCard.nextSibling);
       } else {
         board.insertBefore(draggingCard, dropTargetCard);
+      }
+
+      if(anchorCard){
+        const drift = anchorCard.getBoundingClientRect().top - anchorYBefore;
+        if(drift) window.scrollBy(0, drift);
       }
       moved = true;
     }
@@ -1730,55 +1916,107 @@
 
     if(!moved) return; // card was picked up and dropped back in place — nothing to commit
 
+    const newLocalIndex = [...board.querySelectorAll('.task-card')].findIndex(el => el === draggingCard) + 1; // 1-based
+    pendingReorder = { taskId: draggingCard.dataset.id, newLocalIndex };
+
     // Reordering while a "real" sort is applied (not the natural/Custom Order
     // view) rewrites every task's saved Position to match the new on-screen
     // order — worth a heads-up before it happens, since it discards whatever
     // custom order existed before.
     const isRealSort = sortKey && sortKey !== 'position';
     if(isRealSort){
-      reorderWarningOverlay.classList.add('open');
+      openSortOverrideWarning({
+        title: 'Switch to Custom Order?',
+        text: 'You\'re currently viewing a sorted list. Dragging a task to reorder it will overwrite the saved position of <strong>every</strong> task with this new order, replacing whatever custom order existed before.',
+        confirmLabel: 'Reorder Anyway',
+        onConfirm: ()=> commitDragReorder(true),
+        onCancel: ()=>{
+          pendingReorder = null;
+          renderBoardFromState(); // discard the visual drag move, tasks[] was never touched
+        }
+      });
     } else {
-      commitDragReorder();
+      commitDragReorder(false);
     }
   });
 
-  function commitDragReorder(){
-    // fold the new on-screen order back into `tasks`, leaving any filtered-out
-    // (currently hidden) tasks exactly where they were
-    const visibleIds = [...board.querySelectorAll('.task-card')].map(el => el.dataset.id);
-    const visibleIdSet = new Set(visibleIds);
-    const byId = new Map(tasks.map(t => [t.id, t]));
-    const queue = [...visibleIds];
-    tasks = tasks.map(t=>{
-      if(!visibleIdSet.has(t.id)) return t;
-      const nextId = queue.shift();
-      return byId.get(nextId) || t; // fallback keeps the original task if anything is ever unmatched
-    });
+  async function commitDragReorder(useResetPositions){
+    if(!pendingReorder) return;
+    const { taskId, newLocalIndex } = pendingReorder;
+    pendingReorder = null;
 
-    // a manual drag implies a custom order, so any active "real" sort no longer applies
-    if(sortKey && sortKey !== 'position'){
-      sortKey = null; sortDir = 1;
-      document.querySelectorAll('.sort-btn').forEach(b=>{
-        b.classList.remove('active');
-        b.innerHTML = b.textContent.replace(/ [▲▼]$/,'');
-      });
+    try{
+      if(useResetPositions){
+        await apiFetch('/api/tasks/reset-positions', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            taskId,
+            pageNumber: currentPage,
+            pageSize: getPageSize(),
+            newLocalIndex,
+            sortBy: SORT_FIELD_MAP[sortKey] || 'Position',
+            isDescending: sortDir === -1
+          })
+        });
+      } else {
+        await apiFetch('/api/tasks/reorder', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            taskId,
+            pageNumber: currentPage,
+            pageSize: getPageSize(),
+            newLocalIndex,
+            isDescending: sortDir === -1
+          })
+        });
+      }
+
+      // a committed manual drag always lands us in Custom Order, keeping whichever
+      // direction (▲/▼) was already active — the board should always show either
+      // one system sort or Custom Order, never "nothing"
+      activateSortButton('position', sortDir);
+      await loadTasks(); // refetch — Position values (and possibly page contents) changed on the server
+    } catch(err){
+      renderBoardFromState(); // discard the visual drag move, tasks[] was never touched
+      const el = cardSaveStatusEl(taskId);
+      if(el){
+        el.textContent = `Couldn't reorder: ${(err.messages || [err.message]).join(' ')}`;
+        el.classList.add('show');
+      }
     }
-    renderBoardFromState();
   }
 
+  // Generic "this will overwrite Custom Order" confirmation, shared by drag
+  // reorder and creating a task while a real sort is active.
   const reorderWarningOverlay = document.getElementById('reorderWarningOverlay');
-  document.getElementById('reorderWarningConfirmBtn').addEventListener('click', ()=>{
+  const reorderWarningTitle = document.getElementById('reorderWarningTitle');
+  const reorderWarningText = document.getElementById('reorderWarningText');
+  const reorderWarningConfirmBtn = document.getElementById('reorderWarningConfirmBtn');
+  let pendingSortWarning = null; // { onConfirm, onCancel }
+
+  function openSortOverrideWarning({ title, text, confirmLabel, onConfirm, onCancel }){
+    reorderWarningTitle.textContent = title;
+    reorderWarningText.innerHTML = text;
+    reorderWarningConfirmBtn.textContent = confirmLabel;
+    pendingSortWarning = { onConfirm, onCancel };
+    reorderWarningOverlay.classList.add('open');
+  }
+
+  function closeSortOverrideWarning(runCancel){
     reorderWarningOverlay.classList.remove('open');
-    commitDragReorder();
-  });
-  document.getElementById('reorderWarningCancelBtn').addEventListener('click', ()=>{
+    const pending = pendingSortWarning;
+    pendingSortWarning = null;
+    if(runCancel && pending && pending.onCancel) pending.onCancel();
+  }
+
+  reorderWarningConfirmBtn.addEventListener('click', ()=>{
+    const pending = pendingSortWarning;
     reorderWarningOverlay.classList.remove('open');
-    renderBoardFromState(); // discard the visual drag move, tasks[] was never touched
+    pendingSortWarning = null;
+    if(pending && pending.onConfirm) pending.onConfirm();
   });
-  bindOverlayOutsideClose(reorderWarningOverlay, ()=>{
-    reorderWarningOverlay.classList.remove('open');
-    renderBoardFromState();
-  });
+  document.getElementById('reorderWarningCancelBtn').addEventListener('click', ()=> closeSortOverrideWarning(true));
+  bindOverlayOutsideClose(reorderWarningOverlay, ()=> closeSortOverrideWarning(true));
 
   function getDropTarget(container, x, y, exclude){
     const cards = [...container.querySelectorAll('.task-card')].filter(c => c !== exclude);
@@ -1858,7 +2096,7 @@
     el.addEventListener('input', ()=> el.classList.remove('field-invalid'));
   });
 
-  document.getElementById('saveNewTaskBtn').addEventListener('click', async ()=>{
+  document.getElementById('saveNewTaskBtn').addEventListener('click', ()=>{
     const title = newTaskTitle.value.trim();
     const description = newTaskDescription.value.trim();
     let valid = true;
@@ -1869,6 +2107,23 @@
       return;
     }
 
+    const isRealSort = sortKey && sortKey !== 'position';
+    if(isRealSort){
+      openSortOverrideWarning({
+        title: 'Switch to Custom Order?',
+        text: 'You\'re currently viewing a sorted list. Creating a task here will overwrite the saved position of <strong>every</strong> task with this new order, replacing whatever custom order existed before.',
+        confirmLabel: 'Create Anyway',
+        onConfirm: submitNewTask
+        // onCancel: nothing to undo — the task was never submitted, just return to the New Task modal
+      });
+    } else {
+      submitNewTask();
+    }
+  });
+
+  async function submitNewTask(){
+    const title = newTaskTitle.value.trim();
+    const description = newTaskDescription.value.trim();
     const saveBtn = document.getElementById('saveNewTaskBtn');
     newTaskError.classList.remove('show');
     setBusy(saveBtn, true, 'Saving…');
@@ -1884,23 +2139,26 @@
           // still the local placeholder list, so it can't map to a real CategoryId.
           categoryId: null,
           pageNumber: currentPage,
-          pageSize: getPageSize()
+          pageSize: getPageSize(),
+          isDescending: sortDir === -1
         })
       });
       closeNewTaskModal();
+      // a committed create-while-sorted also lands us in Custom Order, same as drag reorder
+      if(sortKey && sortKey !== 'position') activateSortButton('position', sortDir);
       await loadTasks(); // refetch so the new task appears with its real id/position from the server
     } catch(err){
       showStatus(newTaskError, (err.messages || [err.message]).join(' '), 'warn');
     } finally {
       setBusy(saveBtn, false);
     }
-  });
+  }
 
   /* ---------------- SEARCH ---------------- */
+  const debouncedSearchLoad = debounce(()=>{ currentPage = 1; loadTasks(); }, 500);
   document.getElementById('searchInput').addEventListener('input', e=>{
     searchQuery = e.target.value;
-    currentPage = 1;
-    loadTasks();
+    debouncedSearchLoad();
   });
 
   /* ---------------- FILTER DROPDOWNS ---------------- */
@@ -1966,22 +2224,27 @@
     document.querySelectorAll('.dropdown-panel').forEach(p=>p.classList.remove('open'));
   });
 
+  function activateSortButton(key, dir){
+    sortKey = key;
+    sortDir = dir;
+    document.querySelectorAll('.sort-btn').forEach(b=>{
+      b.classList.remove('active');
+      b.innerHTML = b.textContent.replace(/ [▲▼]$/,'');
+    });
+    const btn = document.querySelector(`.sort-btn[data-sort="${key}"]`);
+    if(btn){
+      btn.classList.add('active');
+      btn.innerHTML = btn.textContent + (dir === 1 ? ' ▲' : ' ▼');
+    }
+  }
+
   /* ---------------- SORT BUTTONS ---------------- */
   document.getElementById('sortRow').addEventListener('click', e=>{
     const btn = e.target.closest('.sort-btn');
     if(!btn) return;
     const key = btn.dataset.sort;
-    if(sortKey === key){
-      sortDir *= -1;
-    } else {
-      sortKey = key; sortDir = 1;
-    }
-    document.querySelectorAll('.sort-btn').forEach(b=>{
-      b.classList.remove('active');
-      b.innerHTML = b.textContent.replace(/ [▲▼]$/,'');
-    });
-    btn.classList.add('active');
-    btn.innerHTML = btn.textContent + (sortDir === 1 ? ' ▲' : ' ▼');
+    const dir = (sortKey === key) ? sortDir * -1 : 1;
+    activateSortButton(key, dir);
     loadTasks();
   });
 
@@ -2592,6 +2855,7 @@
     if(!appStarted){
       appStarted = true;
       renderCategoryPanel();
+      activateSortButton('position', 1);
       loadTasks();
     }
   }

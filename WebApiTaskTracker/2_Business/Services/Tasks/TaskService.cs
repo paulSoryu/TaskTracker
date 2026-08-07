@@ -13,6 +13,7 @@ using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 
@@ -52,19 +53,14 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             : Result.Ok(response);
     }
 
-    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, Guid userId)
+    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, bool isDescendingSorting, Guid userId)
     {
+        // Check if the specified category exists in the database, but accept null values for the category ID, as tasks can be created without a category
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == command.CategoryId);
         if (command.CategoryId != null && !categoryExists)
             return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
-        var pageExists = await db.Tasks
-            .Skip((command.PageNumber - 1) * command.PageSize)
-            .Take(command.PageSize)
-            .AnyAsync();
-        if (!pageExists)
-            return Result.Fail(new NotFoundError("Page", command.PageNumber));
-
+        // Check if the user has reached the maximum allowed tasks based on their email confirmation status
         var isEmailConfirmed = await db.Users
             .Where(u => u.Id == userId)
             .Select(u => u.EmailConfirmed)
@@ -75,22 +71,42 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             ? TaskConstraints.MaxTasksForConfirmedEmail
             : TaskConstraints.MaxTasksForUnconfirmedEmail;
 
-        // Check if the user has reached the maximum allowed tasks
         if (currentTasksCount >= maxAllowedTasks)
             return Result.Fail(new TaskLimitExceededError(maxAllowedTasks, isEmailConfirmed));
 
-        // Position calculations
+        // Check if the requested page number is valid based on the current number of tasks and the provided pagination parameters
         int offset = (command.PageNumber - 1) * command.PageSize;
-        int targetPosition = offset + 1;
 
-        using var transaction = await db.Database.BeginTransactionAsync();
+        if (command.PageNumber > 1 && offset >= currentTasksCount)
+            return Result.Fail(new NotFoundError("Page", command.PageNumber));
+
+        // Position calculations
+        int targetPosition = isDescendingSorting
+            ? currentTasksCount - offset + 1
+            : offset + 1;
+
+        // Unfinished, better off refactoring this to a separate method that can be called after any operation that changes the order of tasks, like create, delete, or reorder.
+        //if (sortBy != SortField.Position)
+        //{
+        //    var allTasks = await db.Tasks
+        //    .ApplySorting(query)
+        //    .ToListAsync();
+
+        //    for (int i = 0; i < allTasks.Count; i++)
+        //        allTasks[i].Position = i + 1;
+
+        //    return Result.Ok();
+        //}
+
         try
         {
+            using var transaction = await db.Database.BeginTransactionAsync();
+
             await db.Tasks
              .Where(t => t.Position >= targetPosition)
              .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
 
-            // Create  new task entity and set its position
+            // Create new task entity and set its position and owner
             var entity = command.Adapt<TaskEntity>();
             entity.Position = targetPosition;
             entity.UserId = userId;
@@ -103,7 +119,6 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
         catch
         {
-            await transaction.RollbackAsync();
             return Result.Fail(new ReorderingError("Task", targetPosition));
         }
     }
@@ -140,7 +155,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
         try
         {
-            await db.Database.BeginTransactionAsync();
+            using var transaction = await db.Database.BeginTransactionAsync();
 
             await db.Tasks
                 .Where(t => t.Id == taskId)
@@ -151,17 +166,16 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
                 .Where(t => t.Position > deletedPos)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position - 1));
 
-            await db.Database.CommitTransactionAsync();
+            await transaction.CommitAsync();
             return Result.Ok();
         }
-        catch
+        catch (Exception ex)
         {
-            await db.Database.RollbackTransactionAsync();
-            return Result.Fail(new ReorderingError("Task", taskId, deletedPos));
+            return Result.Fail(new ReorderingError("Task", taskId, deletedPos, ex.Message));
         }
     }
 
-    public async Task<Result> ReorderTaskAsync(MoveTaskCommand command)
+    public async Task<Result> ReorderTaskAsync(MoveTaskCommand command, bool isDescendingSorting)
     {
         var task = await db.Tasks
            .Select(t => new { t.Id, t.Position })
@@ -175,14 +189,20 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         if (offset >= totalTasks && totalTasks > 0)
             return Result.Fail(new NotFoundError("Page", command.PageNumber));
 
+        int newLocalIndex = isDescendingSorting
+            ? totalTasks - (command.NewLocalIndex + offset) + 1
+            : command.NewLocalIndex + offset;
+
         int oldPos = task.Position;
-        int newPos = Math.Clamp(command.NewLocalIndex + offset, 1, totalTasks);
+        int newPos = Math.Clamp(newLocalIndex, 1, totalTasks);
 
-        if (oldPos == newPos) return Result.Ok();
+        if (oldPos == newPos) 
+            return Result.Ok();
 
-        using var transaction = await db.Database.BeginTransactionAsync();
         try
         {
+            using var transaction = await db.Database.BeginTransactionAsync();
+
             if (oldPos < newPos)
             {
                 // Downshift
@@ -208,7 +228,6 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
             return Result.Fail(new ReorderingError("Task", command.TaskId, oldPos, newPos, ex.Message));
         }
     }
@@ -229,7 +248,11 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
         allTasks.Remove(movedTask);
 
-        int targetIndex = Math.Clamp(offset + command.NewLocalIndex - 1, 0, allTasks.Count);
+        int newLocalIndex = query.IsDescending
+            ? allTasks.Count - (command.NewLocalIndex + offset) + 1
+            : command.NewLocalIndex + offset;
+
+        int targetIndex = Math.Clamp(newLocalIndex - 1, 0, allTasks.Count); // -1 is because lists are 0-based
         allTasks.Insert(targetIndex, movedTask);
 
         for (int i = 0; i < allTasks.Count; i++)

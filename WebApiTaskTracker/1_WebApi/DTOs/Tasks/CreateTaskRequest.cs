@@ -13,10 +13,9 @@ public record CreateTaskRequest(
     TaskPriority Priority,
     Guid? CategoryId,
 
-    // Pagination parameters for the task list, used to determine the position of the new task
-    int PageNumber,
-    int PageSize,
+    Guid? FirstVisibleTaskIdOnPage,
 
+    TaskSortField SortBy,
     bool IsDescending
 )
 {
@@ -24,13 +23,6 @@ public record CreateTaskRequest(
     {
         public Validator()
         {
-            RuleFor(x => x.PageSize)
-                .GreaterThan(0).WithMessage("PageSize must be greater than 0.")
-                .LessThanOrEqualTo(100).WithMessage("PageSize must be at most 100.");
-
-            RuleFor(x => x.PageNumber)
-                .GreaterThan(0).WithMessage("PageNumber must be greater than 0.");
-
             RuleFor(x => x.Title)
                 .NotEmpty().WithMessage("Title cannot be empty.")
                 .Length(TaskConstraints.TitleMinLength, TaskConstraints.TitleMaxLength).WithMessage($"Title must be between {TaskConstraints.TitleMinLength} and {TaskConstraints.TitleMaxLength} characters.");
@@ -44,7 +36,6 @@ public record CreateTaskRequest(
             RuleFor(x => x.Priority)
                 .NotEmpty().WithMessage("Priority cannot be empty.")
                 .IsInEnum().WithMessage("Priority must be between 1 and 3.");
-
         }
 
         private bool BeTodayOrFuture(DateOnly? date)

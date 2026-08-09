@@ -2,7 +2,5 @@
 
 public record MoveTaskCommand(
     Guid TaskId,
-    int PageNumber,
-    int PageSize,
-    int NewLocalIndex
+    Guid TargetTaskId
 );

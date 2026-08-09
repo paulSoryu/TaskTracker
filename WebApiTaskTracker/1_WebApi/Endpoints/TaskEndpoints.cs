@@ -38,12 +38,12 @@ public static class TaskEndpoints
         routeGroup.MapDelete("/{id:Guid}", DeleteTask)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        routeGroup.MapPatch("/reorder", ReorderTask)
+        routeGroup.MapPatch("/move", MoveTask)
             .WithValidation<MoveTaskRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        routeGroup.MapPatch("/reset-positions", ResetAllPositionsAsync)
-            .WithValidation<ResetTasksPositionsRequest>()
+        routeGroup.MapPatch("/reset-positions", MoveTaskAndResetOrder)
+            .WithValidation<MoveAndResetOrderRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
@@ -73,9 +73,10 @@ public static class TaskEndpoints
     private static async Task<Results<CreatedAtRoute<TaskResponse>, ProblemHttpResult>> CreateTask(CreateTaskRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
     {
         var command = taskRequest.Adapt<SaveTaskCommand>();
+        var query = taskRequest.Adapt<SortTasksQuery>();
         Guid userId = user.GetUserId();
 
-        Result<TaskView> result = await taskService.CreateAsync(command, taskRequest.IsDescending, userId);
+        Result<TaskView> result = await taskService.CreateAsync(command, query, userId);
 
         Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
 
@@ -100,18 +101,19 @@ public static class TaskEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> ReorderTask(MoveTaskRequest moveRequest, ITaskService taskService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> MoveTask(MoveTaskRequest moveRequest, ITaskService taskService)
     {
         var command = moveRequest.Adapt<MoveTaskCommand>();
-        Result result = await taskService.ReorderTaskAsync(command, moveRequest.IsDescending);
+        var query = moveRequest.Adapt<SortTasksQuery>();
+        Result result = await taskService.MoveAsync(command, query);
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> ResetAllPositionsAsync(ResetTasksPositionsRequest resetRequest, ITaskService taskService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> MoveTaskAndResetOrder(MoveAndResetOrderRequest resetRequest, ITaskService taskService)
     {
         var command = resetRequest.Adapt<MoveTaskCommand>();
         var sortQuery = resetRequest.Adapt<SortTasksQuery>();
-        Result result = await taskService.ResetAllPositionsAsync(command, sortQuery);
+        Result result = await taskService.MoveAndResetOrderAsync(command, sortQuery);
         return result.ToTypedHttpResult();
     }
 }

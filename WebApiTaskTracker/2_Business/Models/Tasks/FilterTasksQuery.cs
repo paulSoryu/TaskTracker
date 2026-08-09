@@ -13,4 +13,4 @@ public record FilterTasksQuery(
 
     TaskDueDateFilterPreset? DueDateFilterPreset,
     DateOnly? SpecificMonth
-) : ITaskQueryComponent;
+);

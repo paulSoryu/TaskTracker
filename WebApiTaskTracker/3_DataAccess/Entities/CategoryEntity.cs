@@ -10,6 +10,7 @@ public class CategoryEntity
     public required string Title { get; set; }
     public string Colour { get; set; } = "#FFFFFF";
 
+    public int Position { get; set; }
 
     public required Guid UserId { get; set; }
     public UserEntity User { get; set; } = null!;

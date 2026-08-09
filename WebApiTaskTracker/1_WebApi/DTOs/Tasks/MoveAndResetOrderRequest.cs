@@ -3,7 +3,7 @@ using WebApiTaskTracker.Business.Models.Enums;
 
 namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 
-public record MoveTaskRequest(
+public record MoveAndResetOrderRequest(
     Guid TaskId,
     Guid TargetTaskId,
 
@@ -11,15 +11,16 @@ public record MoveTaskRequest(
     bool IsDescending
 )
 {
-    public class Validator : AbstractValidator<MoveTaskRequest>
+    public class Validator : AbstractValidator<MoveAndResetOrderRequest>
     {
         public Validator()
         {
             RuleFor(x => x.TaskId)
                 .NotEmpty().WithMessage("TaskId is required.");
 
-            RuleFor(x => x.TargetTaskId)
-                .NotEmpty().WithMessage("TargetTaskId is required.");
+            RuleFor(x => x.SortBy)
+                .IsInEnum().WithMessage("SortBy must be a valid TaskSortField value.");
+
         }
     }
 }

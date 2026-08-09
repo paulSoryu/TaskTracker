@@ -11,7 +11,5 @@ public record SaveTaskCommand(
     bool IsCompleted,
     Guid? CategoryId,
 
-    // Pagination parameters for the task list, used to determine the position of the new task
-    int PageNumber,
-    int PageSize
+    Guid? FirstVisibleTaskIdOnPage
 );

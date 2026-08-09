@@ -35,11 +35,9 @@ public static class TaskQueryExtensions
             var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
 
             dbQuery = dbQuery.Where(t => t.DueDate >= startOfMonth && t.DueDate <= endOfMonth);
-            return dbQuery;
         }
-
         // Apply due date filter preset if provided
-        if (query.DueDateFilterPreset.HasValue)
+        else if (query.DueDateFilterPreset.HasValue)
         {
             var startOfWeek = today.StartOfWeek();
             var endOfWeek = today.EndOfWeek();

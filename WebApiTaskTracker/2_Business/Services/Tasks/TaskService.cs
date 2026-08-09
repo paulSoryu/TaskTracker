@@ -9,11 +9,11 @@ using System.Threading.Tasks;
 using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models;
+using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace WebApiTaskTracker.Business.Services.Tasks;
 
@@ -53,7 +53,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             : Result.Ok(response);
     }
 
-    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, bool isDescendingSorting, Guid userId)
+    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, SortTasksQuery query, Guid userId)
     {
         // Check if the specified category exists in the database, but accept null values for the category ID, as tasks can be created without a category
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == command.CategoryId);
@@ -61,7 +61,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
         // Check if the user has reached the maximum allowed tasks based on their email confirmation status
-        var isEmailConfirmed = await db.Users
+        bool isEmailConfirmed = await db.Users
             .Where(u => u.Id == userId)
             .Select(u => u.EmailConfirmed)
             .FirstOrDefaultAsync();
@@ -74,52 +74,59 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         if (currentTasksCount >= maxAllowedTasks)
             return Result.Fail(new TaskLimitExceededError(maxAllowedTasks, isEmailConfirmed));
 
-        // Check if the requested page number is valid based on the current number of tasks and the provided pagination parameters
-        int offset = (command.PageNumber - 1) * command.PageSize;
+        // Check if targeted task exists only in case FirstVisibleTaskIdOnPage isn't null
+        var targetTask = await db.Tasks.FirstOrDefaultAsync(t => t.Id == command.FirstVisibleTaskIdOnPage);
+        if (targetTask == null && command.FirstVisibleTaskIdOnPage != null)
+            return Result.Fail(new NotFoundError("Task", command.FirstVisibleTaskIdOnPage));
 
-        if (command.PageNumber > 1 && offset >= currentTasksCount)
-            return Result.Fail(new NotFoundError("Page", command.PageNumber));
+        // Create new task in memory
+        var createdTask = command.Adapt<TaskEntity>();
+        createdTask.UserId = userId;
 
-        // Position calculations
-        int targetPosition = isDescendingSorting
-            ? currentTasksCount - offset + 1
-            : offset + 1;
+        int newPos = 1;
+        // If any type of sorting besides "Custom Order" is enabled, insert a new task into a list and then reset the order of posistion in the whole list
+        if (query.SortBy != TaskSortField.Position && query.SortBy != null)
+        {
+            var allTasks = await db.Tasks
+                .ApplySorting(query)
+                .ToListAsync();
 
-        // Unfinished, better off refactoring this to a separate method that can be called after any operation that changes the order of tasks, like create, delete, or reorder.
-        //if (sortBy != SortField.Position)
-        //{
-        //    var allTasks = await db.Tasks
-        //    .ApplySorting(query)
-        //    .ToListAsync();
+            if (command.FirstVisibleTaskIdOnPage != null)
+                newPos = allTasks.IndexOf(targetTask!);
 
-        //    for (int i = 0; i < allTasks.Count; i++)
-        //        allTasks[i].Position = i + 1;
+            allTasks.Insert(newPos, createdTask);
+            db.Tasks.Add(createdTask);
 
-        //    return Result.Ok();
-        //}
+            await ResetOrderAsync(allTasks, query.IsDescending);
 
+            return Result.Ok(createdTask.Adapt<TaskView>());
+        }
+
+        // If "Custom Order" is enabled, reorder affected tasks and then insert a new task
         try
         {
             using var transaction = await db.Database.BeginTransactionAsync();
 
-            await db.Tasks
-             .Where(t => t.Position >= targetPosition)
-             .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
+            if (command.FirstVisibleTaskIdOnPage != null)
+            {
+                newPos = targetTask!.Position;
+                if (query.IsDescending)
+                    newPos += 1;
 
-            // Create new task entity and set its position and owner
-            var entity = command.Adapt<TaskEntity>();
-            entity.Position = targetPosition;
-            entity.UserId = userId;
+                createdTask.Position = newPos;
+            }
 
-            db.Tasks.Add(entity);
+            await ReorderInRangeAsync(currentTasksCount + 1, newPos);
+
+            db.Tasks.Add(createdTask);
             await db.SaveChangesAsync();
 
             await transaction.CommitAsync();
-            return Result.Ok(entity.Adapt<TaskView>());
+            return Result.Ok(createdTask.Adapt<TaskView>());
         }
         catch
         {
-            return Result.Fail(new ReorderingError("Task", targetPosition));
+            return Result.Fail(new ReorderingError("Task", newPos));
         }
     }
 
@@ -161,10 +168,10 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
                 .Where(t => t.Id == taskId)
                 .ExecuteDeleteAsync();
 
+            var tasksCount = await db.Tasks.CountAsync();
+
             // Shift up the positions of tasks that were below the deleted task
-            await db.Tasks
-                .Where(t => t.Position > deletedPos)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position - 1));
+            await ReorderInRangeAsync(deletedPos, tasksCount);
 
             await transaction.CommitAsync();
             return Result.Ok();
@@ -175,50 +182,46 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
     }
 
-    public async Task<Result> ReorderTaskAsync(MoveTaskCommand command, bool isDescendingSorting)
+    public async Task<Result> MoveAsync(MoveTaskCommand command, SortTasksQuery query)
     {
         var task = await db.Tasks
-           .Select(t => new { t.Id, t.Position })
            .FirstOrDefaultAsync(t => t.Id == command.TaskId);
         if (task == null)
             return Result.Fail(new NotFoundError("Task", command.TaskId));
 
-        int offset = (command.PageNumber - 1) * command.PageSize;
-
-        int totalTasks = await db.Tasks.CountAsync();
-        if (offset >= totalTasks && totalTasks > 0)
-            return Result.Fail(new NotFoundError("Page", command.PageNumber));
-
-        int newLocalIndex = isDescendingSorting
-            ? totalTasks - (command.NewLocalIndex + offset) + 1
-            : command.NewLocalIndex + offset;
+        var targetTask = await db.Tasks
+           .FirstOrDefaultAsync(t => t.Id == command.TargetTaskId);
+        if (targetTask == null)
+            return Result.Fail(new NotFoundError("Task", command.TargetTaskId));
 
         int oldPos = task.Position;
-        int newPos = Math.Clamp(newLocalIndex, 1, totalTasks);
-
-        if (oldPos == newPos) 
+        int newPos = targetTask.Position;
+        if (oldPos == newPos)
             return Result.Ok();
 
+        // If any type of sorting besides "Custom Order" is enabled, insert a moved task into a list and then reset the order of posistion in the whole list
+        if (query.SortBy != TaskSortField.Position && query.SortBy != null)
+        {
+            var allTasks = await db.Tasks
+                .ApplySorting(query)
+                .ToListAsync();
+
+            newPos = allTasks.IndexOf(targetTask);
+
+            allTasks.Remove(task);
+            allTasks.Insert(newPos, task); // -1 is because lists are 0-based
+
+            await ResetOrderAsync(allTasks, query.IsDescending);
+
+            return Result.Ok();
+        }
+        // If "Custom Order" is enabled, reorder affected tasks and then insert a moved task
         try
         {
             using var transaction = await db.Database.BeginTransactionAsync();
 
-            if (oldPos < newPos)
-            {
-                // Downshift
-                await db.Tasks
-                    .Where(t => t.Position > oldPos && t.Position <= newPos)
-                    .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position - 1));
-            }
-            else
-            {
-                // Upshift
-                await db.Tasks
-                    .Where(t => t.Position >= newPos && t.Position < oldPos)
-                    .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
-            }
+            await ReorderInRangeAsync(oldPos, newPos);
 
-            // Update the position of the moved task
             await db.Tasks
                 .Where(t => t.Id == command.TaskId)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, newPos));
@@ -232,34 +235,50 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
     }
 
-    public async Task<Result> ResetAllPositionsAsync(MoveTaskCommand command, SortTasksQuery query)
+    public async Task<Result> MoveAndResetOrderAsync(MoveTaskCommand command, SortTasksQuery query)
     {
         var allTasks = await db.Tasks
             .ApplySorting(query)
             .ToListAsync();
 
-        var movedTask = allTasks.FirstOrDefault(t => t.Id == command.TaskId);
-        if (movedTask == null)
+        var task = allTasks.FirstOrDefault(t => t.Id == command.TaskId);
+        if (task == null)
             return Result.Fail(new NotFoundError("Task", command.TaskId));
 
-        int offset = (command.PageNumber - 1) * command.PageSize;
-        if (offset >= allTasks.Count && allTasks.Count > 0)
-            return Result.Fail(new NotFoundError("Page", command.PageNumber));
+        var targetTask = allTasks.FirstOrDefault(t => t.Id == command.TargetTaskId);
+        if (targetTask == null)
+            return Result.Fail(new NotFoundError("Task", command.TargetTaskId));
 
-        allTasks.Remove(movedTask);
+        allTasks.Remove(task);
 
-        int newLocalIndex = query.IsDescending
-            ? allTasks.Count - (command.NewLocalIndex + offset) + 1
-            : command.NewLocalIndex + offset;
+        int newPos = targetTask.Position;
+        allTasks.Insert(newPos - 1, task); // -1 is because lists are 0-based
 
-        int targetIndex = Math.Clamp(newLocalIndex - 1, 0, allTasks.Count); // -1 is because lists are 0-based
-        allTasks.Insert(targetIndex, movedTask);
-
-        for (int i = 0; i < allTasks.Count; i++)
-            allTasks[i].Position = i + 1;
-
-        await db.SaveChangesAsync();
+        await ResetOrderAsync(allTasks, query.IsDescending);
 
         return Result.Ok();
+    }
+
+    private async Task ReorderInRangeAsync(int start, int end)
+    {
+        if (start < end)    // Downshift
+            await db.Tasks
+                .Where(t => t.Position > start && t.Position <= end)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position - 1));
+        else                // Upshift
+            await db.Tasks
+                .Where(t => t.Position >= end && t.Position < start)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
+    }
+
+    private async Task ResetOrderAsync(List<TaskEntity> tasks, bool isDescending)
+    {
+        if (isDescending)
+            tasks.Reverse();
+
+        for (int i = 0; i < tasks.Count; i++)
+            tasks[i].Position = i + 1;
+
+        await db.SaveChangesAsync();
     }
 }

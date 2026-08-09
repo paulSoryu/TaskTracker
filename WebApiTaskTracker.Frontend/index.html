@@ -19,6 +19,8 @@
     --teal:       #2F6F6B;
     --teal-deep:  #1F4F4C;
     --ochre:      #C89B3C;
+    --burgundy:   #7A2A38;
+    --burgundy-deep: #5E1F2A;
     --ink-line:   rgba(35,43,54,0.14);
     --shadow:     0 1px 0 rgba(35,43,54,0.06), 0 8px 20px -12px rgba(35,43,54,0.35);
   }
@@ -188,7 +190,30 @@
     color:#F1EBDC;
     border-color:var(--ink);
   }
+  .pill.sort-btn.active[data-sort="position"]{
+    background:var(--teal-deep);
+    border-color:var(--teal-deep);
+  }
   .pill .caret{ font-size:20px; line-height:1; opacity:.6; }
+
+  .clear-filters-btn{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    border:none;
+    background:var(--burgundy);
+    color:#fff;
+    font-size:16px;
+    font-weight:700;
+    line-height:1;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .clear-filters-btn.show{ display:flex; }
+  .clear-filters-btn:hover{ background:var(--burgundy-deep); }
   .pill.sort-btn.active .caret{ opacity:1; color:var(--ochre); }
 
   .page-size-group{
@@ -323,7 +348,63 @@
     grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));
     gap:22px;
     align-items:start;
+    transition:opacity .15s ease;
   }
+  .board.board-loading{ opacity:0.55; pointer-events:none; }
+
+  .board-error-banner{
+    display:none;
+    margin:16px 24px 0;
+    padding:10px 16px;
+    border-radius:8px;
+    background:rgba(181,96,45,0.12);
+    color:var(--rust-deep);
+    font-size:13px;
+    font-weight:600;
+  }
+  .board-error-banner.show{ display:block; }
+
+  .board-info-banner{
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin:16px 24px 0;
+    padding:10px 16px;
+    border-radius:8px;
+    background:rgba(47,111,107,0.12);
+    color:var(--teal-deep);
+    font-size:13px;
+    font-weight:600;
+  }
+  .board-info-banner.show{ display:flex; }
+  .board-info-banner .btn-plain{
+    flex-shrink:0;
+    background:var(--card);
+    padding:6px 12px;
+    font-size:12.5px;
+  }
+
+  @keyframes cardPopIn{
+    from{ transform:scale(1.12); opacity:0; }
+    to{ transform:scale(1); opacity:1; }
+  }
+  @keyframes cardPopOut{
+    from{ transform:scale(1); opacity:1; }
+    to{ transform:scale(1.12); opacity:0; }
+  }
+  .task-card.anim-create{ animation:cardPopIn .4s ease-out both; }
+  .task-card.anim-delete{ animation:cardPopOut .4s ease-in both; }
+  .task-card.flash-green{
+    box-shadow:0 0 0 3px rgba(47,111,107,0.85);
+    transition:box-shadow .2s ease-out;
+  }
+  .task-card.flash-green.flash-fade{ box-shadow:0 0 0 3px rgba(47,111,107,0); }
+  .task-card.flash-red{
+    box-shadow:0 0 0 3px rgba(196,58,58,0.85);
+    transition:box-shadow .2s ease-out;
+  }
+  .task-card.flash-red.flash-fade{ box-shadow:0 0 0 3px rgba(196,58,58,0); }
 
   .empty-state{
     grid-column:1/-1;
@@ -659,6 +740,9 @@
     font-size:19px;
   }
   .modal p.hint{ margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); }
+
+  #catOverlay .modal{ zoom:1.3; }
+
   .cat-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px; max-height:220px; overflow:auto; }
   .cat-row{
     display:flex; align-items:center; gap:8px;
@@ -1159,6 +1243,8 @@
           <div class="dropdown-item" data-value="false">Not completed</div>
         </div>
       </div>
+
+      <button type="button" class="clear-filters-btn" id="clearFiltersBtn" title="Clear all filters">✕</button>
     </div>
 
     <div class="deck-row" id="sortRow">
@@ -1184,6 +1270,11 @@
   </section>
 
   <!-- ================= BOARD ================= -->
+  <div class="board-error-banner" id="boardErrorBanner"></div>
+  <div class="board-info-banner" id="taskHiddenBanner">
+    <span id="taskHiddenBannerText"></span>
+    <button type="button" class="btn-plain" id="taskHiddenBannerShowBtn">Show it</button>
+  </div>
   <main class="board" id="board"></main>
 
   <button class="fab" id="addTaskBtn"><span class="fab-icon">+</span><span class="fab-text">New Task</span></button>
@@ -1331,7 +1422,7 @@
         </div>
       </div>
 
-      <div class="inline-status warn" id="newTaskError">Title and description are required.</div>
+      <div class="inline-status warn" id="newTaskError">Title is required.</div>
 
       <div class="modal-actions" style="margin-top:10px;">
         <button class="btn-plain" id="cancelNewTaskBtn">Cancel</button>
@@ -1435,18 +1526,12 @@
     "#3F7D8C"  // steel teal
   ];
   const FALLBACK_CATEGORY_COLOR = CATEGORY_COLOR_PALETTE[0];
-  const OTHER_CATEGORY_COLOR = "#8A8577"; // fixed neutral gray, not part of the random palette
   function randomCategoryColor(){
     return CATEGORY_COLOR_PALETTE[Math.floor(Math.random() * CATEGORY_COLOR_PALETTE.length)];
   }
 
-  let categories = [
-    { id:cid(), name:"Work",     color: randomCategoryColor() },
-    { id:cid(), name:"Personal", color: randomCategoryColor() },
-    { id:cid(), name:"Errands",  color: randomCategoryColor() },
-    { id:cid(), name:"Health",   color: randomCategoryColor() },
-    { id:cid(), name:"Other",    color: OTHER_CATEGORY_COLOR }
-  ];
+  // Real category data now comes from the server (GET /api/categories) — see loadCategories().
+  let categories = [];
   const priorities = ["High","Medium","Low"];
 
   // Real task data now comes from the server (GET /api/tasks) — see loadTasks().
@@ -1460,13 +1545,69 @@
   let sortDir = 1; // 1 asc, -1 desc
   let currentPage = 1; // reset to 1 whenever a filter changes; wired into real pagination once the board talks to the backend
 
+  const BOARD_STATE_KEY = 'ledger-board-state';
+  function saveBoardState(){
+    try{
+      localStorage.setItem(BOARD_STATE_KEY, JSON.stringify({ sortKey, sortDir, filters, searchQuery, pageSize: getPageSize() }));
+    } catch(e){ /* storage unavailable — state just won't survive a reload */ }
+    updateClearFiltersBtn();
+  }
+  function loadBoardState(){
+    try{
+      const raw = localStorage.getItem(BOARD_STATE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+
+  function updateClearFiltersBtn(){
+    const active = !!(filters.category || filters.priority || filters.completed !== '' || filters.dueDate || searchQuery.trim());
+    document.getElementById('clearFiltersBtn').classList.toggle('show', active);
+  }
+
+  document.getElementById('clearFiltersBtn').addEventListener('click', ()=>{
+    filters.category = ""; filters.priority = ""; filters.completed = ""; filters.dueDate = "";
+    searchQuery = "";
+    document.getElementById('searchInput').value = "";
+    document.querySelectorAll('.filter-btn').forEach(btn=>{
+      btn.classList.remove('active');
+      const label = btn.querySelector('.filter-label');
+      if(label) label.textContent = filterDefaultLabels[btn.dataset.filter];
+    });
+    document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+    currentPage = 1;
+    saveBoardState();
+    hideTaskHiddenBanner();
+    loadTasks();
+  });
+
   function cid(){ return 't' + Math.random().toString(36).slice(2,9); }
 
+  const CATEGORY_SORT_FIELD_MAP = { name:'Title', taskCount:'TaskCount', completedTaskCount:'CompletedTaskCount' };
+
+  async function loadCategories(){
+    try{
+      const params = new URLSearchParams();
+      if(catSearchQuery.trim()) params.set('searchTerm', catSearchQuery.trim());
+      const result = await apiFetch(`/api/categories?${params.toString()}`);
+      categories = (result || []).map(c => ({
+        id: c.id,
+        name: c.title,
+        color: c.colour,
+        taskCount: c.taskCount,
+        completedTaskCount: c.completedTaskCount
+      }));
+    } catch(err){
+      categories = [];
+    }
+    renderCategoryFilterPanel();
+    renderCatList();
+  }
+
   /* ---------------- RENDER: FILTER PANEL (category) ---------------- */
-  function renderCategoryPanel(){
+  function renderCategoryFilterPanel(){
     const panel = document.querySelector('.dropdown-panel[data-panel="category"]');
     panel.innerHTML = '<div class="dropdown-item" data-value="">All</div>' +
-      categories.map(c => `<div class="dropdown-item" data-value="${escapeAttr(c.name)}">${escapeHtml(c.name)}</div>`).join('');
+      categories.map(c => `<div class="dropdown-item" data-value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</div>`).join('');
   }
 
   /* ---------------- RENDER: BOARD ---------------- */
@@ -1484,8 +1625,7 @@
     if(searchQuery.trim()) params.set('searchTerm', searchQuery.trim());
     if(filters.priority) params.set('priority', filters.priority);
     if(filters.completed !== '') params.set('isCompleted', filters.completed);
-    // NOTE: filters.category is intentionally not sent yet — the backend filters by
-    // CategoryId, and real categories aren't wired up to the server yet (next step).
+    if(filters.category) params.set('categoryId', filters.category);
 
     if(filters.dueDate){
       if(/^\d{4}-\d{2}$/.test(filters.dueDate)){
@@ -1509,11 +1649,15 @@
 
   async function loadTasks(){
     const board = document.getElementById('board');
+    const errorBanner = document.getElementById('boardErrorBanner');
     const hasExistingCards = !!board.querySelector('.task-card');
     const scrollYBeforeLoad = window.scrollY;
     if(!hasExistingCards){
       board.innerHTML = '<div class="empty-state">Loading tasks…</div>';
     }
+    // Only show a loading state if the request is actually slow — avoids a
+    // flash/flicker on fast responses, which is most of the time.
+    const loadingIndicatorTimer = setTimeout(()=>{ board.classList.add('board-loading'); }, 1000);
     try{
       const query = buildTasksQuery();
       const result = await apiFetch(`/api/tasks?${query}`);
@@ -1538,6 +1682,7 @@
         category: ""
       }));
       totalTaskCount = result.totalCount || 0;
+      errorBanner.classList.remove('show');
       renderPagination();
       renderBoardFromState();
       if(!scrollRestoredOnce){
@@ -1546,7 +1691,18 @@
         window.scrollTo(0, scrollYBeforeLoad); // every later reload (filter, sort, drag reorder…) — don't jump around
       }
     } catch(err){
-      board.innerHTML = `<div class="empty-state">Couldn't load tasks: ${escapeHtml((err.messages || [err.message]).join(' '))}</div>`;
+      const message = (err.messages || [err.message]).join(' ');
+      if(hasExistingCards){
+        // background refresh failed — keep whatever's already on screen and
+        // just flag it, instead of throwing away visible (still-valid) cards
+        errorBanner.textContent = `Couldn't refresh tasks: ${message}`;
+        errorBanner.classList.add('show');
+      } else {
+        board.innerHTML = `<div class="empty-state">Couldn't load tasks: ${escapeHtml(message)}</div>`;
+      }
+    } finally {
+      clearTimeout(loadingIndicatorTimer);
+      board.classList.remove('board-loading');
     }
   }
 
@@ -1587,20 +1743,31 @@
 
   document.getElementById('pageSizeSelect').addEventListener('change', ()=>{
     currentPage = 1;
+    saveBoardState();
     loadTasks();
   });
 
-  function categoryOptions(selected){
-    const noCategoryOption = `<option value="" ${!selected ? 'selected' : ''}>———</option>`;
-    return noCategoryOption + categories.map(c => `<option value="${escapeAttr(c.name)}" ${c.name===selected?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  function categoryOptions(selectedId){
+    const noCategoryOption = `<option value="" ${!selectedId ? 'selected' : ''}>———</option>`;
+    return noCategoryOption + categories.map(c => `<option value="${escapeAttr(c.id)}" ${c.id===selectedId?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
   }
-  function categoryColor(name){
-    if(!name) return 'var(--card-edge)';
-    const cat = categories.find(c => c.name === name);
+  function categoryColor(id){
+    if(!id) return 'var(--card-edge)';
+    const cat = categories.find(c => c.id === id);
     return (cat && cat.color) || FALLBACK_CATEGORY_COLOR;
   }
   function priorityOptions(selected){
     return priorities.map(p => `<option value="${p}" ${p===selected?'selected':''}>${p}</option>`).join('');
+  }
+
+  // Set right before loadTasks() after a successful create, so
+  // renderBoardFromState() knows which freshly-rendered card to animate in.
+  let pendingCreateAnimationId = null;
+
+  function categoryNameById(id){
+    if(!id) return '';
+    const cat = categories.find(c => c.id === id);
+    return cat ? cat.name : '';
   }
 
   function renderBoardFromState(){
@@ -1617,10 +1784,10 @@
         <button type="button" class="task-drag-handle" title="Drag to reorder">
           <span class="drag-dots"><i></i><i></i><i></i><i></i><i></i><i></i></span>
         </button>
-        <div class="category-flag" style="--flag-color:${categoryColor(t.category)}" title="Category: ${t.category ? escapeAttr(t.category) : 'No Category'}"></div>
+        <div class="category-flag" style="--flag-color:${categoryColor(t.categoryId)}" title="Category: ${t.categoryId ? escapeAttr(categoryNameById(t.categoryId)) : 'No Category'}"></div>
         <div class="stamp">DONE</div>
         <div class="card-head">
-          <select class="category-select" data-field="category">${categoryOptions(t.category)}</select>
+          <select class="category-select" data-field="categoryId">${categoryOptions(t.categoryId)}</select>
           <input class="task-title-input" data-field="title" value="${escapeAttr(t.title)}" placeholder="Task title">
         </div>
         <textarea class="task-desc" data-field="description" placeholder="Describe this task…">${escapeHtml(t.description)}</textarea>
@@ -1643,6 +1810,20 @@
         <div class="card-save-status" data-save-status></div>
       </article>
     `).join('');
+
+    if(pendingCreateAnimationId){
+      const newCard = board.querySelector(`.task-card[data-id="${pendingCreateAnimationId}"]`);
+      pendingCreateAnimationId = null;
+      if(newCard){
+        newCard.classList.add('anim-create', 'flash-green');
+        setTimeout(()=>{
+          newCard.classList.add('flash-fade');
+          setTimeout(()=>{
+            newCard.classList.remove('anim-create', 'flash-green', 'flash-fade');
+          }, 200);
+        }, 700);
+      }
+    }
   }
 
   function escapeHtml(str){
@@ -1702,7 +1883,7 @@
       const timer = setTimeout(()=>{
         taskUpdateTimers.delete(taskId);
         sendTaskUpdate(taskId);
-      }, 500);
+      }, 300);
       taskUpdateTimers.set(taskId, timer);
     } else {
       sendTaskUpdate(taskId);
@@ -1717,15 +1898,15 @@
     const task = tasks.find(t=>t.id === card.dataset.id);
     const field = e.target.dataset.field;
     if(!task || !field) return;
-    task[field] = e.target.value;
 
-    if(field === 'category'){
-      // Categories aren't wired to the server yet — this is a purely visual,
-      // client-only change (the flag color), never sent to the backend.
-      renderBoardFromState();
+    if(field === 'categoryId'){
+      task.categoryId = e.target.value || null;
+      renderBoardFromState(); // flag color depends on category, needs a re-render
+      scheduleTaskUpdate(task.id, false);
       return;
     }
 
+    task[field] = e.target.value;
     scheduleTaskUpdate(task.id, DEBOUNCED_TASK_FIELDS.has(field));
   });
 
@@ -1765,20 +1946,37 @@
   document.getElementById('deleteTaskCancelBtn').addEventListener('click', closeDeleteTaskModal);
   bindOverlayOutsideClose(deleteTaskOverlay, closeDeleteTaskModal);
 
+  // Reverse of the create animation: red flash holds first (0.3s), then the
+  // card shrinks + fades out (0.4s) — 0.7s total, same budget as create.
+  function playCardExitAnimation(card){
+    return new Promise(resolve=>{
+      card.classList.add('flash-red');
+      setTimeout(()=>{
+        card.classList.add('anim-delete');
+        setTimeout(resolve, 400);
+      }, 300);
+    });
+  }
+
   document.getElementById('deleteTaskConfirmBtn').addEventListener('click', async ()=>{
     if(!pendingDeleteTaskId) return;
-    const confirmBtn = document.getElementById('deleteTaskConfirmBtn');
-    const status = document.getElementById('deleteTaskError');
-    status.classList.remove('show');
-    setBusy(confirmBtn, true, 'Deleting…');
+    const taskId = pendingDeleteTaskId;
+    closeDeleteTaskModal();
+
+    const card = document.querySelector(`.task-card[data-id="${taskId}"]`);
+    const animationDone = card ? playCardExitAnimation(card) : Promise.resolve();
+
     try{
-      await apiFetch(`/api/tasks/${pendingDeleteTaskId}`, { method: 'DELETE' });
-      closeDeleteTaskModal();
+      await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+      await animationDone; // let the exit animation finish before we refresh/re-render
       await loadTasks(); // refetch — deleting the last item on this page can shift totals/pages
     } catch(err){
-      showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
-    } finally {
-      setBusy(confirmBtn, false);
+      if(card) card.classList.remove('anim-delete', 'flash-red', 'flash-fade');
+      const el = cardSaveStatusEl(taskId);
+      if(el){
+        el.textContent = `Couldn't delete: ${(err.messages || [err.message]).join(' ')}`;
+        el.classList.add('show');
+      }
     }
   });
 
@@ -1907,6 +2105,7 @@
       }
       moved = true;
     }
+    const targetTaskId = dropTargetCard ? dropTargetCard.dataset.id : null;
     dropTargetCard = null;
 
     if(draggingCard){
@@ -1916,8 +2115,7 @@
 
     if(!moved) return; // card was picked up and dropped back in place — nothing to commit
 
-    const newLocalIndex = [...board.querySelectorAll('.task-card')].findIndex(el => el === draggingCard) + 1; // 1-based
-    pendingReorder = { taskId: draggingCard.dataset.id, newLocalIndex };
+    pendingReorder = { taskId: draggingCard.dataset.id, targetTaskId };
 
     // Reordering while a "real" sort is applied (not the natural/Custom Order
     // view) rewrites every task's saved Position to match the new on-screen
@@ -1929,47 +2127,32 @@
         title: 'Switch to Custom Order?',
         text: 'You\'re currently viewing a sorted list. Dragging a task to reorder it will overwrite the saved position of <strong>every</strong> task with this new order, replacing whatever custom order existed before.',
         confirmLabel: 'Reorder Anyway',
-        onConfirm: ()=> commitDragReorder(true),
+        onConfirm: commitDragReorder,
         onCancel: ()=>{
           pendingReorder = null;
           renderBoardFromState(); // discard the visual drag move, tasks[] was never touched
         }
       });
     } else {
-      commitDragReorder(false);
+      commitDragReorder();
     }
   });
 
-  async function commitDragReorder(useResetPositions){
+  async function commitDragReorder(){
     if(!pendingReorder) return;
-    const { taskId, newLocalIndex } = pendingReorder;
+    const { taskId, targetTaskId } = pendingReorder;
     pendingReorder = null;
 
     try{
-      if(useResetPositions){
-        await apiFetch('/api/tasks/reset-positions', {
-          method: 'PATCH',
-          body: JSON.stringify({
-            taskId,
-            pageNumber: currentPage,
-            pageSize: getPageSize(),
-            newLocalIndex,
-            sortBy: SORT_FIELD_MAP[sortKey] || 'Position',
-            isDescending: sortDir === -1
-          })
-        });
-      } else {
-        await apiFetch('/api/tasks/reorder', {
-          method: 'PATCH',
-          body: JSON.stringify({
-            taskId,
-            pageNumber: currentPage,
-            pageSize: getPageSize(),
-            newLocalIndex,
-            isDescending: sortDir === -1
-          })
-        });
-      }
+      await apiFetch('/api/tasks/move', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          taskId,
+          targetTaskId,
+          sortBy: SORT_FIELD_MAP[sortKey] || 'Position',
+          isDescending: sortDir === -1
+        })
+      });
 
       // a committed manual drag always lands us in Custom Order, keeping whichever
       // direction (▲/▼) was already active — the board should always show either
@@ -2051,14 +2234,16 @@
   const newTaskError = document.getElementById('newTaskError');
 
   function defaultNewTaskCategory(){
-    return "";
+    // Pre-fill from the active category filter, if any, so a task created
+    // while filtered doesn't immediately fall outside that filter.
+    return filters.category || "";
   }
 
   function openNewTaskModal(){
     newTaskCategory.innerHTML = categoryOptions(defaultNewTaskCategory());
     newTaskTitle.value = "";
     newTaskDescription.value = "";
-    newTaskPriority.innerHTML = priorityOptions("Medium");
+    newTaskPriority.innerHTML = priorityOptions(filters.priority || "Medium");
     newTaskDueDate.value = new Date().toISOString().slice(0,10);
     newTaskError.classList.remove('show');
     newTaskTitle.classList.remove('field-invalid');
@@ -2098,12 +2283,9 @@
 
   document.getElementById('saveNewTaskBtn').addEventListener('click', ()=>{
     const title = newTaskTitle.value.trim();
-    const description = newTaskDescription.value.trim();
-    let valid = true;
-    if(!title){ newTaskTitle.classList.add('field-invalid'); valid = false; }
-    if(!description){ newTaskDescription.classList.add('field-invalid'); valid = false; }
-    if(!valid){
-      showStatus(newTaskError, 'Title and description are required.', 'warn');
+    if(!title){
+      newTaskTitle.classList.add('field-invalid');
+      showStatus(newTaskError, 'Title is required.', 'warn');
       return;
     }
 
@@ -2121,6 +2303,71 @@
     }
   });
 
+  /* ---------------- "hidden by filters" banner after create ---------------- */
+  function taskDueDateMatchesFilter(dueDate, filterValue){
+    if(!filterValue) return true;
+    if(!dueDate) return filterValue === 'none';
+    if(filterValue === 'none') return false;
+    if(/^\d{4}-\d{2}$/.test(filterValue)) return dueDate.slice(0,7) === filterValue;
+
+    const due = new Date(dueDate + 'T00:00:00');
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
+    if(filterValue === 'overdue') return due < todayStart;
+    if(filterValue === 'today') return due >= todayStart && due < todayEnd;
+    if(filterValue === 'week'){
+      const weekEnd = new Date(todayStart); weekEnd.setDate(weekEnd.getDate() + 7);
+      return due >= todayStart && due < weekEnd;
+    }
+    if(filterValue === 'month'){
+      const monthEnd = new Date(todayStart); monthEnd.setMonth(monthEnd.getMonth() + 1);
+      return due >= todayStart && due < monthEnd;
+    }
+    return true;
+  }
+
+  function hasActiveFilters(){
+    return !!(filters.category || filters.priority || filters.completed !== '' || filters.dueDate || searchQuery.trim());
+  }
+
+  function taskMatchesActiveFilters(task){
+    if(filters.category && task.categoryId !== filters.category) return false;
+    if(filters.priority && task.priority !== filters.priority) return false;
+    if(filters.completed !== '' && String(task.isCompleted) !== filters.completed) return false;
+    if(!taskDueDateMatchesFilter(task.dueDate, filters.dueDate)) return false;
+    if(searchQuery.trim()){
+      const haystack = `${task.title} ${task.description || ''}`.toLowerCase();
+      if(!haystack.includes(searchQuery.trim().toLowerCase())) return false;
+    }
+    return true;
+  }
+
+  const taskHiddenBanner = document.getElementById('taskHiddenBanner');
+  function showTaskHiddenBanner(taskTitle){
+    document.getElementById('taskHiddenBannerText').textContent =
+      `"${taskTitle || 'Task'}" was created, but it's hidden by your current filters.`;
+    taskHiddenBanner.classList.add('show');
+  }
+  function hideTaskHiddenBanner(){
+    taskHiddenBanner.classList.remove('show');
+  }
+
+  document.getElementById('taskHiddenBannerShowBtn').addEventListener('click', ()=>{
+    filters.category = ""; filters.priority = ""; filters.completed = ""; filters.dueDate = "";
+    searchQuery = "";
+    document.getElementById('searchInput').value = "";
+    document.querySelectorAll('.filter-btn').forEach(btn=>{
+      btn.classList.remove('active');
+      const label = btn.querySelector('.filter-label');
+      if(label) label.textContent = filterDefaultLabels[btn.dataset.filter];
+    });
+    document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+    currentPage = 1;
+    saveBoardState();
+    hideTaskHiddenBanner();
+    loadTasks();
+  });
+
   async function submitNewTask(){
     const title = newTaskTitle.value.trim();
     const description = newTaskDescription.value.trim();
@@ -2128,24 +2375,29 @@
     newTaskError.classList.remove('show');
     setBusy(saveBtn, true, 'Saving…');
     try{
-      await apiFetch('/api/tasks', {
+      const created = await apiFetch('/api/tasks', {
         method: 'POST',
         body: JSON.stringify({
           title,
           description,
           dueDate: newTaskDueDate.value || null,
           priority: newTaskPriority.value || "Medium",
-          // Categories aren't wired to the server yet — the dropdown here is
-          // still the local placeholder list, so it can't map to a real CategoryId.
-          categoryId: null,
-          pageNumber: currentPage,
-          pageSize: getPageSize(),
+          categoryId: newTaskCategory.value || null,
+          firstVisibleTaskIdOnPage: tasks.length > 0 ? tasks[0].id : null,
+          sortBy: SORT_FIELD_MAP[sortKey] || 'Position',
           isDescending: sortDir === -1
         })
       });
       closeNewTaskModal();
       // a committed create-while-sorted also lands us in Custom Order, same as drag reorder
       if(sortKey && sortKey !== 'position') activateSortButton('position', sortDir);
+
+      hideTaskHiddenBanner();
+      if(created && hasActiveFilters() && !taskMatchesActiveFilters(created)){
+        showTaskHiddenBanner(created.title || title);
+      } else {
+        pendingCreateAnimationId = created && created.id;
+      }
       await loadTasks(); // refetch so the new task appears with its real id/position from the server
     } catch(err){
       showStatus(newTaskError, (err.messages || [err.message]).join(' '), 'warn');
@@ -2155,7 +2407,7 @@
   }
 
   /* ---------------- SEARCH ---------------- */
-  const debouncedSearchLoad = debounce(()=>{ currentPage = 1; loadTasks(); }, 500);
+  const debouncedSearchLoad = debounce(()=>{ currentPage = 1; saveBoardState(); hideTaskHiddenBanner(); loadTasks(); }, 300);
   document.getElementById('searchInput').addEventListener('input', e=>{
     searchQuery = e.target.value;
     debouncedSearchLoad();
@@ -2174,6 +2426,32 @@
     });
   });
 
+  // Reflects `filters` (already restored from storage, or just changed) back
+  // onto the pill label/active state and the dropdown's selected item —
+  // the same visual update the click handlers below do, factored out so the
+  // saved-state restore path on load can reuse it.
+  function applyFilterUI(key, value){
+    const btn = document.querySelector(`.filter-btn[data-filter="${key}"]`);
+    const panel = document.querySelector(`.dropdown-panel[data-panel="${key}"]`);
+    if(!btn || !panel || !value) return;
+
+    if(key === 'dueDate' && /^\d{4}-\d{2}$/.test(value)){
+      const monthInput = document.getElementById('dueMonthInput');
+      if(monthInput) monthInput.value = value;
+      btn.classList.add('active');
+      btn.querySelector('.filter-label').textContent = new Date(value + '-01T00:00:00')
+        .toLocaleDateString('en-US', { month:'short', year:'numeric' });
+      return;
+    }
+
+    const item = panel.querySelector(`.dropdown-item[data-value="${value}"]`);
+    if(!item) return; // e.g. a saved category that no longer exists this session
+    btn.classList.add('active');
+    btn.querySelector('.filter-label').textContent = item.textContent.trim();
+    panel.querySelectorAll('.dropdown-item').forEach(i=>i.classList.remove('selected'));
+    item.classList.add('selected');
+  }
+
   document.getElementById('filterRow').addEventListener('click', e=>{
     const item = e.target.closest('.dropdown-item');
     if(!item) return;
@@ -2182,6 +2460,7 @@
 
     filters[key] = item.dataset.value;
     currentPage = 1;
+    saveBoardState();
 
     const btn = document.querySelector(`.filter-btn[data-filter="${key}"]`);
     btn.classList.toggle('active', !!item.dataset.value);
@@ -2189,6 +2468,7 @@
     panel.querySelectorAll('.dropdown-item').forEach(i=>i.classList.remove('selected'));
     item.classList.add('selected');
     panel.classList.remove('open');
+    hideTaskHiddenBanner();
     loadTasks();
   });
 
@@ -2197,6 +2477,7 @@
     if(!value) return;
     filters.dueDate = value;
     currentPage = 1;
+    saveBoardState();
 
     const btn = document.querySelector('.filter-btn[data-filter="dueDate"]');
     btn.classList.add('active');
@@ -2210,6 +2491,7 @@
     // closing the panel mid-edit yanks focus and cuts off typing. It closes
     // naturally once the user clicks elsewhere or tabs off the field.
 
+    hideTaskHiddenBanner();
     loadTasks();
   });
 
@@ -2236,6 +2518,7 @@
       btn.classList.add('active');
       btn.innerHTML = btn.textContent + (dir === 1 ? ' ▲' : ' ▼');
     }
+    saveBoardState();
   }
 
   /* ---------------- SORT BUTTONS ---------------- */
@@ -2260,14 +2543,6 @@
 
   let pendingDeleteCategoryId = null;
 
-  function taskCountForCategory(name){
-    return tasks.filter(t => t.category === name).length;
-  }
-
-  function completedTaskCountForCategory(name){
-    return tasks.filter(t => t.category === name && t.isCompleted).length;
-  }
-
   function renderCatList(){
     const query = catSearchQuery.trim().toLowerCase();
     const visible = query ? categories.filter(c => c.name.toLowerCase().includes(query)) : categories;
@@ -2282,8 +2557,8 @@
         <button type="button" class="cat-drag-handle" title="Drag to reorder">⠿</button>
         <input type="color" class="cat-color" value="${c.color}" title="Category color">
         <input type="text" value="${escapeAttr(c.name)}">
-        <span class="cat-task-count cat-task-count-completed" title="Completed tasks in this category">${completedTaskCountForCategory(c.name)}</span>
-        <span class="cat-task-count" title="Tasks in this category">${taskCountForCategory(c.name)}</span>
+        <span class="cat-task-count cat-task-count-completed" title="Completed tasks in this category">${c.completedTaskCount}</span>
+        <span class="cat-task-count" title="Tasks in this category">${c.taskCount}</span>
         <button class="cat-remove" title="Remove category">✕</button>
       </div>
     `).join('');
@@ -2299,7 +2574,7 @@
     const cat = categories.find(c => c.id === id);
     if(!cat) return;
     pendingDeleteCategoryId = id;
-    const taskCount = tasks.filter(t => t.category === cat.name).length;
+    const taskCount = cat.taskCount || 0;
     catConfirmDeleteText.textContent = taskCount
       ? `Delete the category "${cat.name}"? ${taskCount} task${taskCount === 1 ? '' : 's'} using it will be set to "No Category".`
       : `Delete the category "${cat.name}"? This cannot be undone.`;
@@ -2320,10 +2595,17 @@
   }
 
   function updateDeleteTasksWarning(){
-    const name = deleteTasksCategorySelect.value;
+    const catId = deleteTasksCategorySelect.value;
+    const cat = categories.find(c => c.id === catId);
     const status = getDeleteTasksStatus();
-    const count = tasks.filter(t => t.category === name && matchesDeleteTasksStatus(t, status)).length;
+    let count = 0;
+    if(cat){
+      if(status === 'completed') count = cat.completedTaskCount;
+      else if(status === 'notCompleted') count = cat.taskCount - cat.completedTaskCount;
+      else count = cat.taskCount;
+    }
     const statusLabel = status === 'completed' ? ' completed' : status === 'notCompleted' ? ' not-completed' : '';
+    const name = cat ? cat.name : '';
     deleteTasksWarning.textContent = count
       ? `This will permanently delete ${count}${statusLabel} task${count === 1 ? '' : 's'} in "${name}".`
       : `There are no${statusLabel} tasks in "${name}" right now.`;
@@ -2331,7 +2613,7 @@
 
   function showCatDeleteTasksView(){
     if(categories.length === 0) return;
-    deleteTasksCategorySelect.innerHTML = categories.map(c => `<option value="${escapeAttr(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+    deleteTasksCategorySelect.innerHTML = categories.map(c => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)}</option>`).join('');
     document.querySelector('input[name="deleteTasksStatus"][value="all"]').checked = true;
     updateDeleteTasksWarning();
     catListView.style.display = 'none';
@@ -2349,9 +2631,10 @@
   document.getElementById('closeCatBtn').addEventListener('click', closeCatModal);
   bindOverlayOutsideClose(catOverlay, closeCatModal);
 
+  const debouncedCategorySearch = debounce(()=> loadCategories(), 300);
   document.getElementById('catSearchInput').addEventListener('input', e=>{
     catSearchQuery = e.target.value;
-    renderCatList();
+    debouncedCategorySearch();
   });
 
   function commitCategoryEditsFromDom(){
@@ -2391,7 +2674,7 @@
   function closeCatModal(){
     commitCategoryEditsFromDom();
     catOverlay.classList.remove('open');
-    renderCategoryPanel();
+    renderCategoryFilterPanel();
     renderBoardFromState();
   }
 
@@ -2410,7 +2693,7 @@
   document.getElementById('sortCatsByCountBtn').addEventListener('click', ()=>{
     commitCategoryEditsFromDom();
     categories.sort((a,b) => {
-      const diff = taskCountForCategory(b.name) - taskCountForCategory(a.name);
+      const diff = b.taskCount - a.taskCount;
       return catCountSortDesc ? diff : -diff;
     });
     catCountSortDesc = !catCountSortDesc;
@@ -2845,7 +3128,7 @@
     }
   }
 
-  function enterApp(userInfo){
+  async function enterApp(userInfo){
     currentUser = { userId: userInfo.userId, email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed };
     const displayName = currentUser.email.split('@')[0] || currentUser.email;
     userDisplayName.textContent = displayName;
@@ -2854,8 +3137,32 @@
     appShell.classList.add('visible');
     if(!appStarted){
       appStarted = true;
-      renderCategoryPanel();
-      activateSortButton('position', 1);
+      await loadCategories();
+
+      const saved = loadBoardState();
+      if(saved){
+        sortKey = saved.sortKey || null;
+        sortDir = saved.sortDir || 1;
+        if(sortKey) activateSortButton(sortKey, sortDir);
+
+        Object.assign(filters, saved.filters || {});
+        Object.keys(filters).forEach(key => applyFilterUI(key, filters[key]));
+
+        searchQuery = saved.searchQuery || "";
+        const searchInput = document.getElementById('searchInput');
+        if(searchInput) searchInput.value = searchQuery;
+
+        if(saved.pageSize){
+          const pageSizeSelect = document.getElementById('pageSizeSelect');
+          if(pageSizeSelect.querySelector(`option[value="${saved.pageSize}"]`)){
+            pageSizeSelect.value = saved.pageSize;
+          }
+        }
+      } else {
+        activateSortButton('position', 1); // true first-ever visit — Custom Order by default
+      }
+
+      updateClearFiltersBtn();
       loadTasks();
     }
   }

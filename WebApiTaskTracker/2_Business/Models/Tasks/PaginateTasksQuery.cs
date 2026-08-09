@@ -3,4 +3,4 @@
 public record PaginateTasksQuery(
     int PageNumber,
     int PageSize
-) : ITaskQueryComponent;
+);

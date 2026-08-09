@@ -26,6 +26,9 @@ public static class TaskEndpoints
             .WithName("GetTaskById")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        routeGroup.MapGet("{id:Guid}/page", GetPageById)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         routeGroup.MapPost("/", CreateTask)
             .WithValidation<CreateTaskRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
@@ -40,10 +43,6 @@ public static class TaskEndpoints
 
         routeGroup.MapPatch("/move", MoveTask)
             .WithValidation<MoveTaskRequest>()
-            .ProducesProblem(StatusCodes.Status400BadRequest);
-
-        routeGroup.MapPatch("/reset-positions", MoveTaskAndResetOrder)
-            .WithValidation<MoveAndResetOrderRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
@@ -65,9 +64,20 @@ public static class TaskEndpoints
     {
         Result<TaskView> result = await taskService.GetByIdAsync(id);
 
-        Result<TaskResponse> responseResult = result.Map(task => task.Adapt<TaskResponse>());
+        Result<TaskResponse> response = result.Map(task => task.Adapt<TaskResponse>());
 
-        return responseResult.ToTypedHttpResult();
+        return response.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<Ok<TaskPageResponse>, ProblemHttpResult>> GetPageById(Guid id, ITaskService taskService, [AsParameters] GetPageByIdRequest taskRequest)
+    {
+        var query = taskRequest.Adapt<SortTasksQuery>();
+        int pageSize = taskRequest.PageSize;
+
+        Result<int> result = await taskService.GetPageById(id, query, pageSize);
+        Result<TaskPageResponse> response = new TaskPageResponse(result.Value);
+
+        return response.ToTypedHttpResult();
     }
 
     private static async Task<Results<CreatedAtRoute<TaskResponse>, ProblemHttpResult>> CreateTask(CreateTaskRequest taskRequest, ITaskService taskService, ClaimsPrincipal user)
@@ -106,14 +116,6 @@ public static class TaskEndpoints
         var command = moveRequest.Adapt<MoveTaskCommand>();
         var query = moveRequest.Adapt<SortTasksQuery>();
         Result result = await taskService.MoveAsync(command, query);
-        return result.ToTypedHttpResult();
-    }
-
-    private static async Task<Results<NoContent, ProblemHttpResult>> MoveTaskAndResetOrder(MoveAndResetOrderRequest resetRequest, ITaskService taskService)
-    {
-        var command = resetRequest.Adapt<MoveTaskCommand>();
-        var sortQuery = resetRequest.Adapt<SortTasksQuery>();
-        Result result = await taskService.MoveAndResetOrderAsync(command, sortQuery);
         return result.ToTypedHttpResult();
     }
 }

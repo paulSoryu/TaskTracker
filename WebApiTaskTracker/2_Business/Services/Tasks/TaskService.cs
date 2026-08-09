@@ -53,7 +53,24 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             : Result.Ok(response);
     }
 
-    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, SortTasksQuery query, Guid userId)
+    public async Task<Result<int>> GetPageById(Guid id, SortTasksQuery sortQuery, int pageSize)
+    {
+        var tasks = await db.Tasks
+            .AsNoTracking()
+            .ApplySorting(sortQuery)
+            .ToListAsync();
+
+        var task = tasks.FirstOrDefault(t => t.Id == id);
+        if (task == null)
+            return Result.Fail(new NotFoundError("Task", id));
+
+        int taskIndex = tasks.IndexOf(task);
+        int result = taskIndex / pageSize + 1; // +1 is because pages are 1-based
+
+        return Result.Ok(result);
+    }
+
+    public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, SortTasksQuery sortQuery, Guid userId)
     {
         // Check if the specified category exists in the database, but accept null values for the category ID, as tasks can be created without a category
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == command.CategoryId);
@@ -85,10 +102,10 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
         int newPos = 1;
         // If any type of sorting besides "Custom Order" is enabled, insert a new task into a list and then reset the order of posistion in the whole list
-        if (query.SortBy != TaskSortField.Position && query.SortBy != null)
+        if (sortQuery.SortBy != TaskSortField.Position && sortQuery.SortBy != null)
         {
             var allTasks = await db.Tasks
-                .ApplySorting(query)
+                .ApplySorting(sortQuery)
                 .ToListAsync();
 
             if (command.FirstVisibleTaskIdOnPage != null)
@@ -97,7 +114,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             allTasks.Insert(newPos, createdTask);
             db.Tasks.Add(createdTask);
 
-            await ResetOrderAsync(allTasks, query.IsDescending);
+            await ResetOrderAsync(allTasks, sortQuery.IsDescending);
 
             return Result.Ok(createdTask.Adapt<TaskView>());
         }
@@ -110,7 +127,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             if (command.FirstVisibleTaskIdOnPage != null)
             {
                 newPos = targetTask!.Position;
-                if (query.IsDescending)
+                if (sortQuery.IsDescending)
                     newPos += 1;
 
                 createdTask.Position = newPos;
@@ -182,7 +199,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
     }
 
-    public async Task<Result> MoveAsync(MoveTaskCommand command, SortTasksQuery query)
+    public async Task<Result> MoveAsync(MoveTaskCommand command, SortTasksQuery sortQuery)
     {
         var task = await db.Tasks
            .FirstOrDefaultAsync(t => t.Id == command.TaskId);
@@ -200,10 +217,10 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             return Result.Ok();
 
         // If any type of sorting besides "Custom Order" is enabled, insert a moved task into a list and then reset the order of posistion in the whole list
-        if (query.SortBy != TaskSortField.Position && query.SortBy != null)
+        if (sortQuery.SortBy != TaskSortField.Position && sortQuery.SortBy != null)
         {
             var allTasks = await db.Tasks
-                .ApplySorting(query)
+                .ApplySorting(sortQuery)
                 .ToListAsync();
 
             newPos = allTasks.IndexOf(targetTask);
@@ -211,7 +228,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             allTasks.Remove(task);
             allTasks.Insert(newPos, task); // -1 is because lists are 0-based
 
-            await ResetOrderAsync(allTasks, query.IsDescending);
+            await ResetOrderAsync(allTasks, sortQuery.IsDescending);
 
             return Result.Ok();
         }
@@ -233,30 +250,6 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         {
             return Result.Fail(new ReorderingError("Task", command.TaskId, oldPos, newPos, ex.Message));
         }
-    }
-
-    public async Task<Result> MoveAndResetOrderAsync(MoveTaskCommand command, SortTasksQuery query)
-    {
-        var allTasks = await db.Tasks
-            .ApplySorting(query)
-            .ToListAsync();
-
-        var task = allTasks.FirstOrDefault(t => t.Id == command.TaskId);
-        if (task == null)
-            return Result.Fail(new NotFoundError("Task", command.TaskId));
-
-        var targetTask = allTasks.FirstOrDefault(t => t.Id == command.TargetTaskId);
-        if (targetTask == null)
-            return Result.Fail(new NotFoundError("Task", command.TargetTaskId));
-
-        allTasks.Remove(task);
-
-        int newPos = targetTask.Position;
-        allTasks.Insert(newPos - 1, task); // -1 is because lists are 0-based
-
-        await ResetOrderAsync(allTasks, query.IsDescending);
-
-        return Result.Ok();
     }
 
     private async Task ReorderInRangeAsync(int start, int end)

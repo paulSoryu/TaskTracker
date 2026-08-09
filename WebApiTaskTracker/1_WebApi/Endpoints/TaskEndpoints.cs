@@ -20,7 +20,9 @@ public static class TaskEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-        routeGroup.MapGet("/", GetAllTasks);
+        routeGroup.MapGet("/", GetAllTasks)
+            .WithValidation<GetTasksRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapGet("/{id:Guid}", GetTaskById)
             .WithName("GetTaskById")

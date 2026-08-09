@@ -6,5 +6,6 @@ public record CategoryView(
     Guid Id,
     string Title,
     string Colour,
+    int Position,
     IReadOnlyCollection<TaskView> Tasks
 );

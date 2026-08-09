@@ -1,24 +1,24 @@
 ﻿using FluentValidation;
 using WebApiTaskTracker.Business.Models.Enums;
 
-namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
+namespace WebApiTaskTracker.WebApi.DTOs.Categories;
 
-public record MoveTaskRequest(
-    Guid TaskId,
-    Guid TargetTaskId,
+public record MoveCategoryRequest(
+    Guid CategoryId,
+    Guid TargetCategoryId,
 
-    TaskSortField SortBy,
+    CategorySortField SortBy,
     bool IsDescending
 )
 {
-    public class Validator : AbstractValidator<MoveTaskRequest>
+    public class Validator : AbstractValidator<MoveCategoryRequest>
     {
         public Validator()
         {
-            RuleFor(x => x.TaskId)
+            RuleFor(x => x.CategoryId)
                 .NotEmpty().WithMessage("TaskId is required.");
 
-            RuleFor(x => x.TargetTaskId)
+            RuleFor(x => x.TargetCategoryId)
                 .NotEmpty().WithMessage("TargetTaskId is required.");
 
             RuleFor(x => x.SortBy)

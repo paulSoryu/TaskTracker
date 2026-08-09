@@ -1,10 +1,10 @@
-﻿
+﻿using WebApiTaskTracker.DataAccess.Interfaces;
 
 namespace WebApiTaskTracker.DataAccess.Entities;
 
 // This entity can be made more secure by making the setters private and using a constructor to set the properties, but for simplicity, we will keep it as is.
 // Private setters would also complicate the mapping with Mapster, which is used in this project for DTO mapping.
-public class CategoryEntity
+public class CategoryEntity : IOrderable
 {
     public Guid Id { get; set; }
     public required string Title { get; set; }

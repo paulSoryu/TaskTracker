@@ -10,7 +10,7 @@ public record GetPageByIdRequest(
     int PageSize
 )
 {
-    public class Validator : AbstractValidator<GetTasksRequest>
+    public class Validator : AbstractValidator<GetPageByIdRequest>
     {
         public Validator()
         {

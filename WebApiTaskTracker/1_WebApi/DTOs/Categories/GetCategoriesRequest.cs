@@ -5,7 +5,7 @@ namespace WebApiTaskTracker.WebApi.DTOs.Categories;
 
 public record GetCategoriesRequest(
     // Sorting parameters
-    CategorySortField? SortBy = null,
+    CategorySortField SortBy = CategorySortField.Position,
     bool IsDescending = false,
 
     // Filter parameters

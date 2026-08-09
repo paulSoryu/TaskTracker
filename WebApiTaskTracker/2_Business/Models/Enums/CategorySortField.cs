@@ -8,5 +8,6 @@ public enum CategorySortField
     Title,
     TaskCount,
     CompletedTaskCount,
-    NotCompletedTaskCount
+    NotCompletedTaskCount,
+    Position
 }

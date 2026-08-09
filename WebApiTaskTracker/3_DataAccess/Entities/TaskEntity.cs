@@ -1,11 +1,11 @@
 ﻿using WebApiTaskTracker.Business.Models.Enums;
-using WebApiTaskTracker.DataAccess.Databases;
+using WebApiTaskTracker.DataAccess.Interfaces;
 
 namespace WebApiTaskTracker.DataAccess.Entities;
 
 // This entity can be made more secure by making the setters private and using a constructor to set the properties, but for simplicity, we will keep it as is.
 // Private setters would also complicate the mapping with Mapster, which is used in this project for DTO mapping.
-public class TaskEntity : IAuditableEntity
+public class TaskEntity : IAuditable, IOrderable
 {
     public Guid Id { get; set; }
     public required string Title { get; set; }
@@ -14,7 +14,7 @@ public class TaskEntity : IAuditableEntity
     public TaskPriority Priority { get; set; }
     public bool IsCompleted { get; set; } = false;
     public DateTime CreatedAt { get; set; }
-    public int Position { get; set; } // Position of the task in the list, used for ordering tasks
+    public int Position { get; set; }
 
 
     public required Guid UserId { get; set; }

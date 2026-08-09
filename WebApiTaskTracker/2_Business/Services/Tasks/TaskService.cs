@@ -102,7 +102,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
         int newPos = 1;
         // If any type of sorting besides "Custom Order" is enabled, insert a new task into a list and then reset the order of posistion in the whole list
-        if (sortQuery.SortBy != TaskSortField.Position && sortQuery.SortBy != null)
+        if (sortQuery.SortBy != TaskSortField.Position)
         {
             var allTasks = await db.Tasks
                 .ApplySorting(sortQuery)
@@ -187,7 +187,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
             var tasksCount = await db.Tasks.CountAsync();
 
-            // Shift up the positions of tasks that were below the deleted task
+            // Change the positions of tasks that were below the deleted task
             await ReorderInRangeAsync(deletedPos, tasksCount);
 
             await transaction.CommitAsync();
@@ -217,7 +217,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             return Result.Ok();
 
         // If any type of sorting besides "Custom Order" is enabled, insert a moved task into a list and then reset the order of posistion in the whole list
-        if (sortQuery.SortBy != TaskSortField.Position && sortQuery.SortBy != null)
+        if (sortQuery.SortBy != TaskSortField.Position)
         {
             var allTasks = await db.Tasks
                 .ApplySorting(sortQuery)

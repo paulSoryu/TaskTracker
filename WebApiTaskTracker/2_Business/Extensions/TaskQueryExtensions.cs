@@ -65,12 +65,7 @@ public static class TaskQueryExtensions
 
     public static IQueryable<TaskEntity> ApplySorting(this IQueryable<TaskEntity> dbQuery, SortTasksQuery query)
     {
-        if (!query.SortBy.HasValue)
-        {
-            return dbQuery.OrderByDescending(t => t.Position);
-        }
-
-        return query.SortBy.Value switch
+        return query.SortBy switch
         {
             TaskSortField.Title => query.IsDescending == true
                 ? dbQuery.OrderByDescending(t => t.Title)

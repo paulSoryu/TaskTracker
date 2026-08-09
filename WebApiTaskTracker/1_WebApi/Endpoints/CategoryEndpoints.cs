@@ -3,7 +3,6 @@ using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using WebApiTaskTracker.Business.Models.Categories;
-using WebApiTaskTracker.Business.Models.Tasks;
 using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Utilities;
 using WebApiTaskTracker.WebApi.DTOs;
@@ -20,29 +19,36 @@ public static class CategoryEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-        routeGroup.MapGet("/", GetAllCategories);
+        routeGroup.MapGet("/", GetAllCategories)
+            .WithValidation<GetCategoriesRequest>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapGet("/{id:Guid}", GetCategoryById)
             .WithName("GetCategoryById")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         routeGroup.MapPost("/", CreateCategory)
-            .AddEndpointFilter<ValidationFilter<CreateCategoryRequest>>()
+            .WithValidation<CreateCategoryRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapPut("/{id:Guid}", UpdateCategory)
-            .AddEndpointFilter<ValidationFilter<UpdateCategoryRequest>>()
+            .WithValidation<UpdateCategoryRequest>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         routeGroup.MapDelete("/{id:Guid}", DeleteCategory)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        routeGroup.MapPatch("/move", MoveCategory)
+            .WithValidation<MoveCategoryRequest>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Ok<IReadOnlyCollection<CategoryListResponse>>> GetAllCategories(ICategoryService categoryService, [AsParameters] GetCategoriesRequest request)
     {
-        var query = request.Adapt<GetCategoriesQuery>();
-        IReadOnlyCollection<CategoryView> categories = await categoryService.GetAllAsync(query);
+        var filterQuery = request.Adapt<FilterCategoriesQuery>();
+        var sortQuery = request.Adapt<SortCategoriesQuery>();
+        IReadOnlyCollection<CategoryView> categories = await categoryService.GetAllAsync(filterQuery, sortQuery);
 
         var response = categories.Adapt<IReadOnlyCollection<CategoryListResponse>>();
         return TypedResults.Ok(response);
@@ -83,6 +89,14 @@ public static class CategoryEndpoints
     {
         Result result = await categoryService.DeleteAsync(id);
 
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> MoveCategory(MoveCategoryRequest moveRequest, ICategoryService categoryService)
+    {
+        var command = moveRequest.Adapt<MoveCategoryCommand>();
+        var query = moveRequest.Adapt<SortCategoriesQuery>();
+        Result result = await categoryService.MoveAsync(command, query);
         return result.ToTypedHttpResult();
     }
 }

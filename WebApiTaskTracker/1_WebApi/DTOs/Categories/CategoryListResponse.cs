@@ -5,5 +5,6 @@ public record CategoryListResponse(
     string Title,
     string Colour,
     int TaskCount,
-    int CompletedTaskCount
+    int CompletedTaskCount,
+    int Position
 );

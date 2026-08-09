@@ -3,6 +3,6 @@
 namespace WebApiTaskTracker.Business.Models.Tasks;
 
 public record SortTasksQuery(
-    TaskSortField? SortBy,
+    TaskSortField SortBy,
     bool IsDescending
 );

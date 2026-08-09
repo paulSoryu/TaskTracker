@@ -384,6 +384,18 @@
     padding:6px 12px;
     font-size:12.5px;
   }
+  .board-info-banner-close{
+    flex-shrink:0;
+    border:none;
+    background:transparent;
+    color:var(--teal-deep);
+    opacity:0.65;
+    font-size:14px;
+    line-height:1;
+    padding:4px;
+    cursor:pointer;
+  }
+  .board-info-banner-close:hover{ opacity:1; }
 
   @keyframes cardPopIn{
     from{ transform:scale(1.12); opacity:0; }
@@ -741,7 +753,7 @@
   }
   .modal p.hint{ margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); }
 
-  #catOverlay .modal{ zoom:1.3; }
+  #catOverlay .modal{ zoom:1.0; }
 
   .cat-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px; max-height:220px; overflow:auto; }
   .cat-row{
@@ -817,6 +829,11 @@
     background:rgba(47,111,107,0.12);
     border-color:rgba(47,111,107,0.35);
   }
+  .cat-task-count-incomplete{
+    color:#B23A3A;
+    background:rgba(196,58,58,0.12);
+    border-color:rgba(196,58,58,0.35);
+  }
   .segmented-control{
     display:flex;
     gap:6px;
@@ -869,7 +886,7 @@
     flex-wrap:wrap;
     margin-bottom:10px;
   }
-  .cat-sort-group{ display:flex; gap:6px; margin-bottom:10px; }
+  .cat-sort-group{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
   .btn-small-danger{
     font-size:11.5px;
     padding:6px 10px;
@@ -1274,6 +1291,7 @@
   <div class="board-info-banner" id="taskHiddenBanner">
     <span id="taskHiddenBannerText"></span>
     <button type="button" class="btn-plain" id="taskHiddenBannerShowBtn">Show it</button>
+    <button type="button" class="board-info-banner-close" id="taskHiddenBannerCloseBtn" title="Dismiss" aria-label="Dismiss">✕</button>
   </div>
   <main class="board" id="board"></main>
 
@@ -1307,6 +1325,8 @@
         <div class="cat-sort-group">
           <button class="btn-plain btn-small-neutral" id="sortCatsByNameBtn" title="Sort categories by name">↕ Sort by Name</button>
           <button class="btn-plain btn-small-neutral" id="sortCatsByCountBtn" title="Sort categories by task count">↕ Sort by Task Count</button>
+          <button class="btn-plain btn-small-neutral" id="sortCatsByCompletedBtn" title="Sort categories by completed task count">↕ Sort by Completed</button>
+          <button class="btn-plain btn-small-neutral" id="sortCatsByIncompleteBtn" title="Sort categories by not-completed task count">↕ Sort by Not Completed</button>
         </div>
         <div class="cat-list" id="catList"></div>
         <div class="modal-actions">
@@ -2343,16 +2363,24 @@
   }
 
   const taskHiddenBanner = document.getElementById('taskHiddenBanner');
-  function showTaskHiddenBanner(taskTitle){
+  let hiddenTaskId = null;
+  function showTaskHiddenBanner(taskId, taskTitle){
+    hiddenTaskId = taskId;
     document.getElementById('taskHiddenBannerText').textContent =
       `"${taskTitle || 'Task'}" was created, but it's hidden by your current filters.`;
     taskHiddenBanner.classList.add('show');
   }
   function hideTaskHiddenBanner(){
+    hiddenTaskId = null;
     taskHiddenBanner.classList.remove('show');
   }
 
-  document.getElementById('taskHiddenBannerShowBtn').addEventListener('click', ()=>{
+  document.getElementById('taskHiddenBannerCloseBtn').addEventListener('click', hideTaskHiddenBanner);
+
+  document.getElementById('taskHiddenBannerShowBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('taskHiddenBannerShowBtn');
+    const taskId = hiddenTaskId;
+
     filters.category = ""; filters.priority = ""; filters.completed = ""; filters.dueDate = "";
     searchQuery = "";
     document.getElementById('searchInput').value = "";
@@ -2362,9 +2390,30 @@
       if(label) label.textContent = filterDefaultLabels[btn.dataset.filter];
     });
     document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
-    currentPage = 1;
     saveBoardState();
     hideTaskHiddenBanner();
+
+    // Clearing filters doesn't guarantee page 1 — with a real sort active, the
+    // task's page depends on how many other tasks sort before it, so ask the
+    // server which page it actually lands on.
+    if(taskId){
+      setBusy(btn, true, 'Finding…');
+      try{
+        const result = await apiFetch(`/api/tasks/${taskId}/page?sortBy=${SORT_FIELD_MAP[sortKey] || 'Position'}&isDescending=${sortDir === -1}&pageSize=${getPageSize()}`);
+        currentPage = result.pageNumber || 1;
+        pendingCreateAnimationId = taskId;
+      } catch(err){
+        currentPage = 1;
+        const errorBanner = document.getElementById('boardErrorBanner');
+        errorBanner.textContent = `Couldn't find that task's page — showing page 1 instead. ${(err.messages || [err.message]).join(' ')}`;
+        errorBanner.classList.add('show');
+      } finally {
+        setBusy(btn, false);
+      }
+    } else {
+      currentPage = 1;
+    }
+
     loadTasks();
   });
 
@@ -2394,7 +2443,7 @@
 
       hideTaskHiddenBanner();
       if(created && hasActiveFilters() && !taskMatchesActiveFilters(created)){
-        showTaskHiddenBanner(created.title || title);
+        showTaskHiddenBanner(created.id, created.title || title);
       } else {
         pendingCreateAnimationId = created && created.id;
       }
@@ -2557,6 +2606,7 @@
         <button type="button" class="cat-drag-handle" title="Drag to reorder">⠿</button>
         <input type="color" class="cat-color" value="${c.color}" title="Category color">
         <input type="text" value="${escapeAttr(c.name)}">
+        <span class="cat-task-count cat-task-count-incomplete" title="Not-completed tasks in this category">${c.taskCount - c.completedTaskCount}</span>
         <span class="cat-task-count cat-task-count-completed" title="Completed tasks in this category">${c.completedTaskCount}</span>
         <span class="cat-task-count" title="Tasks in this category">${c.taskCount}</span>
         <button class="cat-remove" title="Remove category">✕</button>
@@ -2654,7 +2704,11 @@
       if(original && original.name !== name){
         tasks.forEach(t => { if(t.category === original.name) t.category = name; });
       }
-      editsById.set(id, { id, name, color });
+      editsById.set(id, {
+        id, name, color,
+        taskCount: original ? original.taskCount : 0,
+        completedTaskCount: original ? original.completedTaskCount : 0
+      });
     });
 
     const visibleOrder = rows.map(r => r.dataset.id).filter(id => !deletedIds.has(id));
@@ -2680,6 +2734,8 @@
 
   let catNameSortAsc = true;
   let catCountSortDesc = true;
+  let catCompletedSortDesc = true;
+  let catIncompleteSortDesc = true;
 
   document.getElementById('sortCatsByNameBtn').addEventListener('click', ()=>{
     commitCategoryEditsFromDom();
@@ -2697,6 +2753,26 @@
       return catCountSortDesc ? diff : -diff;
     });
     catCountSortDesc = !catCountSortDesc;
+    renderCatList();
+  });
+
+  document.getElementById('sortCatsByCompletedBtn').addEventListener('click', ()=>{
+    commitCategoryEditsFromDom();
+    categories.sort((a,b) => {
+      const diff = b.completedTaskCount - a.completedTaskCount;
+      return catCompletedSortDesc ? diff : -diff;
+    });
+    catCompletedSortDesc = !catCompletedSortDesc;
+    renderCatList();
+  });
+
+  document.getElementById('sortCatsByIncompleteBtn').addEventListener('click', ()=>{
+    commitCategoryEditsFromDom();
+    categories.sort((a,b) => {
+      const diff = (b.taskCount - b.completedTaskCount) - (a.taskCount - a.completedTaskCount);
+      return catIncompleteSortDesc ? diff : -diff;
+    });
+    catIncompleteSortDesc = !catIncompleteSortDesc;
     renderCatList();
   });
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WebApiTaskTracker.DataAccess.Configurations;
 using WebApiTaskTracker.DataAccess.Entities;
+using WebApiTaskTracker.DataAccess.Interfaces;
 using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.DataAccess.Databases;
@@ -47,7 +48,7 @@ public class TaskTrackerDbContext : IdentityDbContext<UserEntity, IdentityRole<G
 
     private void UpdateTimestamps()
     {
-        var entries = ChangeTracker.Entries<IAuditableEntity>()
+        var entries = ChangeTracker.Entries<IAuditable>()
         .Where(e => e.State == EntityState.Added);
 
         foreach (var entry in entries)

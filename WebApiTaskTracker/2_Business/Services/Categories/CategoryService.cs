@@ -8,20 +8,22 @@ using System.Threading.Tasks;
 using WebApiTaskTracker.Business.Extensions;
 using WebApiTaskTracker.Business.FluentErrors;
 using WebApiTaskTracker.Business.Models.Categories;
+using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
+using WebApiTaskTracker.WebApi.DTOs.Categories;
 
 namespace WebApiTaskTracker.Business.Services.Categories;
 
 public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 {
-    public async Task<IReadOnlyCollection<CategoryView>> GetAllAsync(GetCategoriesQuery query)
+    public async Task<IReadOnlyCollection<CategoryView>> GetAllAsync(FilterCategoriesQuery filterQuery, SortCategoriesQuery sortQuery)
     {
         var result = await db.Categories
             .AsNoTracking()
-            .ApplyFilter(query)
-            .ApplySorting(query)
+            .ApplyFilter(filterQuery)
+            .ApplySorting(sortQuery)
             .ProjectToType<CategoryView>()
             .ToListAsync();
 
@@ -36,21 +38,21 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
            .ProjectToType<CategoryView>()
            .FirstOrDefaultAsync();
 
-        if (response is null)
-            return Result.Fail(new NotFoundError("Category", id));
-
-        return Result.Ok(response);
+        return response is null
+            ? Result.Fail(new NotFoundError("Category", id))
+            : Result.Ok(response);
     }
 
-    public async Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand dto, Guid userId)
+    public async Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand command, Guid userId)
     {
+        // Check if category with the same name already exists
         bool categoryExists = await db.Categories
-            .AnyAsync(c => c.Title == dto.Title);
+            .AnyAsync(c => c.Title == command.Title);
 
         if (categoryExists)
-            return Result.Fail(new ValidationError($"Category with name '{dto.Title}' already exists."));
+            return Result.Fail(new ValidationError($"Category with name '{command.Title}' already exists."));
 
-        // Global SQL filter already filters everything by userId, so we don't need to filter here
+        // Check if the user has reached the maximum allowed categories
         var isEmailConfirmed = await db.Users
             .Select(u => u.EmailConfirmed)
             .FirstOrDefaultAsync();
@@ -60,12 +62,14 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
             ? CategoryConstraints.MaxCategoriesForConfirmedEmail 
             : CategoryConstraints.MaxCategoriesForUnconfirmedEmail;
 
-        // Check if the user has reached the maximum allowed categories
+        
         if (currentCategoriesCount >= maxAllowedCategories)
             return Result.Fail(new CategoryLimitExceededError(maxAllowedCategories, isEmailConfirmed));
 
-        var entity = dto.Adapt<CategoryEntity>();
+        // Create category
+        var entity = command.Adapt<CategoryEntity>();
         entity.UserId = userId;
+        entity.Position = currentCategoriesCount + 1;
 
         db.Categories.Add(entity);
         await db.SaveChangesAsync();
@@ -74,17 +78,17 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
     }
 
 
-    public async Task<Result> UpdateAsync(SaveCategoryCommand dto)
+    public async Task<Result> UpdateAsync(SaveCategoryCommand command)
     {
-        var category = await db.Categories.FindAsync(dto.Id);
+        var category = await db.Categories.FindAsync(command.Id);
 
         if (category == null)
-            return Result.Fail(new NotFoundError("Category", dto.Id));
+            return Result.Fail(new NotFoundError("Category", command.Id));
 
-        if (db.Categories.Any(c => c.Title.ToLower() == dto.Title.ToLower() && c.Id != dto.Id))
-            return Result.Fail(new ValidationError($"Category with name '{dto.Title}' already exists."));
+        if (db.Categories.Any(c => c.Title.ToLower() == command.Title.ToLower() && c.Id != command.Id))
+            return Result.Fail(new ValidationError($"Category with name '{command.Title}' already exists."));
 
-        dto.Adapt(category);
+        command.Adapt(category);
 
         await db.SaveChangesAsync();
 
@@ -97,13 +101,86 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         if (categoriesCount <= 1)
             return Result.Fail(new ValidationError("Cannot delete the last category."));
 
-        int affectedRows = await db.Categories
-            .Where(c => c.Id == categoryId)
-            .ExecuteDeleteAsync();
-
-        if (affectedRows == 0)
+        var category = await db.Categories
+                .Select(c => new { c.Id, c.Position })
+                .FirstOrDefaultAsync(c => c.Id == categoryId);
+        if (category == null)
             return Result.Fail(new NotFoundError("Category", categoryId));
 
-        return Result.Ok();
+        int deletedPos = category.Position;
+
+        try
+        {
+            using var transaction = await db.Database.BeginTransactionAsync();
+
+            await db.Categories
+                .Where(c => c.Id == categoryId)
+                .ExecuteDeleteAsync();
+
+            var tasksCount = await db.Tasks.CountAsync();
+
+            // Change the positions of tasks that were below the deleted task
+            await db.ReorderInRangeAsync<CategoryEntity>(deletedPos, tasksCount);
+
+            await transaction.CommitAsync();
+            return Result.Ok();
+        }
+        catch (Exception ex)
+        {
+            return Result.Fail(new ReorderingError("Task", categoryId, deletedPos, ex.Message));
+        }
+    }
+
+    public async Task<Result> MoveAsync(MoveCategoryCommand command, SortCategoriesQuery sortQuery)
+    {
+        var category = await db.Categories
+           .FirstOrDefaultAsync(c => c.Id == command.CategoryId);
+        if (category == null)
+            return Result.Fail(new NotFoundError("Task", command.CategoryId));
+
+        var targetCategory = await db.Categories
+           .FirstOrDefaultAsync(c => c.Id == command.TargetCategoryId);
+        if (targetCategory == null)
+            return Result.Fail(new NotFoundError("Task", command.TargetCategoryId));
+
+        int oldPos = category.Position;
+        int newPos = targetCategory.Position;
+        if (oldPos == newPos)
+            return Result.Ok();
+
+        // If any type of sorting besides "Custom Order" is enabled, insert a moved category into a list and then reset the order of posistion in the whole list
+        if (sortQuery.SortBy != CategorySortField.Position)
+        {
+            var allCategories = await db.Categories
+                .ApplySorting(sortQuery)
+                .ToListAsync();
+
+            newPos = allCategories.IndexOf(targetCategory);
+
+            allCategories.Remove(category);
+            allCategories.Insert(newPos, category); // -1 is because lists are 0-based
+
+            await db.ResetOrderAsync(allCategories, sortQuery.IsDescending);
+
+            return Result.Ok();
+        }
+        // If "Custom Order" is enabled, reorder affected categories and then insert a moved category
+        try
+        {
+            using var transaction = await db.Database.BeginTransactionAsync();
+
+            await db.ReorderInRangeAsync<CategoryEntity>(oldPos, newPos);
+
+            await db.Categories
+                .Where(c => c.Id == command.CategoryId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(c => c.Position, newPos));
+
+            await transaction.CommitAsync();
+            return Result.Ok();
+        }
+        catch (Exception ex)
+        {
+            return Result.Fail(new ReorderingError("Task", command.CategoryId, oldPos, newPos, ex.Message));
+        }
     }
 }

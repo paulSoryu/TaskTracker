@@ -5,8 +5,8 @@ namespace WebApiTaskTracker.WebApi.DTOs.Tasks;
 
 public record GetTasksRequest(
     // Sorting parameters
-    TaskSortField? SortBy = null,
-    bool? IsDescending = false,
+    TaskSortField SortBy = TaskSortField.Position,
+    bool IsDescending = false,
 
     // Filter parameters
     string? SearchTerm = null,

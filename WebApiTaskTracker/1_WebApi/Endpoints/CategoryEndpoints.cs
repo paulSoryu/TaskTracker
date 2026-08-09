@@ -1,6 +1,7 @@
 ﻿using FluentResults;
 using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApiTaskTracker.Business.Models.Categories;
 using WebApiTaskTracker.Business.Services.Categories;
@@ -42,6 +43,9 @@ public static class CategoryEndpoints
         routeGroup.MapPatch("/move", MoveCategory)
             .WithValidation<MoveCategoryRequest>()
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        routeGroup.MapDelete("/{id:Guid}/tasks", DeleteTasksInCategory)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static async Task<Ok<IReadOnlyCollection<CategoryListResponse>>> GetAllCategories(ICategoryService categoryService, [AsParameters] GetCategoriesRequest request)
@@ -63,9 +67,9 @@ public static class CategoryEndpoints
         return responseResult.ToTypedHttpResult();
     }
 
-    private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CreateCategoryRequest categoryRequest, ICategoryService categoryService, ClaimsPrincipal user)
+    private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CreateCategoryRequest request, ICategoryService categoryService, ClaimsPrincipal user)
     {
-        var command = categoryRequest.Adapt<SaveCategoryCommand>();
+        var command = request.Adapt<SaveCategoryCommand>();
 
         Result<CategoryView> result = await categoryService.CreateAsync(command, user.GetUserId());
 
@@ -76,9 +80,9 @@ public static class CategoryEndpoints
             routeValues: new { id = responseResult.ValueOrDefault?.Id });
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateCategory(Guid id, UpdateCategoryRequest categoryRequest, ICategoryService categoryService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> UpdateCategory(Guid id, UpdateCategoryRequest request, ICategoryService categoryService)
     {
-        var command = categoryRequest.Adapt<SaveCategoryCommand>() with { Id = id };
+        var command = request.Adapt<SaveCategoryCommand>() with { Id = id };
 
         Result result = await categoryService.UpdateAsync(command);
 
@@ -92,11 +96,17 @@ public static class CategoryEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> MoveCategory(MoveCategoryRequest moveRequest, ICategoryService categoryService)
+    private static async Task<Results<NoContent, ProblemHttpResult>> MoveCategory(MoveCategoryRequest request, ICategoryService categoryService)
     {
-        var command = moveRequest.Adapt<MoveCategoryCommand>();
-        var query = moveRequest.Adapt<SortCategoriesQuery>();
+        var command = request.Adapt<MoveCategoryCommand>();
+        var query = request.Adapt<SortCategoriesQuery>();
         Result result = await categoryService.MoveAsync(command, query);
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteTasksInCategory(Guid id, [FromBody]DeleteTasksInCategoryRequest request, ICategoryService categoryService)
+    {
+        Result result = await categoryService.DeleteTasksAsync(id, request.DeleteCompleted, request.DeleteNotCompleted);
         return result.ToTypedHttpResult();
     }
 }

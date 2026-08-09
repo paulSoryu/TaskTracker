@@ -127,7 +127,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         }
         catch (Exception ex)
         {
-            return Result.Fail(new ReorderingError("Task", categoryId, deletedPos, ex.Message));
+            return Result.Fail(new ReorderingError("Category", categoryId, deletedPos, ex.Message));
         }
     }
 
@@ -136,12 +136,12 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         var category = await db.Categories
            .FirstOrDefaultAsync(c => c.Id == command.CategoryId);
         if (category == null)
-            return Result.Fail(new NotFoundError("Task", command.CategoryId));
+            return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
         var targetCategory = await db.Categories
            .FirstOrDefaultAsync(c => c.Id == command.TargetCategoryId);
         if (targetCategory == null)
-            return Result.Fail(new NotFoundError("Task", command.TargetCategoryId));
+            return Result.Fail(new NotFoundError("Category", command.TargetCategoryId));
 
         int oldPos = category.Position;
         int newPos = targetCategory.Position;
@@ -180,7 +180,30 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         }
         catch (Exception ex)
         {
-            return Result.Fail(new ReorderingError("Task", command.CategoryId, oldPos, newPos, ex.Message));
+            return Result.Fail(new ReorderingError("Category", command.CategoryId, oldPos, newPos, ex.Message));
         }
+    }
+
+    public async Task<Result> DeleteTasksAsync(Guid categoryId, bool deleteCompleted, bool deleteNotCompleted)
+    {
+        var category = await db.Categories
+           .FirstOrDefaultAsync(c => c.Id == categoryId);
+        if (category == null)
+            return Result.Fail(new NotFoundError("Category", categoryId));
+
+        if (deleteCompleted && deleteNotCompleted)
+            await db.Tasks
+                .Where(t => t.CategoryId == categoryId)
+                .ExecuteDeleteAsync();
+        else if (deleteCompleted)
+            await db.Tasks
+                .Where(t => t.CategoryId == categoryId && t.IsCompleted)
+                .ExecuteDeleteAsync();
+        else 
+            await db.Tasks
+                .Where(t => t.CategoryId == categoryId && !t.IsCompleted)
+                .ExecuteDeleteAsync();
+
+        return Result.Ok();
     }
 }

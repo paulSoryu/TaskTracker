@@ -43,7 +43,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
             : Result.Ok(response);
     }
 
-    public async Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand command, Guid userId)
+    public async Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand command, SortCategoriesQuery query, Guid userId)
     {
         // Check if category with the same name already exists
         bool categoryExists = await db.Categories
@@ -71,9 +71,20 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         entity.UserId = userId;
         entity.Position = currentCategoriesCount + 1;
 
-        db.Categories.Add(entity);
-        await db.SaveChangesAsync();
+        if (query.SortBy == CategorySortField.Position)
+        {
+            db.Categories.Add(entity);
+            await db.SaveChangesAsync();
+        }
+        else
+        {
+            var allCategories = await db.Categories
+                .ApplySorting(query)
+                .ToListAsync();
 
+            allCategories.Add(entity);
+            await db.ResetOrderAsync(allCategories, query.IsDescending);
+        }
         return Result.Ok(entity.Adapt<CategoryView>());
     }
 
@@ -159,7 +170,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 
             allCategories.Remove(category);
             allCategories.Insert(newPos, category); // -1 is because lists are 0-based
-
+            
             await db.ResetOrderAsync(allCategories, sortQuery.IsDescending);
 
             return Result.Ok();

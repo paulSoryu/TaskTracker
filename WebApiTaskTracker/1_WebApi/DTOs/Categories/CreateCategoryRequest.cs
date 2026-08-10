@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.Utilities;
 
 // this is a DTO for creating a category, including validation rules
@@ -7,7 +8,10 @@ namespace WebApiTaskTracker.WebApi.DTOs.Categories;
 
 public record CreateCategoryRequest(
     string Title,
-    string Colour
+    string Colour,
+
+    CategorySortField SortBy,
+    bool IsDescending
 )
 {
     public class Validator : AbstractValidator<CreateCategoryRequest>
@@ -23,6 +27,9 @@ public record CreateCategoryRequest(
                 .NotEmpty().WithMessage("Color is required.")
                 .Matches(@"^#?([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
                 .WithMessage("Invalid color format. Use #RRGGBB or #AARRGGBB.");
+
+            RuleFor(x => x.SortBy)
+                .IsInEnum().WithMessage("SortBy is not a valid option.");
         }
     }
 }

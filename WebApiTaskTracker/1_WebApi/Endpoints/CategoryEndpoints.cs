@@ -70,8 +70,9 @@ public static class CategoryEndpoints
     private static async Task<Results<CreatedAtRoute<CategoryResponse>, ProblemHttpResult>> CreateCategory(CreateCategoryRequest request, ICategoryService categoryService, ClaimsPrincipal user)
     {
         var command = request.Adapt<SaveCategoryCommand>();
+        var query = request.Adapt<SortCategoriesQuery>();
 
-        Result<CategoryView> result = await categoryService.CreateAsync(command, user.GetUserId());
+        Result<CategoryView> result = await categoryService.CreateAsync(command, query, user.GetUserId());
 
         Result<CategoryResponse> responseResult = result.Map(category => category.Adapt<CategoryResponse>());
 

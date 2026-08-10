@@ -8,7 +8,7 @@ public interface ICategoryService
 {
     Task<IReadOnlyCollection<CategoryView>> GetAllAsync(FilterCategoriesQuery filterQuery, SortCategoriesQuery sortQuery);
     Task<Result<CategoryView>> GetByIdAsync(Guid id);
-    Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand category, Guid userId);
+    Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand category, SortCategoriesQuery query, Guid userId);
     Task<Result> UpdateAsync(SaveCategoryCommand category);
     Task<Result> DeleteAsync(Guid id);
     Task<Result> MoveAsync(MoveCategoryCommand command, SortCategoriesQuery sortQuery);

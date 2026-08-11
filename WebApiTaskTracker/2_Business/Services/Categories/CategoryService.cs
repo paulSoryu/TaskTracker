@@ -58,11 +58,11 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
             .FirstOrDefaultAsync();
 
         int currentCategoriesCount = await db.Categories.CountAsync();
-        int maxAllowedCategories = isEmailConfirmed 
-            ? CategoryConstraints.MaxCategoriesForConfirmedEmail 
+        int maxAllowedCategories = isEmailConfirmed
+            ? CategoryConstraints.MaxCategoriesForConfirmedEmail
             : CategoryConstraints.MaxCategoriesForUnconfirmedEmail;
 
-        
+
         if (currentCategoriesCount >= maxAllowedCategories)
             return Result.Fail(new CategoryLimitExceededError(maxAllowedCategories, isEmailConfirmed));
 
@@ -76,7 +76,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
             db.Categories.Add(entity);
             await db.SaveChangesAsync();
         }
-        else
+        else // if any kind of system sorting is active
         {
             var allCategories = await db.Categories
                 .ApplySorting(query)
@@ -170,7 +170,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 
             allCategories.Remove(category);
             allCategories.Insert(newPos, category); // -1 is because lists are 0-based
-            
+
             await db.ResetOrderAsync(allCategories, sortQuery.IsDescending);
 
             return Result.Ok();
@@ -195,7 +195,7 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
         }
     }
 
-    public async Task<Result> DeleteTasksAsync(Guid categoryId, bool deleteCompleted, bool deleteNotCompleted)
+    public async Task<Result> DeleteTasksByCategoryIdAsync(Guid categoryId, bool deleteCompleted, bool deleteNotCompleted)
     {
         var category = await db.Categories
            .FirstOrDefaultAsync(c => c.Id == categoryId);
@@ -210,11 +210,48 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
             await db.Tasks
                 .Where(t => t.CategoryId == categoryId && t.IsCompleted)
                 .ExecuteDeleteAsync();
-        else 
+        else
             await db.Tasks
                 .Where(t => t.CategoryId == categoryId && !t.IsCompleted)
                 .ExecuteDeleteAsync();
 
         return Result.Ok();
+    }
+
+    public async Task<Result<Dictionary<string, Guid>>> CreateDefaultCategoriesAsync(Guid userId)
+    {
+        var templates = new[]
+        {
+            (Title: "Work", Colour: "#B5602D"),
+            (Title: "Personal", Colour: "#9C4A5C"),
+            (Title: "Errands", Colour: "#5B6E9C"),
+            (Title: "Health", Colour: "#2F6F6B"),
+            (Title: "Other", Colour: "#8A8577")
+        };
+
+        var defaultCategories = templates.Select((t, index) => new CategoryEntity
+        {
+            Id = Guid.NewGuid(),
+            Title = t.Title,
+            Colour = t.Colour,
+            UserId = userId,
+            Position = index + 1
+        }).ToList();
+
+        db.Categories.AddRange(defaultCategories);
+
+        var numOfChangedEntries = await db.SaveChangesAsync();
+
+        return numOfChangedEntries > 0
+            ? Result.Ok(defaultCategories.ToDictionary(c => c.Title, c => c.Id))
+            : Result.Fail<Dictionary<string, Guid>>(new CreatingDefaultDataError("Category"));
+    }
+
+    public async Task DeleteAllByUserIdAsync(Guid userId)
+    {
+        await db.Categories
+            .IgnoreQueryFilters()
+            .Where(c => c.UserId == userId)
+            .ExecuteDeleteAsync();
     }
 }

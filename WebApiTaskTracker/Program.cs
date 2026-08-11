@@ -9,6 +9,7 @@ using WebApiTaskTracker.Business.Services.Auths;
 using WebApiTaskTracker.Business.Services.Categories;
 using WebApiTaskTracker.Business.Services.Emails;
 using WebApiTaskTracker.Business.Services.Tasks;
+using WebApiTaskTracker.Business.Services.Users;
 using WebApiTaskTracker.DataAccess.Databases;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.Utilities;
@@ -62,6 +63,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IUserCoordinator, UserCoordinator>();
 builder.Services.AddSingleton<IEmailSender<UserEntity>, EmailSenderService>();
 
 // Validators and exception handling

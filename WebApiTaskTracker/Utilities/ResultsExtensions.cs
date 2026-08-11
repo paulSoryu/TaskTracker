@@ -86,6 +86,11 @@ public static class ResultExtensions
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Reordering Error"),
 
+            CreatingDefaultDataError => TypedResults.Problem(
+                detail: error.Message,
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Creating Default Data Error"),
+
             _ => TypedResults.Problem(
                 detail: error?.Message ?? "An unexpected error occurred.",
                 statusCode: StatusCodes.Status500InternalServerError,

@@ -107,7 +107,7 @@ public static class CategoryEndpoints
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteTasksInCategory(Guid id, [FromBody]DeleteTasksInCategoryRequest request, ICategoryService categoryService)
     {
-        Result result = await categoryService.DeleteTasksAsync(id, request.DeleteCompleted, request.DeleteNotCompleted);
+        Result result = await categoryService.DeleteTasksByCategoryIdAsync(id, request.DeleteCompleted, request.DeleteNotCompleted);
         return result.ToTypedHttpResult();
     }
 }

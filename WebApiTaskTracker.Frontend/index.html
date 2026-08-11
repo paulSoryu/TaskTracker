@@ -768,6 +768,10 @@
     opacity:0.45;
     border-color:var(--card-edge);
   }
+  .cat-row.drop-target{
+    outline:2px solid var(--ochre);
+    outline-offset:-2px;
+  }
   .cat-drag-handle{
     flex-shrink:0;
     width:18px; height:26px;
@@ -877,6 +881,8 @@
     background:transparent; border:1px solid var(--card-edge); border-radius:6px; padding:8px 14px; font-size:13px; font-weight:600; color:var(--ink);
   }
   .btn-plain:hover{ border-color:var(--ink); }
+  .btn-plain:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn-plain:disabled:hover{ border-color:var(--card-edge); }
 
   .modal-header-row{
     display:flex;
@@ -906,6 +912,15 @@
   .btn-small-neutral:hover{
     background:rgba(35,43,54,0.06);
     border-color:var(--ink);
+  }
+  .cat-sort-btn.active{
+    background:var(--ink);
+    color:#F1EBDC;
+    border-color:var(--ink);
+  }
+  .cat-sort-btn.active[data-sort="position"]{
+    background:var(--teal-deep);
+    border-color:var(--teal-deep);
   }
 
   /* ---------------- ACCOUNT MODAL ---------------- */
@@ -1297,7 +1312,6 @@
 
   <button class="fab" id="addTaskBtn"><span class="fab-icon">+</span><span class="fab-text">New Task</span></button>
 
-  <!-- Visual placeholder only — not wired up to any logic yet -->
   <nav class="pagination" aria-label="Pagination">
     <button class="page-nav" disabled>‹</button>
     <button class="page-btn active">1</button>
@@ -1322,12 +1336,14 @@
         <div class="search-field cat-search-field">
           <input type="text" id="catSearchInput" class="search-input" placeholder="Search categories…">
         </div>
-        <div class="cat-sort-group">
-          <button class="btn-plain btn-small-neutral" id="sortCatsByNameBtn" title="Sort categories by name">↕ Sort by Name</button>
-          <button class="btn-plain btn-small-neutral" id="sortCatsByCountBtn" title="Sort categories by task count">↕ Sort by Task Count</button>
-          <button class="btn-plain btn-small-neutral" id="sortCatsByCompletedBtn" title="Sort categories by completed task count">↕ Sort by Completed</button>
-          <button class="btn-plain btn-small-neutral" id="sortCatsByIncompleteBtn" title="Sort categories by not-completed task count">↕ Sort by Not Completed</button>
+        <div class="cat-sort-group" id="catSortGroup">
+          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByNameBtn" data-sort="name" title="Sort categories by name">↕ Sort by Name</button>
+          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByCountBtn" data-sort="taskCount" title="Sort categories by task count">↕ Sort by Task Count</button>
+          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByCompletedBtn" data-sort="completedTaskCount" title="Sort categories by completed task count">↕ Sort by Completed</button>
+          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByIncompleteBtn" data-sort="notCompleted" title="Sort categories by not-completed task count">↕ Sort by Not Completed</button>
+          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByPositionBtn" data-sort="position" title="Custom drag order">↕ Custom Order</button>
         </div>
+        <div class="inline-status warn" id="catListError"></div>
         <div class="cat-list" id="catList"></div>
         <div class="modal-actions">
           <button class="btn-plain" id="addCatBtn">+ Add category</button>
@@ -1376,6 +1392,7 @@
           </div>
         </div>
         <p class="form-note" id="deleteTasksWarning"></p>
+        <div class="inline-status warn" id="deleteTasksError"></div>
         <div class="modal-actions" style="justify-content:flex-end;">
           <button class="btn-solid btn-solid-danger" id="deleteTasksConfirmBtn">Delete Tasks</button>
         </div>
@@ -1602,19 +1619,30 @@
 
   function cid(){ return 't' + Math.random().toString(36).slice(2,9); }
 
-  const CATEGORY_SORT_FIELD_MAP = { name:'Title', taskCount:'TaskCount', completedTaskCount:'CompletedTaskCount' };
+  const CATEGORY_SORT_FIELD_MAP = { name:'Title', taskCount:'TaskCount', completedTaskCount:'CompletedTaskCount', position:'Position' };
+  let catSortKey = 'position'; // Custom Order by default
+  let catSortDir = 1;
+
+  function buildCategoriesQuery(){
+    const params = new URLSearchParams();
+    if(catSearchQuery.trim()) params.set('searchTerm', catSearchQuery.trim());
+    // "Not Completed" isn't a real server sort field — that case re-sorts
+    // whatever's already loaded, client-side, without touching this query.
+    params.set('sortBy', CATEGORY_SORT_FIELD_MAP[catSortKey] || 'Position');
+    params.set('isDescending', catSortDir === -1);
+    return params.toString();
+  }
 
   async function loadCategories(){
     try{
-      const params = new URLSearchParams();
-      if(catSearchQuery.trim()) params.set('searchTerm', catSearchQuery.trim());
-      const result = await apiFetch(`/api/categories?${params.toString()}`);
+      const result = await apiFetch(`/api/categories?${buildCategoriesQuery()}`);
       categories = (result || []).map(c => ({
         id: c.id,
         name: c.title,
         color: c.colour,
         taskCount: c.taskCount,
-        completedTaskCount: c.completedTaskCount
+        completedTaskCount: c.completedTaskCount,
+        position: c.position
       }));
     } catch(err){
       categories = [];
@@ -1696,10 +1724,7 @@
         isCompleted: t.isCompleted,
         createdAt: t.createdAt,
         categoryId: t.categoryId,
-        position: t.position,
-        // Categories aren't wired to the server yet — every task shows as
-        // "no category" (———) on the board until that's connected.
-        category: ""
+        position: t.position
       }));
       totalTaskCount = result.totalCount || 0;
       errorBanner.classList.remove('show');
@@ -1874,9 +1899,6 @@
           dueDate: task.dueDate || null,
           priority: task.priority,
           isCompleted: task.isCompleted,
-          // Categories aren't wired to the server yet — always keep whatever
-          // categoryId the task already had (never derived from the local
-          // placeholder category dropdown).
           categoryId: task.categoryId ?? null
         })
       });
@@ -2589,19 +2611,24 @@
   const catDeleteTasksView = document.getElementById('catDeleteTasksView');
   const deleteTasksCategorySelect = document.getElementById('deleteTasksCategorySelect');
   const deleteTasksWarning = document.getElementById('deleteTasksWarning');
+  const catListError = document.getElementById('catListError');
+  const addCatBtn = document.getElementById('addCatBtn');
 
   let pendingDeleteCategoryId = null;
 
-  function renderCatList(){
-    const query = catSearchQuery.trim().toLowerCase();
-    const visible = query ? categories.filter(c => c.name.toLowerCase().includes(query)) : categories;
+  function showCatListError(message){
+    showStatus(catListError, message, 'warn');
+  }
 
-    if(visible.length === 0){
+  function renderCatList(){
+    // Search is server-side now (loadCategories sends searchTerm) — `categories`
+    // already reflects the filtered set, so just render it as-is.
+    if(categories.length === 0){
       catList.innerHTML = '<div class="cat-list-empty">No categories match your search.</div>';
       return;
     }
 
-    catList.innerHTML = visible.map((c) => `
+    catList.innerHTML = categories.map((c) => `
       <div class="cat-row" data-id="${c.id}" draggable="false">
         <button type="button" class="cat-drag-handle" title="Drag to reorder">⠿</button>
         <input type="color" class="cat-color" value="${c.color}" title="Category color">
@@ -2638,12 +2665,6 @@
     return checked ? checked.value : 'all';
   }
 
-  function matchesDeleteTasksStatus(task, status){
-    if(status === 'completed') return task.isCompleted;
-    if(status === 'notCompleted') return !task.isCompleted;
-    return true; // 'all'
-  }
-
   function updateDeleteTasksWarning(){
     const catId = deleteTasksCategorySelect.value;
     const cat = categories.find(c => c.id === catId);
@@ -2671,119 +2692,162 @@
     catDeleteTasksView.style.display = 'block';
   }
 
+  function updateAddCatBtnState(){
+    const blocked = !!catSearchQuery.trim();
+    addCatBtn.disabled = blocked;
+    addCatBtn.title = blocked ? 'Clear the category search to add a new category' : '';
+  }
+
   document.getElementById('manageCategoriesBtn').addEventListener('click', ()=>{
     catSearchQuery = "";
     document.getElementById('catSearchInput').value = "";
-    renderCatList();
+    catListError.classList.remove('show');
+    updateAddCatBtnState();
     showCatListView();
     catOverlay.classList.add('open');
+    loadCategories();
   });
+
+  function closeCatModal(){
+    catOverlay.classList.remove('open');
+    renderBoardFromState(); // category names/colors may have changed
+  }
   document.getElementById('closeCatBtn').addEventListener('click', closeCatModal);
   bindOverlayOutsideClose(catOverlay, closeCatModal);
 
   const debouncedCategorySearch = debounce(()=> loadCategories(), 300);
   document.getElementById('catSearchInput').addEventListener('input', e=>{
     catSearchQuery = e.target.value;
+    updateAddCatBtnState();
     debouncedCategorySearch();
   });
 
-  function commitCategoryEditsFromDom(){
-    // Pull edits from the *currently rendered* rows back into `categories`.
-    // Rows hidden by the search filter aren't in the DOM right now, so they're
-    // preserved as-is (by walking the original array) instead of being dropped.
-    const rows = [...catList.querySelectorAll('.cat-row')];
-    const editsById = new Map();
-    const deletedIds = new Set();
+  /* ---- live rename / recolor (PUT /api/categories/{id}) ---- */
+  const categoryUpdateTimers = new Map();
+  function scheduleCategoryUpdate(catId, debounced){
+    if(categoryUpdateTimers.has(catId)){
+      clearTimeout(categoryUpdateTimers.get(catId));
+      categoryUpdateTimers.delete(catId);
+    }
+    if(debounced){
+      const timer = setTimeout(()=>{
+        categoryUpdateTimers.delete(catId);
+        sendCategoryUpdate(catId);
+      }, 300);
+      categoryUpdateTimers.set(catId, timer);
+    } else {
+      sendCategoryUpdate(catId);
+    }
+  }
 
-    rows.forEach(row=>{
-      const id = row.dataset.id;
-      const name = row.querySelector('input[type="text"]').value.trim();
-      const color = row.querySelector('input[type="color"]').value;
-      if(!name){ deletedIds.add(id); return; } // a row left blank means "remove this category"
-      const original = categories.find(c => c.id === id);
-      if(original && original.name !== name){
-        tasks.forEach(t => { if(t.category === original.name) t.category = name; });
-      }
-      editsById.set(id, {
-        id, name, color,
-        taskCount: original ? original.taskCount : 0,
-        completedTaskCount: original ? original.completedTaskCount : 0
+  async function sendCategoryUpdate(catId){
+    const cat = categories.find(c => c.id === catId);
+    if(!cat) return;
+    const title = cat.name.trim();
+    if(!title) return; // don't save a blank title
+    try{
+      await apiFetch(`/api/categories/${catId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title, colour: cat.color })
       });
-    });
-
-    const visibleOrder = rows.map(r => r.dataset.id).filter(id => !deletedIds.has(id));
-    const visibleIdSet = new Set(rows.map(r => r.dataset.id));
-    const queue = [...visibleOrder];
-    const updated = [];
-    categories.forEach(c=>{
-      if(!visibleIdSet.has(c.id)){ updated.push(c); return; } // hidden by search — keep untouched, in place
-      if(deletedIds.has(c.id)) return; // row left blank — drop this category
-      if(queue.length === 0) return; // shouldn't happen, but avoid pushing nothing
-      const nextId = queue.shift();
-      updated.push(editsById.get(nextId));
-    });
-    categories = updated;
+      catListError.classList.remove('show');
+      renderCategoryFilterPanel();
+      renderBoardFromState(); // category flag colors on task cards may have changed
+    } catch(err){
+      showCatListError((err.messages || [err.message]).join(' '));
+    }
   }
 
-  function closeCatModal(){
-    commitCategoryEditsFromDom();
-    catOverlay.classList.remove('open');
-    renderCategoryFilterPanel();
-    renderBoardFromState();
+  catList.addEventListener('input', e=>{
+    const row = e.target.closest('.cat-row');
+    if(!row) return;
+    const cat = categories.find(c => c.id === row.dataset.id);
+    if(!cat) return;
+    if(e.target.matches('input[type="color"]')){
+      cat.color = e.target.value;
+      scheduleCategoryUpdate(cat.id, false);
+    } else if(e.target.matches('input[type="text"]')){
+      cat.name = e.target.value;
+      scheduleCategoryUpdate(cat.id, true);
+    }
+  });
+
+  /* ---- sorting (Name / Task Count / Completed / Not Completed / Custom Order) ---- */
+  function activateCatSortButton(key, dir){
+    catSortKey = key;
+    catSortDir = dir;
+    document.querySelectorAll('.cat-sort-btn').forEach(b=>{
+      b.classList.remove('active');
+      b.innerHTML = b.textContent.replace(/ [▲▼]$/,'');
+    });
+    const btn = document.querySelector(`.cat-sort-btn[data-sort="${key}"]`);
+    if(btn){
+      btn.classList.add('active');
+      btn.innerHTML = btn.textContent + (dir === 1 ? ' ▲' : ' ▼');
+    }
+  }
+  activateCatSortButton(catSortKey, catSortDir); // reflect the default (Custom Order) on the button right away
+
+  document.getElementById('catSortGroup').addEventListener('click', e=>{
+    const btn = e.target.closest('.cat-sort-btn');
+    if(!btn) return;
+    const key = btn.dataset.sort;
+    const dir = (catSortKey === key) ? catSortDir * -1 : 1;
+
+    if(key === 'notCompleted'){
+      // Not a real server sort field — re-sort whatever's already loaded, locally.
+      activateCatSortButton(key, dir);
+      categories = categories.slice().sort((a,b)=>{
+        const va = a.taskCount - a.completedTaskCount;
+        const vb = b.taskCount - b.completedTaskCount;
+        return dir === 1 ? (va - vb) : (vb - va);
+      });
+      renderCatList();
+      return;
+    }
+
+    activateCatSortButton(key, dir);
+    loadCategories();
+  });
+
+  /* ---- create (POST /api/categories) ---- */
+  async function submitNewCategory(){
+    setBusy(addCatBtn, true, 'Adding…');
+    try{
+      await apiFetch('/api/categories', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: 'New category',
+          colour: randomCategoryColor(),
+          sortBy: CATEGORY_SORT_FIELD_MAP[catSortKey] || 'Position',
+          isDescending: catSortDir === -1
+        })
+      });
+      catListError.classList.remove('show');
+      if(catSortKey && catSortKey !== 'position') activateCatSortButton('position', catSortDir);
+      await loadCategories();
+      const inputs = catList.querySelectorAll('.cat-row input[type="text"]');
+      const last = inputs[inputs.length - 1];
+      if(last){ last.focus(); last.select(); }
+    } catch(err){
+      showCatListError((err.messages || [err.message]).join(' '));
+    } finally {
+      setBusy(addCatBtn, false);
+    }
   }
 
-  let catNameSortAsc = true;
-  let catCountSortDesc = true;
-  let catCompletedSortDesc = true;
-  let catIncompleteSortDesc = true;
-
-  document.getElementById('sortCatsByNameBtn').addEventListener('click', ()=>{
-    commitCategoryEditsFromDom();
-    categories.sort((a,b) => catNameSortAsc
-      ? a.name.localeCompare(b.name)
-      : b.name.localeCompare(a.name));
-    catNameSortAsc = !catNameSortAsc;
-    renderCatList();
-  });
-
-  document.getElementById('sortCatsByCountBtn').addEventListener('click', ()=>{
-    commitCategoryEditsFromDom();
-    categories.sort((a,b) => {
-      const diff = b.taskCount - a.taskCount;
-      return catCountSortDesc ? diff : -diff;
-    });
-    catCountSortDesc = !catCountSortDesc;
-    renderCatList();
-  });
-
-  document.getElementById('sortCatsByCompletedBtn').addEventListener('click', ()=>{
-    commitCategoryEditsFromDom();
-    categories.sort((a,b) => {
-      const diff = b.completedTaskCount - a.completedTaskCount;
-      return catCompletedSortDesc ? diff : -diff;
-    });
-    catCompletedSortDesc = !catCompletedSortDesc;
-    renderCatList();
-  });
-
-  document.getElementById('sortCatsByIncompleteBtn').addEventListener('click', ()=>{
-    commitCategoryEditsFromDom();
-    categories.sort((a,b) => {
-      const diff = (b.taskCount - b.completedTaskCount) - (a.taskCount - a.completedTaskCount);
-      return catIncompleteSortDesc ? diff : -diff;
-    });
-    catIncompleteSortDesc = !catIncompleteSortDesc;
-    renderCatList();
-  });
-
-  document.getElementById('addCatBtn').addEventListener('click', ()=>{
-    categories.push({ id:cid(), name:'New category', color: randomCategoryColor() });
-    catSearchQuery = "";
-    document.getElementById('catSearchInput').value = "";
-    renderCatList();
-    const inputs = catList.querySelectorAll('.cat-row input[type="text"]');
-    const last = inputs[inputs.length-1];
-    last.focus(); last.select();
+  addCatBtn.addEventListener('click', ()=>{
+    const isRealSort = catSortKey && catSortKey !== 'position';
+    if(isRealSort){
+      openSortOverrideWarning({
+        title: 'Switch to Custom Order?',
+        text: 'You\'re currently viewing a sorted category list. Adding a category here will overwrite the saved position of <strong>every</strong> category with this new order, replacing whatever custom order existed before.',
+        confirmLabel: 'Add Anyway',
+        onConfirm: submitNewCategory
+      });
+    } else {
+      submitNewCategory();
+    }
   });
 
   catList.addEventListener('click', e=>{
@@ -2793,38 +2857,62 @@
     showCatConfirmDeleteView(row.dataset.id);
   });
 
-  /* ---- confirm: delete a single category ---- */
+  /* ---- confirm: delete a single category (DELETE /api/categories/{id}) ---- */
   document.getElementById('catConfirmBackBtn').addEventListener('click', ()=>{
     pendingDeleteCategoryId = null;
     showCatListView();
   });
-  document.getElementById('catConfirmDeleteBtn').addEventListener('click', ()=>{
+  document.getElementById('catConfirmDeleteBtn').addEventListener('click', async ()=>{
     if(!pendingDeleteCategoryId) return;
-    const cat = categories.find(c => c.id === pendingDeleteCategoryId);
-    if(cat){
-      tasks.forEach(t => { if(t.category === cat.name) t.category = ""; });
+    const id = pendingDeleteCategoryId;
+    const confirmBtn = document.getElementById('catConfirmDeleteBtn');
+    setBusy(confirmBtn, true, 'Deleting…');
+    try{
+      await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
+      pendingDeleteCategoryId = null;
+      catListError.classList.remove('show');
+      await loadCategories();
+      showCatListView();
+      await loadTasks(); // tasks that referenced this category now show as "———"
+    } catch(err){
+      showCatListError((err.messages || [err.message]).join(' '));
+    } finally {
+      setBusy(confirmBtn, false);
     }
-    categories = categories.filter(c => c.id !== pendingDeleteCategoryId);
-    pendingDeleteCategoryId = null;
-    renderCatList();
-    showCatListView();
-    renderBoardFromState();
   });
 
-  /* ---- delete all tasks in a chosen category ---- */
+  /* ---- delete all tasks in a chosen category (DELETE /api/categories/{id}/tasks) ---- */
   document.getElementById('deleteTasksByCategoryBtn').addEventListener('click', showCatDeleteTasksView);
   document.getElementById('catDeleteTasksBackBtn').addEventListener('click', showCatListView);
   deleteTasksCategorySelect.addEventListener('change', updateDeleteTasksWarning);
   document.getElementById('deleteTasksStatusGroup').addEventListener('change', updateDeleteTasksWarning);
-  document.getElementById('deleteTasksConfirmBtn').addEventListener('click', ()=>{
-    const name = deleteTasksCategorySelect.value;
+  document.getElementById('deleteTasksConfirmBtn').addEventListener('click', async ()=>{
+    const categoryId = deleteTasksCategorySelect.value;
+    if(!categoryId) return;
     const status = getDeleteTasksStatus();
-    tasks = tasks.filter(t => !(t.category === name && matchesDeleteTasksStatus(t, status)));
-    renderBoardFromState();
-    showCatListView();
+    const deleteCompleted = status === 'all' || status === 'completed';
+    const deleteNotCompleted = status === 'all' || status === 'notCompleted';
+
+    const confirmBtn = document.getElementById('deleteTasksConfirmBtn');
+    const errorEl = document.getElementById('deleteTasksError');
+    errorEl.classList.remove('show');
+    setBusy(confirmBtn, true, 'Deleting…');
+    try{
+      await apiFetch(`/api/categories/${categoryId}/tasks`, {
+        method: 'DELETE',
+        body: JSON.stringify({ deleteCompleted, deleteNotCompleted })
+      });
+      showCatListView();
+      await loadCategories(); // task counts on the category rows just changed
+      await loadTasks();
+    } catch(err){
+      showStatus(errorEl, (err.messages || [err.message]).join(' '), 'warn');
+    } finally {
+      setBusy(confirmBtn, false);
+    }
   });
 
-  /* ---- drag-to-reorder categories, initiated only from the handle ---- */
+  /* ---- drag-to-reorder categories (PATCH /api/categories/move), initiated only from the handle ---- */
   catList.addEventListener('mousedown', e=>{
     const handle = e.target.closest('.cat-drag-handle');
     if(!handle) return;
@@ -2845,46 +2933,102 @@
     requestAnimationFrame(()=> row.classList.add('dragging'));
   });
 
-  catList.addEventListener('dragend', e=>{
-    const row = e.target.closest('.cat-row');
-    if(row){
-      row.classList.remove('dragging');
-      row.setAttribute('draggable','false');
-    }
-    // DOM order now reflects the new order for the *visible* (search-filtered)
-    // rows — fold that back in while leaving any hidden categories untouched.
-    const visibleIds = [...catList.querySelectorAll('.cat-row')].map(r => r.dataset.id);
-    const visibleIdSet = new Set(visibleIds);
-    const queue = [...visibleIds];
-    categories = categories.map(c=>{
-      if(!visibleIdSet.has(c.id)) return c;
-      const nextId = queue.shift();
-      return categories.find(x => x.id === nextId) || c;
-    });
-  });
+  let dropTargetCatRow = null;
 
   catList.addEventListener('dragover', e=>{
     e.preventDefault();
     const draggingRow = catList.querySelector('.cat-row.dragging');
     if(!draggingRow) return;
-    const afterElement = getCatRowAfter(catList, e.clientY);
-    if(afterElement == null){
-      catList.appendChild(draggingRow);
-    } else if(afterElement !== draggingRow){
-      catList.insertBefore(draggingRow, afterElement);
+
+    // Hovering back over the dragged row's own (still-in-place) spot means
+    // "put it back where it was" — same as the task board.
+    const selfBox = draggingRow.getBoundingClientRect();
+    const overSelf = e.clientY >= selfBox.top && e.clientY <= selfBox.bottom;
+
+    // Only highlight where it would land — the DOM stays untouched until drop,
+    // so the target doesn't slide out from under the cursor mid-drag.
+    const target = overSelf ? null : getCatDropTarget(catList, e.clientY, draggingRow);
+    if(target !== dropTargetCatRow){
+      if(dropTargetCatRow) dropTargetCatRow.classList.remove('drop-target');
+      dropTargetCatRow = target;
+      if(dropTargetCatRow) dropTargetCatRow.classList.add('drop-target');
     }
   });
 
-  function getCatRowAfter(container, y){
-    const rows = [...container.querySelectorAll('.cat-row:not(.dragging)')];
-    return rows.reduce((closest, row)=>{
-      const box = row.getBoundingClientRect();
-      const offset = y - box.top - box.height/2;
-      if(offset < 0 && offset > closest.offset){
-        return { offset, element: row };
+  function getCatDropTarget(container, y, exclude){
+    const rows = [...container.querySelectorAll('.cat-row')].filter(r => r !== exclude);
+    for(const r of rows){
+      const box = r.getBoundingClientRect();
+      if(y >= box.top && y <= box.bottom) return r;
+    }
+    let closest = null, closestDist = Infinity;
+    rows.forEach(r=>{
+      const box = r.getBoundingClientRect();
+      const dist = Math.abs(y - (box.top + box.height/2));
+      if(dist < closestDist){ closestDist = dist; closest = r; }
+    });
+    return closest;
+  }
+
+  catList.addEventListener('dragend', e=>{
+    const row = e.target.closest('.cat-row');
+    if(dropTargetCatRow) dropTargetCatRow.classList.remove('drop-target');
+
+    let moved = false;
+    if(row && dropTargetCatRow && dropTargetCatRow !== row){
+      const cmp = row.compareDocumentPosition(dropTargetCatRow);
+      const targetWasAfter = !!(cmp & Node.DOCUMENT_POSITION_FOLLOWING);
+      if(targetWasAfter){
+        catList.insertBefore(row, dropTargetCatRow.nextSibling);
+      } else {
+        catList.insertBefore(row, dropTargetCatRow);
       }
-      return closest;
-    }, { offset:-Infinity, element:null }).element;
+      moved = true;
+    }
+    const targetCategoryId = dropTargetCatRow ? dropTargetCatRow.dataset.id : null;
+    dropTargetCatRow = null;
+
+    if(row){
+      row.classList.remove('dragging');
+      row.setAttribute('draggable','false');
+    }
+
+    if(!moved) return; // row was picked up and dropped back in place — nothing to commit
+
+    const categoryId = row.dataset.id;
+
+    const isRealSort = catSortKey && catSortKey !== 'position';
+    if(isRealSort){
+      openSortOverrideWarning({
+        title: 'Switch to Custom Order?',
+        text: 'You\'re currently viewing a sorted category list. Dragging a category to reorder it will overwrite the saved position of <strong>every</strong> category with this new order, replacing whatever custom order existed before.',
+        confirmLabel: 'Reorder Anyway',
+        onConfirm: ()=> commitCategoryMove(categoryId, targetCategoryId),
+        onCancel: ()=> loadCategories() // discard the visual drag move, refetch the authoritative order
+      });
+    } else {
+      commitCategoryMove(categoryId, targetCategoryId);
+    }
+  });
+
+  async function commitCategoryMove(categoryId, targetCategoryId){
+    try{
+      await apiFetch('/api/categories/move', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          categoryId,
+          targetCategoryId,
+          sortBy: CATEGORY_SORT_FIELD_MAP[catSortKey] || 'Position',
+          isDescending: catSortDir === -1
+        })
+      });
+      catListError.classList.remove('show');
+      if(catSortKey && catSortKey !== 'position') activateCatSortButton('position', catSortDir);
+      await loadCategories();
+    } catch(err){
+      showCatListError((err.messages || [err.message]).join(' '));
+      await loadCategories(); // revert to the authoritative order
+    }
   }
 
   /* ---------------- ACCOUNT MODAL ---------------- */

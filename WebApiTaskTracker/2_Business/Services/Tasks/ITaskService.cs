@@ -13,4 +13,6 @@ public interface ITaskService
     Task<Result> UpdateAsync(SaveTaskCommand command);
     Task<Result> DeleteAsync(Guid id);
     Task<Result> MoveAsync(MoveTaskCommand command, SortTasksQuery query);
+    Task<Result> CreateDefaultTasksAsync(Guid userId, Dictionary<string, Guid> categoryIdsByName);
+    Task DeleteAllByUserIdAsync(Guid userId);
 }

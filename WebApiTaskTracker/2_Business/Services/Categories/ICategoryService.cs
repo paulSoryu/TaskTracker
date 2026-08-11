@@ -12,5 +12,7 @@ public interface ICategoryService
     Task<Result> UpdateAsync(SaveCategoryCommand category);
     Task<Result> DeleteAsync(Guid id);
     Task<Result> MoveAsync(MoveCategoryCommand command, SortCategoriesQuery sortQuery);
-    Task<Result> DeleteTasksAsync(Guid id, bool deleteCompleted, bool deleteNotCompleted);
+    Task<Result> DeleteTasksByCategoryIdAsync(Guid id, bool deleteCompleted, bool deleteNotCompleted);
+    Task<Result<Dictionary<string, Guid>>> CreateDefaultCategoriesAsync(Guid userId);
+    Task DeleteAllByUserIdAsync(Guid userId);
 }

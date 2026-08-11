@@ -148,3 +148,17 @@ public class ReorderingError : Error
         Metadata.Add("ExceptionMessage", exceptionMessage);
     }
 }
+
+public class CreatingDefaultDataError : Error 
+{
+    public string EntityName { get; }
+
+    public CreatingDefaultDataError(string entityName)
+        : base($"Something went wrong while creating default {entityName} entities.")
+    {
+        EntityName = entityName;
+
+        Metadata.Add("ErrorCode", "RESOURCE_NOT_FOUND");
+        Metadata.Add("EntityName", entityName);
+    }
+}

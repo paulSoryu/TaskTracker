@@ -4,7 +4,8 @@ namespace WebApiTaskTracker.WebApi.DTOs.Auths;
 
 public record LoginRequest(
     string Email, 
-    string Password
+    string Password,
+    bool RememberMe
 )
 {
     public class Validator : AbstractValidator<LoginRequest>
@@ -14,6 +15,7 @@ public record LoginRequest(
             RuleFor(x => x.Email)
                 .NotEmpty()
                 .EmailAddress();
+
             RuleFor(x => x.Password)
                 .NotEmpty();
         }

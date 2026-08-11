@@ -2,7 +2,6 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -114,7 +113,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             allTasks.Insert(newPos, createdTask);
             db.Tasks.Add(createdTask);
 
-            await ResetOrderAsync(allTasks, sortQuery.IsDescending);
+            await db.ResetOrderAsync(allTasks, sortQuery.IsDescending);
 
             return Result.Ok(createdTask.Adapt<TaskView>());
         }
@@ -133,7 +132,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
                 createdTask.Position = newPos;
             }
 
-            await ReorderInRangeAsync(currentTasksCount + 1, newPos);
+            await db.ReorderInRangeAsync<TaskEntity>(currentTasksCount + 1, newPos);
 
             db.Tasks.Add(createdTask);
             await db.SaveChangesAsync();
@@ -188,7 +187,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             var tasksCount = await db.Tasks.CountAsync();
 
             // Change the positions of tasks that were below the deleted task
-            await ReorderInRangeAsync(deletedPos, tasksCount);
+            await db.ReorderInRangeAsync<TaskEntity>(deletedPos, tasksCount);
 
             await transaction.CommitAsync();
             return Result.Ok();
@@ -228,7 +227,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
             allTasks.Remove(task);
             allTasks.Insert(newPos, task); // -1 is because lists are 0-based
 
-            await ResetOrderAsync(allTasks, sortQuery.IsDescending);
+            await db.ResetOrderAsync(allTasks, sortQuery.IsDescending);
 
             return Result.Ok();
         }
@@ -237,7 +236,7 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         {
             using var transaction = await db.Database.BeginTransactionAsync();
 
-            await ReorderInRangeAsync(oldPos, newPos);
+            await db.ReorderInRangeAsync<TaskEntity>(oldPos, newPos);
 
             await db.Tasks
                 .Where(t => t.Id == command.TaskId)
@@ -252,26 +251,45 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
         }
     }
 
-    private async Task ReorderInRangeAsync(int start, int end)
+    public async Task<Result> CreateDefaultTasksAsync(Guid userId, Dictionary<string, Guid> categoryIdsByName)
     {
-        if (start < end)    // Downshift
-            await db.Tasks
-                .Where(t => t.Position > start && t.Position <= end)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position - 1));
-        else                // Upshift
-            await db.Tasks
-                .Where(t => t.Position >= end && t.Position < start)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, t => t.Position + 1));
+        DateOnly currentDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var templates = new[]
+        {
+            (Title: "Prepare quarterly report",  Desc: "Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.",   Priority: TaskPriority.High,   DueDate: (DateOnly?)currentDate.AddDays(4),   Category: "Work"),
+            (Title: "Book dentist appointment",  Desc: "Call the clinic on Karl Marx ave, ask for a morning slot next week.",                           Priority: TaskPriority.Medium, DueDate: currentDate.AddMonths(1),         Category: "Personal"),
+            (Title: "Renew apartment insurance", Desc: "Compare two offers, pick the cheaper one with the same coverage, pay online.",                  Priority: TaskPriority.Low,    DueDate: currentDate.AddDays(15),          Category: "Errands"),
+            (Title: "Grocery run",               Desc: "Milk, eggs, bread, coffee, something for Sunday dinner.",                                       Priority: TaskPriority.Low,    DueDate: null,                             Category: "Health"),
+            (Title: "Buy presents for kids",     Desc: "Check 3 options, compare prices, and purchase the best gifts.",                                 Priority: TaskPriority.High,   DueDate: currentDate.AddDays(-10),         Category: "Other")
+        };
+
+        var defaultTasks = templates.Select((t, index) => new TaskEntity
+        {
+            Id = Guid.NewGuid(),
+            Title = t.Title,
+            Description = t.Desc,
+            Priority = t.Priority,
+            DueDate = t.DueDate,
+            UserId = userId,
+            CategoryId = categoryIdsByName.GetValueOrDefault(t.Category, Guid.Empty),
+            Position = templates.Length - index // Reversed order
+        }).ToList();
+
+        db.Tasks.AddRange(defaultTasks);
+
+        var numOfChangedEntries = await db.SaveChangesAsync();
+
+        return numOfChangedEntries > 0
+            ? Result.Ok()
+            : Result.Fail(new CreatingDefaultDataError("Task"));
     }
 
-    private async Task ResetOrderAsync(List<TaskEntity> tasks, bool isDescending)
+    public async Task DeleteAllByUserIdAsync(Guid userId)
     {
-        if (isDescending)
-            tasks.Reverse();
-
-        for (int i = 0; i < tasks.Count; i++)
-            tasks[i].Position = i + 1;
-
-        await db.SaveChangesAsync();
+        await db.Tasks
+            .IgnoreQueryFilters()
+            .Where(t => t.UserId == userId)
+            .ExecuteDeleteAsync();
     }
 }

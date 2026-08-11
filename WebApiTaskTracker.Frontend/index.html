@@ -992,6 +992,24 @@
   }
   .field input:focus{ outline:none; border-color:var(--ink-soft); }
 
+  .remember-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:-2px 0 12px;
+  }
+  .remember-row input[type="checkbox"]{
+    width:15px; height:15px;
+    accent-color: var(--teal-deep);
+    cursor:pointer;
+  }
+  .remember-row label{
+    font-size:13px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    user-select:none;
+  }
+
   .form-note{
     font-size:12.5px;
     color:var(--ink-soft);
@@ -1176,6 +1194,10 @@
           <div class="field">
             <label>Password</label>
             <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <div class="remember-row">
+            <input type="checkbox" id="loginRememberMe">
+            <label for="loginRememberMe">Remember me on this device</label>
           </div>
           <div class="inline-status warn" id="loginError"></div>
           <button type="button" class="btn-solid" id="loginSubmitBtn" style="width:100%; margin-top:4px;">Log In</button>
@@ -3394,11 +3416,12 @@
       showStatus(loginError, 'Enter both email and password to continue.', 'warn');
       return;
     }
+    const rememberMe = document.getElementById('loginRememberMe').checked;
     const btn = document.getElementById('loginSubmitBtn');
     loginError.classList.remove('show');
     setBusy(btn, true, 'Logging in…');
     try{
-      await apiFetch('/api/auth/login', { method:'POST', body: JSON.stringify({ email, password }) });
+      await apiFetch('/api/auth/login', { method:'POST', body: JSON.stringify({ email, password, rememberMe }) });
       const info = await apiFetch('/api/auth/me');
       enterApp(info);
     } catch(err){
@@ -3425,9 +3448,11 @@
     setBusy(btn, true, 'Creating account…');
     try{
       await apiFetch('/api/auth/register', { method:'POST', body: JSON.stringify({ email, password }) });
-      // Register logs the user in automatically on the backend
-      const info = await apiFetch('/api/auth/me');
-      enterApp(info);
+      // Registration no longer logs the user in automatically — send them to the login tab.
+      signupForm.reset();
+      showAuthTab('login');
+      document.getElementById('loginEmail').value = email;
+      showStatus(loginError, 'Account created. Log in to continue.', 'ok');
     } catch(err){
       showStatus(signupError, (err.messages || [err.message]).join(' '), 'warn');
     } finally {

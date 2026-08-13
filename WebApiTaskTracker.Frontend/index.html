@@ -893,6 +893,12 @@
     margin-bottom:10px;
   }
   .cat-sort-group{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .cat-sort-group .deck-label{
+    width:100%;
+    flex-basis:100%;
+    font-size:8.75px;
+    margin-bottom:2px;
+  }
   .btn-small-danger{
     font-size:11.5px;
     padding:6px 10px;
@@ -913,7 +919,7 @@
     background:rgba(35,43,54,0.06);
     border-color:var(--ink);
   }
-  .cat-sort-btn.active{
+  .cat-sort-btn.active:not(.cat-sort-circle){
     background:var(--ink);
     color:#F1EBDC;
     border-color:var(--ink);
@@ -921,6 +927,127 @@
   .cat-sort-btn.active[data-sort="position"]{
     background:var(--teal-deep);
     border-color:var(--teal-deep);
+  }
+  .cat-sort-arrow-text{
+    display:inline-block;
+    font-size:10px;
+    vertical-align:middle;
+  }
+  .cat-sort-arrow-text:not(:empty){
+    margin-left:3px;
+  }
+
+  .cat-sort-circles{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    margin-left:auto;
+    margin-right:8px; /* base: mirrors .cat-row's own 8px right padding — extra scrollbar width is added dynamically via JS */
+  }
+  .cat-sort-ghost-remove{
+    /* invisible twin of .cat-remove — same font-size/padding, so its rendered
+       width matches exactly and reserves the same space the real remove
+       button takes in every row, without hardcoding a pixel value. */
+    visibility:hidden;
+    pointer-events:none;
+    flex-shrink:0;
+    border:none; background:transparent; font-size:15px; padding:2px 6px; border-radius:4px;
+    margin-left:4px; /* + the 4px container gap = 8px, matching the row's gap before its remove button */
+  }
+  .cat-sort-circle{
+    flex-shrink:0;
+    width:26px;
+    height:26px;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    box-sizing:border-box;
+  }
+  .cat-sort-circle:hover{ transform:translateY(-1px); }
+  .cat-sort-arrow{
+    font-size:10px;
+    line-height:1;
+    transition:opacity .1s ease;
+  }
+  .cat-sort-circle-incomplete{
+    color:#B23A3A;
+    background:rgba(196,58,58,0.12);
+    border-color:rgba(196,58,58,0.35) !important;
+  }
+  .cat-sort-circle-completed{
+    color:var(--teal-deep);
+    background:rgba(47,111,107,0.12);
+    border-color:rgba(47,111,107,0.35) !important;
+  }
+  .cat-sort-circle-total{
+    color:var(--ink-soft);
+    background:var(--paper);
+    border-color:var(--card-edge) !important;
+  }
+  .cat-sort-circle.active{
+    color:#F1EBDC;
+  }
+  .cat-sort-circle-incomplete.active{
+    background:#B23A3A;
+    border-color:#B23A3A !important;
+  }
+  .cat-sort-circle-completed.active{
+    background:var(--teal-deep);
+    border-color:var(--teal-deep) !important;
+  }
+  .cat-sort-circle-total.active{
+    background:var(--ink);
+    border-color:var(--ink) !important;
+  }
+
+  /* ---------------- CUSTOM TOOLTIPS ---------------- */
+  [data-tooltip]{ position:relative; }
+  [data-tooltip]::after{
+    content:attr(data-tooltip);
+    position:absolute;
+    left:50%;
+    bottom:calc(100% + 10px);
+    transform:translateX(-50%) translateY(4px);
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Space Grotesk', sans-serif;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.01em;
+    white-space:nowrap;
+    padding:6px 10px;
+    border-radius:6px;
+    box-shadow:0 8px 18px -8px rgba(35,43,54,0.5);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .15s ease, transform .15s ease;
+    z-index:300;
+  }
+  [data-tooltip]::before{
+    content:'';
+    position:absolute;
+    left:50%;
+    bottom:calc(100% + 5px);
+    transform:translateX(-50%);
+    border:5px solid transparent;
+    border-top-color:var(--ink);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .15s ease;
+    z-index:300;
+  }
+  [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after{
+    opacity:1;
+    visibility:visible;
+    transform:translateX(-50%) translateY(0);
+  }
+  [data-tooltip]:hover::before, [data-tooltip]:focus-visible::before{
+    opacity:1;
+    visibility:visible;
   }
 
   /* ---------------- ACCOUNT MODAL ---------------- */
@@ -1359,11 +1486,15 @@
           <input type="text" id="catSearchInput" class="search-input" placeholder="Search categories…">
         </div>
         <div class="cat-sort-group" id="catSortGroup">
-          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByNameBtn" data-sort="name" title="Sort categories by name">↕ Sort by Name</button>
-          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByCountBtn" data-sort="taskCount" title="Sort categories by task count">↕ Sort by Task Count</button>
-          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByCompletedBtn" data-sort="completedTaskCount" title="Sort categories by completed task count">↕ Sort by Completed</button>
-          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByIncompleteBtn" data-sort="notCompleted" title="Sort categories by not-completed task count">↕ Sort by Not Completed</button>
-          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByPositionBtn" data-sort="position" title="Custom drag order">↕ Custom Order</button>
+          <span class="deck-label">Sort by</span>
+          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByPositionBtn" data-sort="position" data-tooltip="Custom drag order">Custom Order<span class="cat-sort-arrow-text"></span></button>
+          <button class="btn-plain btn-small-neutral cat-sort-btn" id="sortCatsByNameBtn" data-sort="name" data-tooltip="Sort categories by name">Title<span class="cat-sort-arrow-text"></span></button>
+          <div class="cat-sort-circles">
+            <button class="btn-plain cat-sort-btn cat-sort-circle cat-sort-circle-incomplete" id="sortCatsByIncompleteBtn" data-sort="notCompleted" data-tooltip="Sort by not-completed task count"><span class="cat-sort-arrow"></span></button>
+            <button class="btn-plain cat-sort-btn cat-sort-circle cat-sort-circle-completed" id="sortCatsByCompletedBtn" data-sort="completedTaskCount" data-tooltip="Sort by completed task count"><span class="cat-sort-arrow"></span></button>
+            <button class="btn-plain cat-sort-btn cat-sort-circle cat-sort-circle-total" id="sortCatsByCountBtn" data-sort="taskCount" data-tooltip="Sort by total task count"><span class="cat-sort-arrow"></span></button>
+            <span class="cat-sort-ghost-remove" aria-hidden="true">✕</span>
+          </div>
         </div>
         <div class="inline-status warn" id="catListError"></div>
         <div class="cat-list" id="catList"></div>
@@ -1641,15 +1772,13 @@
 
   function cid(){ return 't' + Math.random().toString(36).slice(2,9); }
 
-  const CATEGORY_SORT_FIELD_MAP = { name:'Title', taskCount:'TaskCount', completedTaskCount:'CompletedTaskCount', position:'Position' };
+  const CATEGORY_SORT_FIELD_MAP = { name:'Title', taskCount:'TaskCount', completedTaskCount:'CompletedTaskCount', notCompleted:'NotCompletedTaskCount', position:'Position' };
   let catSortKey = 'position'; // Custom Order by default
   let catSortDir = 1;
 
   function buildCategoriesQuery(){
     const params = new URLSearchParams();
     if(catSearchQuery.trim()) params.set('searchTerm', catSearchQuery.trim());
-    // "Not Completed" isn't a real server sort field — that case re-sorts
-    // whatever's already loaded, client-side, without touching this query.
     params.set('sortBy', CATEGORY_SORT_FIELD_MAP[catSortKey] || 'Position');
     params.set('isDescending', catSortDir === -1);
     return params.toString();
@@ -2647,6 +2776,7 @@
     // already reflects the filtered set, so just render it as-is.
     if(categories.length === 0){
       catList.innerHTML = '<div class="cat-list-empty">No categories match your search.</div>';
+      alignCatSortCircles();
       return;
     }
 
@@ -2661,6 +2791,21 @@
         <button class="cat-remove" title="Remove category">✕</button>
       </div>
     `).join('');
+    alignCatSortCircles();
+  }
+
+  // The sort circles live in a sibling container that never scrolls, so when
+  // .cat-list actually grows a vertical scrollbar its rows lose a few pixels
+  // of width that the circles above don't know about — pushing the columns
+  // out of alignment (as seen with enough categories to overflow the list).
+  // Measuring the real scrollbar width (rather than guessing a fixed OS/
+  // browser-dependent value) keeps the two in sync in every browser and zoom
+  // level, and naturally becomes 0 when there's no scrollbar at all.
+  function alignCatSortCircles(){
+    const circles = document.querySelector('.cat-sort-circles');
+    if(!circles) return;
+    const scrollbarWidth = catList.offsetWidth - catList.clientWidth;
+    circles.style.marginRight = (8 + scrollbarWidth) + 'px';
   }
 
   function showCatListView(){
@@ -2800,12 +2945,14 @@
     catSortDir = dir;
     document.querySelectorAll('.cat-sort-btn').forEach(b=>{
       b.classList.remove('active');
-      b.innerHTML = b.textContent.replace(/ [▲▼]$/,'');
+      const arrow = b.querySelector('.cat-sort-arrow, .cat-sort-arrow-text');
+      if(arrow) arrow.textContent = '';
     });
     const btn = document.querySelector(`.cat-sort-btn[data-sort="${key}"]`);
     if(btn){
       btn.classList.add('active');
-      btn.innerHTML = btn.textContent + (dir === 1 ? ' ▲' : ' ▼');
+      const arrow = btn.querySelector('.cat-sort-arrow, .cat-sort-arrow-text');
+      if(arrow) arrow.textContent = dir === 1 ? '▲' : '▼';
     }
   }
   activateCatSortButton(catSortKey, catSortDir); // reflect the default (Custom Order) on the button right away
@@ -2815,18 +2962,6 @@
     if(!btn) return;
     const key = btn.dataset.sort;
     const dir = (catSortKey === key) ? catSortDir * -1 : 1;
-
-    if(key === 'notCompleted'){
-      // Not a real server sort field — re-sort whatever's already loaded, locally.
-      activateCatSortButton(key, dir);
-      categories = categories.slice().sort((a,b)=>{
-        const va = a.taskCount - a.completedTaskCount;
-        const vb = b.taskCount - b.completedTaskCount;
-        return dir === 1 ? (va - vb) : (vb - va);
-      });
-      renderCatList();
-      return;
-    }
 
     activateCatSortButton(key, dir);
     loadCategories();
@@ -2935,6 +3070,39 @@
   });
 
   /* ---- drag-to-reorder categories (PATCH /api/categories/move), initiated only from the handle ---- */
+  /* ---------------- AUTO-SCROLL WHILE DRAGGING A CATEGORY ----------------
+     Same idea as the task board's auto-scroll, but the categories list
+     scrolls inside its own container (.cat-list has its own overflow), not
+     the page — so the edge check is against the list's own bounding box and
+     the target of scrollBy is the list element itself. */
+  let catAutoScrollY = null;
+  let catAutoScrollRAF = null;
+  const CAT_AUTO_SCROLL_EDGE = 40;   // px from the list's own top/bottom edge
+  const CAT_AUTO_SCROLL_SPEED = 10;  // px per frame at the very edge
+
+  function catAutoScrollTick(){
+    if(catAutoScrollY === null){ catAutoScrollRAF = null; return; }
+    const box = catList.getBoundingClientRect();
+    let dy = 0;
+    if(catAutoScrollY < box.top + CAT_AUTO_SCROLL_EDGE){
+      dy = -CAT_AUTO_SCROLL_SPEED * (1 - (catAutoScrollY - box.top) / CAT_AUTO_SCROLL_EDGE);
+    } else if(catAutoScrollY > box.bottom - CAT_AUTO_SCROLL_EDGE){
+      dy = CAT_AUTO_SCROLL_SPEED * (1 - (box.bottom - catAutoScrollY) / CAT_AUTO_SCROLL_EDGE);
+    }
+    if(dy !== 0) catList.scrollTop += dy;
+    catAutoScrollRAF = requestAnimationFrame(catAutoScrollTick);
+  }
+
+  function updateCatAutoScroll(clientY){
+    catAutoScrollY = clientY;
+    if(catAutoScrollRAF === null) catAutoScrollRAF = requestAnimationFrame(catAutoScrollTick);
+  }
+
+  function stopCatAutoScroll(){
+    catAutoScrollY = null;
+    if(catAutoScrollRAF !== null){ cancelAnimationFrame(catAutoScrollRAF); catAutoScrollRAF = null; }
+  }
+
   catList.addEventListener('mousedown', e=>{
     const handle = e.target.closest('.cat-drag-handle');
     if(!handle) return;
@@ -2961,6 +3129,8 @@
     e.preventDefault();
     const draggingRow = catList.querySelector('.cat-row.dragging');
     if(!draggingRow) return;
+
+    updateCatAutoScroll(e.clientY);
 
     // Hovering back over the dragged row's own (still-in-place) spot means
     // "put it back where it was" — same as the task board.
@@ -2993,6 +3163,7 @@
   }
 
   catList.addEventListener('dragend', e=>{
+    stopCatAutoScroll();
     const row = e.target.closest('.cat-row');
     if(dropTargetCatRow) dropTargetCatRow.classList.remove('drop-target');
 
@@ -3375,6 +3546,7 @@
     const displayName = currentUser.email.split('@')[0] || currentUser.email;
     userDisplayName.textContent = displayName;
     userAvatar.textContent = initialsFrom(displayName);
+    authLoading.classList.add('hidden');
     authGate.classList.add('hidden');
     appShell.classList.add('visible');
     if(!appStarted){
@@ -3477,6 +3649,8 @@
       await apiFetch('/api/auth/logout', { method:'POST' });
       setBusy(btn, false);
       appShell.classList.remove('visible');
+      authLoading.classList.add('hidden');
+      authCard.classList.remove('hidden');
       authGate.classList.remove('hidden');
       loginForm.reset();
       signupForm.reset();

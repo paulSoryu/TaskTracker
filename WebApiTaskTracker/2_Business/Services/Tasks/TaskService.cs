@@ -257,11 +257,11 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
         var templates = new[]
         {
-            (Title: "Prepare quarterly report",  Desc: "Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.",   Priority: TaskPriority.High,   DueDate: (DateOnly?)currentDate.AddDays(4),   Category: "Work"),
-            (Title: "Book dentist appointment",  Desc: "Call the clinic on Karl Marx ave, ask for a morning slot next week.",                           Priority: TaskPriority.Medium, DueDate: currentDate.AddMonths(1),         Category: "Personal"),
-            (Title: "Renew apartment insurance", Desc: "Compare two offers, pick the cheaper one with the same coverage, pay online.",                  Priority: TaskPriority.Low,    DueDate: currentDate.AddDays(15),          Category: "Errands"),
-            (Title: "Grocery run",               Desc: "Milk, eggs, bread, coffee, something for Sunday dinner.",                                       Priority: TaskPriority.Low,    DueDate: null,                             Category: "Health"),
-            (Title: "Buy presents for kids",     Desc: "Check 3 options, compare prices, and purchase the best gifts.",                                 Priority: TaskPriority.High,   DueDate: currentDate.AddDays(-10),         Category: "Other")
+            (Title: "Prepare quarterly report",  Desc: "Pull Q2 numbers from the finance sheet, draft summary slides, send to review before Friday.",   Priority: TaskPriority.High,   DueDate: currentDate.AddDays(4),    Category: "Work"),
+            (Title: "Book dentist appointment",  Desc: "Call the clinic on Karl Marx ave, ask for a morning slot next week.",                           Priority: TaskPriority.Medium, DueDate: currentDate.AddMonths(1),  Category: "Personal"),
+            (Title: "Renew apartment insurance", Desc: "Compare two offers, pick the cheaper one with the same coverage, pay online.",                  Priority: TaskPriority.Low,    DueDate: currentDate.AddDays(15),   Category: "Errands"),
+            (Title: "Grocery run",               Desc: "Milk, eggs, bread, coffee, something for Sunday dinner.",                                       Priority: TaskPriority.Low,    DueDate: (DateOnly?)null,           Category: "Health"),
+            (Title: "Buy presents for kids",     Desc: "Check 3 options, compare prices, and purchase the best gifts.",                                 Priority: TaskPriority.High,   DueDate: currentDate.AddDays(-10),  Category: "Other")
         };
 
         var defaultTasks = templates.Select((t, index) => new TaskEntity

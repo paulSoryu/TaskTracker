@@ -24,16 +24,16 @@ public static class CategoryQueryExtensions
                 : dbQuery.OrderBy(c => c.Title),
 
             CategorySortField.TaskCount => query.IsDescending
-                ? dbQuery.OrderByDescending(c => c.Tasks.Count)
-                : dbQuery.OrderBy(c => c.Tasks.Count),
+                ? dbQuery.OrderByDescending(c => c.Tasks.Count).ThenBy(c => c.Title)
+                : dbQuery.OrderBy(c => c.Tasks.Count).ThenBy(c => c.Title),
 
             CategorySortField.CompletedTaskCount => query.IsDescending
-                ? dbQuery.OrderByDescending(c => c.Tasks.Count(t => t.IsCompleted))
-                : dbQuery.OrderBy(c => c.Tasks.Count(t => t.IsCompleted)),
+                ? dbQuery.OrderByDescending(c => c.Tasks.Count(t => t.IsCompleted)).ThenBy(c => c.Title)
+                : dbQuery.OrderBy(c => c.Tasks.Count(t => t.IsCompleted)).ThenBy(c => c.Title),
 
             CategorySortField.NotCompletedTaskCount => query.IsDescending
-                ? dbQuery.OrderByDescending(c => c.Tasks.Count(t => !t.IsCompleted))
-                : dbQuery.OrderBy(c => c.Tasks.Count(t => !t.IsCompleted)),
+                ? dbQuery.OrderByDescending(c => c.Tasks.Count(t => !t.IsCompleted)).ThenBy(c => c.Title)
+                : dbQuery.OrderBy(c => c.Tasks.Count(t => !t.IsCompleted)).ThenBy(c => c.Title),
 
             CategorySortField.Position => query.IsDescending
                 ? dbQuery.OrderByDescending(c => c.Position)

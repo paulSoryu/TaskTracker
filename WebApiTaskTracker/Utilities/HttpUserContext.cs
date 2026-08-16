@@ -8,32 +8,23 @@ public interface IUserContext
     bool IsAuthenticated { get; }
 }
 
-public class HttpUserContext : IUserContext
+public class HttpUserContext(IHttpContextAccessor httpContextAccessor) : IUserContext
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public HttpUserContext(IHttpContextAccessor httpContextAccessor)
-    {
-        _httpContextAccessor = httpContextAccessor;
-    }
-
     public Guid CurrentUserId
     {
         get
         {
-            var user = _httpContextAccessor.HttpContext?.User;
+            var user = httpContextAccessor.HttpContext?.User;
 
             var userIdString = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (Guid.TryParse(userIdString, out var guid))
-            {
                 return guid;
-            }
 
             return Guid.Empty;
         }
     }
 
     public bool IsAuthenticated =>
-        _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
+        httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
 }

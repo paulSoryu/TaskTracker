@@ -13,9 +13,7 @@ public static class ClaimsPrincipalExtensions
         var userIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out Guid userId))
-        {
             throw new UnauthorizedAccessException("User not authorized.");
-        }
 
         return userId;
     }

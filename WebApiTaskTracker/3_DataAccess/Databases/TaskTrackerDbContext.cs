@@ -8,18 +8,10 @@ using WebApiTaskTracker.Utilities;
 
 namespace WebApiTaskTracker.DataAccess.Databases;
 
-public class TaskTrackerDbContext : IdentityDbContext<UserEntity, IdentityRole<Guid>, Guid>
+public class TaskTrackerDbContext(DbContextOptions<TaskTrackerDbContext> options, IUserContext userContext) : IdentityDbContext<UserEntity, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<TaskEntity> Tasks => Set<TaskEntity>();
     public DbSet<CategoryEntity> Categories => Set<CategoryEntity>();
-
-    private readonly IUserContext _userContext;
-
-    public TaskTrackerDbContext(DbContextOptions<TaskTrackerDbContext> options, IUserContext userContext)
-        : base(options)
-    {
-        _userContext = userContext;
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,10 +22,10 @@ public class TaskTrackerDbContext : IdentityDbContext<UserEntity, IdentityRole<G
         modelBuilder.ApplyConfiguration(new CategoryConfiguration());
 
         modelBuilder.Entity<CategoryEntity>()
-            .HasQueryFilter(c => !_userContext.IsAuthenticated || c.UserId == _userContext.CurrentUserId);
+            .HasQueryFilter(c => !userContext.IsAuthenticated || c.UserId == userContext.CurrentUserId);
 
         modelBuilder.Entity<TaskEntity>()
-            .HasQueryFilter(t => !_userContext.IsAuthenticated || t.UserId == _userContext.CurrentUserId);
+            .HasQueryFilter(t => !userContext.IsAuthenticated || t.UserId == userContext.CurrentUserId);
 
         // Breaks userManager.FindByIdAsync(userId) in AuthService.cs, so commented out for now
         //modelBuilder.Entity<UserEntity>()

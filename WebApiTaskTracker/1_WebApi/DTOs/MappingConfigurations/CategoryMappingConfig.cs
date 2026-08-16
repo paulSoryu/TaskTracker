@@ -10,18 +10,18 @@ public class CategoryMappingConfig : IRegister
     {
         // Configure mapping from CategoryView to CategoryResponse
         config.NewConfig<CategoryView, CategoryResponse>();
-            
 
-        // Configure mapping from CategoryView to CategorySummaryResponse
+
+        // Configure mapping from CategoryView to CategoryListResponse
         config.NewConfig<CategoryView, CategoryListResponse>()
             .Map(dest => dest.TaskCount, src => src.Tasks.Count)
             .Map(dest => dest.CompletedTaskCount, src => src.Tasks.Count(t => t.IsCompleted));
 
-        // Configure mapping from CategoryCreateRequest to SaveCategoryCommand
+        // Configure mapping from CreateCategoryRequest to SaveCategoryCommand
         config.NewConfig<CreateCategoryRequest, SaveCategoryCommand>()
             .Map(dest => dest.Id, src => (Guid?)null);
 
-        // Configure mapping from CategoryUpdateRequest to SaveCategoryCommand
+        // Configure mapping from UpdateCategoryRequest to SaveCategoryCommand
         config.NewConfig<UpdateCategoryRequest, SaveCategoryCommand>();
     }
 }

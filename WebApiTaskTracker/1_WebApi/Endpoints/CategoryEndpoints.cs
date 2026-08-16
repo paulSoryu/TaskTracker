@@ -71,8 +71,9 @@ public static class CategoryEndpoints
     {
         var command = request.Adapt<SaveCategoryCommand>();
         var query = request.Adapt<SortCategoriesQuery>();
+        Guid userId = user.GetUserId();
 
-        Result<CategoryView> result = await categoryService.CreateAsync(command, query, user.GetUserId());
+        Result<CategoryView> result = await categoryService.CreateAsync(command, query, userId);
 
         Result<CategoryResponse> responseResult = result.Map(category => category.Adapt<CategoryResponse>());
 

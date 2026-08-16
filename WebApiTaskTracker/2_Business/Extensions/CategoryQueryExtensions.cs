@@ -1,5 +1,4 @@
-﻿using WebApiTaskTracker.Business.Models.Categories;
-using WebApiTaskTracker.Business.Models.Enums;
+﻿using WebApiTaskTracker.Business.Models.Enums;
 using WebApiTaskTracker.DataAccess.Entities;
 using WebApiTaskTracker.WebApi.DTOs.Categories;
 

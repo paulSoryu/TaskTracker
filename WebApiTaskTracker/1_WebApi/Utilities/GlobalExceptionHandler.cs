@@ -3,14 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace WebApiTaskTracker.Utilities;
 
-public class GlobalExceptionHandler : IExceptionHandler
+public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
-    private readonly ILogger<GlobalExceptionHandler> _logger;
-
-    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
-    {
-        _logger = logger;
-    }
 
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -62,7 +56,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         }
 
         // Any other unhandled exceptions will be logged and a generic error response will be returned to the client
-        _logger.LogError(exception, "An unhandled exception occurred during request execution: {Message}", exception.Message);
+        logger.LogError(exception, "An unhandled exception occurred during request execution: {Message}", exception.Message);
 
         var unexpectedProblemDetails = new ProblemDetails
         {

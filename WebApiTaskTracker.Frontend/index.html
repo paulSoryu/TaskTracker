@@ -3430,10 +3430,18 @@
         await apiFetch(`/api/auth/delete-account?password=${encodeURIComponent(password)}`, { method:'DELETE' });
         closeAccountModal();
         appShell.classList.remove('visible');
+        authLoading.classList.add('hidden');
+        authCard.classList.remove('hidden');
         authGate.classList.remove('hidden');
         loginForm.reset();
         signupForm.reset();
         showAuthTab('login');
+
+        // Same fix as logout: without resetting this, a fresh signup+login
+        // in the same tab right after deleting the account would skip
+        // enterApp()'s initial loadCategories()/loadTasks() call entirely,
+        // leaving the deleted account's tasks/categories on screen.
+        resetAppStateOnExit();
       } catch(err){
         showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
         setBusy(submitBtn, false);
@@ -3512,6 +3520,20 @@
 
   let appStarted = false;
 
+  // Every path that sends the user back to the auth gate from inside the app
+  // (logout, account deletion — and anything added later) must call this, or
+  // a subsequent login in the same tab will skip enterApp()'s initial
+  // loadCategories()/loadTasks() call and leave stale data on screen.
+  function resetAppStateOnExit(){
+    appStarted = false;
+    tasks = [];
+    totalTaskCount = 0;
+    categories = [];
+    renderBoardFromState();
+    renderCatList();
+    localStorage.removeItem(BOARD_STATE_KEY);
+  }
+
   function initialsFrom(name){
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if(parts.length === 0) return "??";
@@ -3560,6 +3582,14 @@
         if(sortKey) activateSortButton(sortKey, sortDir);
 
         Object.assign(filters, saved.filters || {});
+        // The saved state isn't scoped per-account — if the browser was
+        // closed without logging out (so localStorage wasn't cleared) and a
+        // different account logs in next, a restored category filter could
+        // point at a category that belongs to someone else entirely. Drop it
+        // if it doesn't match any category this user actually has.
+        if(filters.category && !categories.some(c => c.id === filters.category)){
+          filters.category = "";
+        }
         Object.keys(filters).forEach(key => applyFilterUI(key, filters[key]));
 
         searchQuery = saved.searchQuery || "";
@@ -3655,6 +3685,12 @@
       loginForm.reset();
       signupForm.reset();
       showAuthTab('login');
+
+      // Without this, appStarted stays true forever once set — so logging
+      // into a *different* account in the same tab would skip the initial
+      // loadCategories()/loadTasks() fetch entirely in enterApp(), leaving
+      // the previous account's tasks/categories visible until a hard reload.
+      resetAppStateOnExit();
     } catch(err){
       setBusy(btn, false);
       btn.textContent = 'Logout failed — retry';

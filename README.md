@@ -33,8 +33,8 @@ To launch the project, you only need **Docker Desktop** installed.
 
 1. Clone the repository:
 ```bash
-   git clone https://github.com/paulSoryu/WebApiTaskTracker.git
-   cd WebApiTaskTracker
+   git clone https://github.com/paulSoryu/TaskTracker.git
+   cd TaskTracker
 ```
 
 2. Build and start the containers:

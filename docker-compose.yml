@@ -1,27 +1,27 @@
 services:
   backend-api:
-    image: webapi-tasktracker-backend
+    image: tasktracker-backend
     build:
-      context: ./WebApiTaskTracker
+      context: .
       dockerfile: Dockerfile
     ports:
       - "5001:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
     volumes:
-      - sqlite-data:/app/3_DataAccess/Databases
+      - sqlite-data:/app
       - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
 
   frontend-app:
-    image: webapi-tasktracker-frontend
+    image: tasktracker-frontend
     build:
-      context: ./WebApiTaskTracker.Frontend
+      context: ./TaskTracker.Frontend
       dockerfile: Dockerfile
     ports:
       - "3000:80"
     depends_on:
       - backend-api
-
+      
 volumes:
   sqlite-data:
   dataprotection-keys:

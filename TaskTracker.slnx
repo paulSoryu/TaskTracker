@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="docker-compose.yml" />
+    <File Path="README.md" />
+    <File Path="WebApiTaskTracker/Dockerfile" />
+  </Folder>
+  <Project Path="TaskTracker.Api/TaskTracker.Api.csproj" Id="69f3cd7c-5cfa-47f9-8f05-694c9e813f4b" />
+  <Project Path="TaskTracker.Business/TaskTracker.Business.csproj" Id="e5397bc6-ab01-4013-9308-990f7faa158e" />
+  <Project Path="TaskTracker.DataAccess/TaskTracker.DataAccess.csproj" Id="be398b0c-15cd-40da-b4b9-38606a7d4dec" />
+  <Project Path="TaskTracker.Shared/TaskTracker.Shared.csproj" Id="e799cb5e-941c-481e-9913-5a630555c1b9" />
+</Solution>

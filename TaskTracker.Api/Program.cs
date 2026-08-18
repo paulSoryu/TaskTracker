@@ -5,15 +5,17 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using TaskTracker.Api.Endpoints;
+using TaskTracker.Api.Utilities;
 using TaskTracker.Business.Services.Auths;
 using TaskTracker.Business.Services.Categories;
 using TaskTracker.Business.Services.Emails;
+using TaskTracker.Business.Services.Reordering.Factories;
+using TaskTracker.Business.Services.Reordering.Strategies;
 using TaskTracker.Business.Services.Tasks;
 using TaskTracker.Business.Services.Users;
 using TaskTracker.DataAccess.Databases;
 using TaskTracker.DataAccess.Entities;
-using TaskTracker.Api.Utilities;
-using TaskTracker.Api.Endpoints;
 using TaskTracker.Shared.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -74,6 +76,11 @@ builder.Services.AddSingleton<IEmailSender<UserEntity>>(sp =>
     var customSender = sp.GetRequiredService<IEmailSenderService<UserEntity>>();
     return new IdentityEmailSenderProxy(customSender);
 });
+
+// Reordering strategies
+builder.Services.AddScoped(typeof(CustomOrderReorderingStrategy<>));
+builder.Services.AddScoped(typeof(SortedListReorderingStrategy<>));
+builder.Services.AddScoped<IReorderingStrategyFactory, ReorderingStrategyFactory>();
 
 // Validators and exception handling
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

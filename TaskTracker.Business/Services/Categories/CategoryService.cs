@@ -5,13 +5,15 @@ using TaskTracker.Business.Extensions;
 using TaskTracker.Business.FluentErrors;
 using TaskTracker.Business.Models.Categories;
 using TaskTracker.Business.Models.Enums;
+using TaskTracker.Business.Services.Reordering;
+using TaskTracker.Business.Services.Reordering.Factories;
 using TaskTracker.DataAccess.Databases;
 using TaskTracker.DataAccess.Entities;
 using TaskTracker.Shared.Constants;
 
 namespace TaskTracker.Business.Services.Categories;
 
-public class CategoryService(TaskTrackerDbContext db) : ICategoryService
+public class CategoryService(TaskTrackerDbContext db, IReorderingStrategyFactory reorderingFactory) : ICategoryService
 {
     public async Task<IReadOnlyCollection<CategoryView>> GetAllAsync(FilterCategoriesQuery filterQuery, SortCategoriesQuery sortQuery)
     {
@@ -40,46 +42,34 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 
     public async Task<Result<CategoryView>> CreateAsync(SaveCategoryCommand command, SortCategoriesQuery query, Guid userId)
     {
-        // Check if category with the same name already exists
-        bool categoryExists = await db.Categories
-            .AnyAsync(c => c.Title == command.Title);
-
+        bool categoryExists = await db.Categories.AnyAsync(c => c.Title == command.Title);
         if (categoryExists)
             return Result.Fail(new ValidationError($"Category with name '{command.Title}' already exists."));
 
-        // Check if the user has reached the maximum allowed categories
-        var isEmailConfirmed = await db.Users
-            .Select(u => u.EmailConfirmed)
-            .FirstOrDefaultAsync();
-
-        int currentCategoriesCount = await db.Categories.CountAsync();
-        int maxAllowedCategories = isEmailConfirmed
+        var isEmailConfirmed = await db.Users.Select(u => u.EmailConfirmed).FirstOrDefaultAsync();
+        int currentCount = await db.Categories.CountAsync();
+        int maxAllowed = isEmailConfirmed
             ? CategoryConstraints.MaxCategoriesForConfirmedEmail
             : CategoryConstraints.MaxCategoriesForUnconfirmedEmail;
 
+        if (currentCount >= maxAllowed)
+            return Result.Fail(new CategoryLimitExceededError(maxAllowed, isEmailConfirmed));
 
-        if (currentCategoriesCount >= maxAllowedCategories)
-            return Result.Fail(new CategoryLimitExceededError(maxAllowedCategories, isEmailConfirmed));
-
-        // Create category
         var entity = command.Adapt<CategoryEntity>();
         entity.UserId = userId;
-        entity.Position = currentCategoriesCount + 1;
 
-        if (query.SortBy == CategorySortField.Position)
+        var strategy = reorderingFactory.GetStrategy<CategoryEntity>(query.SortBy == CategorySortField.Position);
+        var options = new ReorderingOptions<CategoryEntity>
         {
-            db.Categories.Add(entity);
-            await db.SaveChangesAsync();
-        }
-        else // if any kind of system sorting is active
-        {
-            var allCategories = await db.Categories
-                .ApplySorting(query)
-                .ToListAsync();
+            IsDescending = query.IsDescending,
+            ApplySorting = q => q.ApplySorting(query)
+        };
 
-            allCategories.Add(entity);
-            await db.ResetOrderAsync(allCategories, query.IsDescending);
-        }
+        // Categories don't have target when inserting
+        var result = await strategy.InsertAsync(entity, null, currentCount, options);
+        if (result.IsFailed)
+            return Result.Fail(result.Errors);
+
         return Result.Ok(entity.Adapt<CategoryView>());
     }
 
@@ -103,10 +93,6 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 
     public async Task<Result> DeleteAsync(Guid categoryId)
     {
-        var categoriesCount = await db.Categories.CountAsync();
-        if (categoriesCount <= 1)
-            return Result.Fail(new ValidationError("Cannot delete the last category."));
-
         var category = await db.Categories
                 .Select(c => new { c.Id, c.Position })
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
@@ -139,55 +125,25 @@ public class CategoryService(TaskTrackerDbContext db) : ICategoryService
 
     public async Task<Result> MoveAsync(MoveCategoryCommand command, SortCategoriesQuery sortQuery)
     {
-        var category = await db.Categories
-           .FirstOrDefaultAsync(c => c.Id == command.CategoryId);
+        var category = await db.Categories.FirstOrDefaultAsync(c => c.Id == command.CategoryId);
         if (category == null)
             return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
-        var targetCategory = await db.Categories
-           .FirstOrDefaultAsync(c => c.Id == command.TargetCategoryId);
+        var targetCategory = await db.Categories.FirstOrDefaultAsync(c => c.Id == command.TargetCategoryId);
         if (targetCategory == null)
             return Result.Fail(new NotFoundError("Category", command.TargetCategoryId));
 
-        int oldPos = category.Position;
-        int newPos = targetCategory.Position;
-        if (oldPos == newPos)
+        if (category.Position == targetCategory.Position)
             return Result.Ok();
 
-        // If any type of sorting besides "Custom Order" is enabled, insert a moved category into a list and then reset the order of posistion in the whole list
-        if (sortQuery.SortBy != CategorySortField.Position)
+        var strategy = reorderingFactory.GetStrategy<CategoryEntity>(sortQuery.SortBy == CategorySortField.Position);
+        var options = new ReorderingOptions<CategoryEntity>
         {
-            var allCategories = await db.Categories
-                .ApplySorting(sortQuery)
-                .ToListAsync();
+            IsDescending = sortQuery.IsDescending,
+            ApplySorting = q => q.ApplySorting(sortQuery)
+        };
 
-            newPos = allCategories.IndexOf(targetCategory);
-
-            allCategories.Remove(category);
-            allCategories.Insert(newPos, category); // -1 is because lists are 0-based
-
-            await db.ResetOrderAsync(allCategories, sortQuery.IsDescending);
-
-            return Result.Ok();
-        }
-        // If "Custom Order" is enabled, reorder affected categories and then insert a moved category
-        try
-        {
-            using var transaction = await db.Database.BeginTransactionAsync();
-
-            await db.ReorderInRangeAsync<CategoryEntity>(oldPos, newPos);
-
-            await db.Categories
-                .Where(c => c.Id == command.CategoryId)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(c => c.Position, newPos));
-
-            await transaction.CommitAsync();
-            return Result.Ok();
-        }
-        catch (Exception ex)
-        {
-            return Result.Fail(new ReorderingError("Category", command.CategoryId, oldPos, newPos, ex.Message));
-        }
+        return await strategy.MoveAsync(category, targetCategory, options);
     }
 
     public async Task<Result> DeleteTasksByCategoryIdAsync(Guid categoryId, bool deleteCompleted, bool deleteNotCompleted)

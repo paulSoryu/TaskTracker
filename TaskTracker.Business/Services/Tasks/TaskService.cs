@@ -6,14 +6,16 @@ using TaskTracker.Business.FluentErrors;
 using TaskTracker.Business.Models;
 using TaskTracker.Business.Models.Enums;
 using TaskTracker.Business.Models.Tasks;
+using TaskTracker.Business.Services.Reordering;
+using TaskTracker.Business.Services.Reordering.Factories;
 using TaskTracker.DataAccess.Databases;
 using TaskTracker.DataAccess.Entities;
-using TaskTracker.Shared.Enums;
 using TaskTracker.Shared.Constants;
+using TaskTracker.Shared.Enums;
 
 namespace TaskTracker.Business.Services.Tasks;
 
-public class TaskService(TaskTrackerDbContext db) : ITaskService
+public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory reorderingFactory) : ITaskService
 {
     public async Task<PagedResult<TaskView>> GetAllAsync(FilterTasksQuery filterQuery, SortTasksQuery sortQuery, PaginateTasksQuery paginateQuery)
     {
@@ -68,79 +70,42 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
     public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, SortTasksQuery sortQuery, Guid userId)
     {
-        // Check if the specified category exists in the database, but accept null values for the category ID, as tasks can be created without a category
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == command.CategoryId);
         if (command.CategoryId != null && !categoryExists)
             return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
-        // Check if the user has reached the maximum allowed tasks based on their email confirmation status
-        bool isEmailConfirmed = await db.Users
-            .Where(u => u.Id == userId)
-            .Select(u => u.EmailConfirmed)
-            .FirstOrDefaultAsync();
-
-        int currentTasksCount = await db.Tasks.CountAsync();
-        int maxAllowedTasks = isEmailConfirmed
+        bool isEmailConfirmed = await db.Users.Where(u => u.Id == userId).Select(u => u.EmailConfirmed).FirstOrDefaultAsync();
+        int currentCount = await db.Tasks.CountAsync();
+        int maxAllowed = isEmailConfirmed
             ? TaskConstraints.MaxTasksForConfirmedEmail
             : TaskConstraints.MaxTasksForUnconfirmedEmail;
 
-        if (currentTasksCount >= maxAllowedTasks)
-            return Result.Fail(new TaskLimitExceededError(maxAllowedTasks, isEmailConfirmed));
+        if (currentCount >= maxAllowed)
+            return Result.Fail(new TaskLimitExceededError(maxAllowed, isEmailConfirmed));
 
-        // Check if targeted task exists only in case FirstVisibleTaskIdOnPage isn't null
-        var targetTask = await db.Tasks.FirstOrDefaultAsync(t => t.Id == command.FirstVisibleTaskIdOnPage);
-        if (targetTask == null && command.FirstVisibleTaskIdOnPage != null)
-            return Result.Fail(new NotFoundError("Task", command.FirstVisibleTaskIdOnPage));
+        TaskEntity? targetTask = null;
+        if (command.FirstVisibleTaskIdOnPage != null)
+        {
+            targetTask = await db.Tasks.FirstOrDefaultAsync(t => t.Id == command.FirstVisibleTaskIdOnPage);
+            if (targetTask == null)
+                return Result.Fail(new NotFoundError("Task", command.FirstVisibleTaskIdOnPage));
+        }
 
-        // Create new task in memory
         var createdTask = command.Adapt<TaskEntity>();
         createdTask.UserId = userId;
 
-        int newPos = 1;
-        // If any type of sorting besides "Custom Order" is enabled, insert a new task into a list and then reset the order of posistion in the whole list
-        if (sortQuery.SortBy != TaskSortField.Position)
+        var strategy = reorderingFactory.GetStrategy<TaskEntity>(sortQuery.SortBy == TaskSortField.Position);
+        var options = new ReorderingOptions<TaskEntity>
         {
-            var allTasks = await db.Tasks
-                .ApplySorting(sortQuery)
-                .ToListAsync();
+            IsDescending = sortQuery.IsDescending,
+            ApplySorting = q => q.ApplySorting(sortQuery)
+        };
 
-            if (command.FirstVisibleTaskIdOnPage != null)
-                newPos = allTasks.IndexOf(targetTask!);
+        var result = await strategy.InsertAsync(createdTask, targetTask, currentCount, options);
+        if (result.IsFailed)
+            return Result.Fail(result.Errors);
 
-            allTasks.Insert(newPos, createdTask);
-            db.Tasks.Add(createdTask);
-
-            await db.ResetOrderAsync(allTasks, sortQuery.IsDescending);
-
-            return Result.Ok(createdTask.Adapt<TaskView>());
-        }
-
-        // If "Custom Order" is enabled, reorder affected tasks and then insert a new task
-        try
-        {
-            using var transaction = await db.Database.BeginTransactionAsync();
-
-            if (command.FirstVisibleTaskIdOnPage != null)
-            {
-                newPos = targetTask!.Position;
-                if (sortQuery.IsDescending)
-                    newPos += 1;
-
-                createdTask.Position = newPos;
-            }
-
-            await db.ReorderInRangeAsync<TaskEntity>(currentTasksCount + 1, newPos);
-
-            db.Tasks.Add(createdTask);
-            await db.SaveChangesAsync();
-
-            await transaction.CommitAsync();
-            return Result.Ok(createdTask.Adapt<TaskView>());
-        }
-        catch
-        {
-            return Result.Fail(new ReorderingError("Task", newPos));
-        }
+        return Result.Ok(createdTask.Adapt<TaskView>());
     }
 
     public async Task<Result> UpdateAsync(SaveTaskCommand command)
@@ -197,55 +162,22 @@ public class TaskService(TaskTrackerDbContext db) : ITaskService
 
     public async Task<Result> MoveAsync(MoveTaskCommand command, SortTasksQuery sortQuery)
     {
-        var task = await db.Tasks
-           .FirstOrDefaultAsync(t => t.Id == command.TaskId);
-        if (task == null)
-            return Result.Fail(new NotFoundError("Task", command.TaskId));
+        var task = await db.Tasks.FirstOrDefaultAsync(t => t.Id == command.TaskId);
+        if (task == null) return Result.Fail(new NotFoundError("Task", command.TaskId));
 
-        var targetTask = await db.Tasks
-           .FirstOrDefaultAsync(t => t.Id == command.TargetTaskId);
-        if (targetTask == null)
-            return Result.Fail(new NotFoundError("Task", command.TargetTaskId));
+        var targetTask = await db.Tasks.FirstOrDefaultAsync(t => t.Id == command.TargetTaskId);
+        if (targetTask == null) return Result.Fail(new NotFoundError("Task", command.TargetTaskId));
 
-        int oldPos = task.Position;
-        int newPos = targetTask.Position;
-        if (oldPos == newPos)
-            return Result.Ok();
+        if (task.Position == targetTask.Position) return Result.Ok();
 
-        // If any type of sorting besides "Custom Order" is enabled, insert a moved task into a list and then reset the order of posistion in the whole list
-        if (sortQuery.SortBy != TaskSortField.Position)
+        var strategy = reorderingFactory.GetStrategy<TaskEntity>(sortQuery.SortBy == TaskSortField.Position);
+        var options = new ReorderingOptions<TaskEntity>
         {
-            var allTasks = await db.Tasks
-                .ApplySorting(sortQuery)
-                .ToListAsync();
+            IsDescending = sortQuery.IsDescending,
+            ApplySorting = q => q.ApplySorting(sortQuery)
+        };
 
-            newPos = allTasks.IndexOf(targetTask);
-
-            allTasks.Remove(task);
-            allTasks.Insert(newPos, task); // -1 is because lists are 0-based
-
-            await db.ResetOrderAsync(allTasks, sortQuery.IsDescending);
-
-            return Result.Ok();
-        }
-        // If "Custom Order" is enabled, reorder affected tasks and then insert a moved task
-        try
-        {
-            using var transaction = await db.Database.BeginTransactionAsync();
-
-            await db.ReorderInRangeAsync<TaskEntity>(oldPos, newPos);
-
-            await db.Tasks
-                .Where(t => t.Id == command.TaskId)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(t => t.Position, newPos));
-
-            await transaction.CommitAsync();
-            return Result.Ok();
-        }
-        catch (Exception ex)
-        {
-            return Result.Fail(new ReorderingError("Task", command.TaskId, oldPos, newPos, ex.Message));
-        }
+        return await strategy.MoveAsync(task, targetTask, options);
     }
 
     public async Task<Result> CreateDefaultTasksAsync(Guid userId, Dictionary<string, Guid> categoryIdsByName)

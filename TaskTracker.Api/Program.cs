@@ -13,8 +13,8 @@ using TaskTracker.Business.Services.Users;
 using TaskTracker.DataAccess.Databases;
 using TaskTracker.DataAccess.Entities;
 using TaskTracker.Api.Utilities;
-using TaskTracker.Shared.Utilities;
 using TaskTracker.Api.Endpoints;
+using TaskTracker.Shared.Utilities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,7 +89,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 // Database context and Mapster configuration
 builder.Services.AddDbContext<TaskTrackerDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"),
+    b => b.MigrationsAssembly("TaskTracker.DataAccess")));
 builder.Services.AddMapster();
 
 // Access by adding /swagger to the base URL of the API. For example, https://localhost:5001/swagger
@@ -111,21 +112,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
-// Custom middleware to handle 401 Unauthorized responses and return a JSON response instead of the default HTML response.
+// Middleware to handle 401 Unauthorized responses and return a JSON response instead of the default HTML response.
 // It is needed because global exception handler middleware kicks in after the authentication middleware, so if a request is unauthorized, it will return a 401 response with an HTML page instead of a JSON response.
 // This middleware will catch that and return a JSON response instead.
-app.UseStatusCodePages(async context =>
-{
-    if (context.HttpContext.Response.StatusCode == StatusCodes.Status401Unauthorized)
-    {
-        context.HttpContext.Response.ContentType = "application/json";
-        await context.HttpContext.Response.WriteAsJsonAsync(new
-        {
-            error = "Unauthorized",
-            message = "Your session has expired or your token is invalid."
-        });
-    }
-});
+app.UseStatusCodePages();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

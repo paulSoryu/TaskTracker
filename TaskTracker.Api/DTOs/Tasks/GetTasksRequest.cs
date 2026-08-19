@@ -5,6 +5,10 @@ using TaskTracker.Shared.Enums;
 namespace TaskTracker.Api.DTOs.Tasks;
 
 public record GetTasksRequest(
+
+    // Current date on the client's side
+    DateOnly ClientToday,
+
     // Sorting parameters
     TaskSortField SortBy = TaskSortField.Position,
     bool IsDescending = false,

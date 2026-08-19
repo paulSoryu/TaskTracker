@@ -6,7 +6,7 @@ namespace TaskTracker.Business.Extensions;
 
 public static class TaskQueryExtensions
 {
-    public static IQueryable<TaskEntity> ApplyFilter(this IQueryable<TaskEntity> dbQuery, FilterTasksQuery query, DateOnly today)
+    public static IQueryable<TaskEntity> ApplyFilter(this IQueryable<TaskEntity> dbQuery, FilterTasksQuery query)
     {
         if (query.IsCompleted.HasValue)
             dbQuery = dbQuery.Where(t => t.IsCompleted == query.IsCompleted.Value);
@@ -38,6 +38,7 @@ public static class TaskQueryExtensions
         // Apply due date filter preset if provided
         else if (query.DueDateFilterPreset.HasValue)
         {
+            var today = query.ClientToday;
             var startOfWeek = today.StartOfWeek();
             var endOfWeek = today.EndOfWeek();
             var startOfMonth = new DateOnly(today.Year, today.Month, 1);

@@ -1837,6 +1837,7 @@
 
   function buildTasksQuery(){
     const params = new URLSearchParams();
+    params.set('clientToday', localISODate());
     params.set('pageNumber', currentPage);
     params.set('pageSize', getPageSize());
 
@@ -2048,6 +2049,17 @@
     return escapeHtml(str).replace(/"/g,'&quot;');
   }
 
+  // new Date().toISOString() converts to UTC, so for anyone east of UTC it
+  // reports "yesterday" for the first few hours after their local midnight
+  // (their local date has already rolled over, UTC's hasn't yet). Building
+  // the YYYY-MM-DD string from the local date components instead avoids that.
+  function localISODate(d = new Date()){
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   /* ---------------- EVENTS: BOARD ---------------- */
   /* ---------------- TASK UPDATE (PUT /api/tasks/{id}) ---------------- */
   const taskUpdateTimers = new Map(); // taskId -> pending debounce timer
@@ -2069,7 +2081,8 @@
           dueDate: task.dueDate || null,
           priority: task.priority,
           isCompleted: task.isCompleted,
-          categoryId: task.categoryId ?? null
+          categoryId: task.categoryId ?? null,
+          clientToday: localISODate()
         })
       });
       const el = cardSaveStatusEl(taskId);
@@ -2463,7 +2476,7 @@
     newTaskTitle.value = "";
     newTaskDescription.value = "";
     newTaskPriority.innerHTML = priorityOptions(filters.priority || "Medium");
-    newTaskDueDate.value = new Date().toISOString().slice(0,10);
+    newTaskDueDate.value = localISODate();
     newTaskError.classList.remove('show');
     newTaskTitle.classList.remove('field-invalid');
     newTaskDescription.classList.remove('field-invalid');
@@ -2633,7 +2646,8 @@
           categoryId: newTaskCategory.value || null,
           firstVisibleTaskIdOnPage: tasks.length > 0 ? tasks[0].id : null,
           sortBy: SORT_FIELD_MAP[sortKey] || 'Position',
-          isDescending: sortDir === -1
+          isDescending: sortDir === -1,
+          clientToday: localISODate()
         })
       });
       closeNewTaskModal();
@@ -3376,7 +3390,7 @@
     const status = accountDetailBody.querySelector('[data-status="confirm-email"]');
     setBusy(button, true, 'Sending…');
     try{
-      await apiFetch('/api/auth/request-email-confirmation', { method: 'POST' });
+      await apiFetch('/api/auth/send-email-confirmation');
       showStatus(status, 'Confirmation email sent.', 'ok');
     } catch(err){
       showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
@@ -3420,7 +3434,7 @@
       if(!password || !newEmail){ showStatus(status, 'Fill in both fields to continue.', 'warn'); return; }
       setBusy(submitBtn, true, 'Sending…');
       try{
-        await apiFetch('/api/auth/request-email-change', { method:'POST', body: JSON.stringify({ password, newEmail }) });
+        await apiFetch('/api/auth/request-change-email', { method:'POST', body: JSON.stringify({ password, newEmail }) });
         showStatus(status, `Confirmation link sent to ${newEmail}. Your email stays the same until you follow it.`, 'ok');
       } catch(err){
         showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
@@ -3796,14 +3810,14 @@
       if(isConfirmEmail){
         const userId = params.get('userId') || '';
         const encodedToken = params.get('encodedToken') || '';
-        await apiFetch(`/api/auth/confirm-email?userId=${encodeURIComponent(userId)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method: 'POST' });
+        await apiFetch(`/api/auth/confirm-email?userId=${encodeURIComponent(userId)}&encodedToken=${encodeURIComponent(encodedToken)}`);
         confirmLinkStatus.textContent = 'Your email has been confirmed. You can close this tab and return to Ledger.';
         notifyAuthChange('email-confirmed');
         refreshCurrentUserSilently('email-confirmed');
       } else {
         const newEmail = params.get('newEmail') || '';
         const encodedToken = params.get('encodedToken') || '';
-        await apiFetch(`/api/auth/change-email?newEmail=${encodeURIComponent(newEmail)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method:'POST' });
+        await apiFetch(`/api/auth/confirm-change-email?newEmail=${encodeURIComponent(newEmail)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method:'POST' });
         confirmLinkStatus.textContent = `Your email has been changed to ${newEmail}. You can close this tab and return to Ledger.`;
         notifyAuthChange('email-changed');
         refreshCurrentUserSilently('email-changed');

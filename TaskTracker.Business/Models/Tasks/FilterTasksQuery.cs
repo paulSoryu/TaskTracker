@@ -4,6 +4,8 @@ using TaskTracker.Shared.Enums;
 namespace TaskTracker.Business.Models.Tasks;
 
 public record FilterTasksQuery(
+    DateOnly ClientToday,
+
     string? SearchTerm,
     DateOnly? DueDate,
     bool? IsCompleted,

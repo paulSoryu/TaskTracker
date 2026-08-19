@@ -11,5 +11,7 @@ public record SaveTaskCommand(
     bool IsCompleted,
     Guid? CategoryId,
 
-    Guid? FirstVisibleTaskIdOnPage
+    Guid? FirstVisibleTaskIdOnPage,
+
+    DateOnly ClientToday
 );

@@ -13,7 +13,9 @@ public record UpdateTaskRequest(
     DateOnly? DueDate,
     TaskPriority Priority,
     bool IsCompleted,
-    Guid? CategoryId
+    Guid? CategoryId,
+
+    DateOnly ClientToday
 )
 {
     public class Validator : AbstractValidator<UpdateTaskRequest>

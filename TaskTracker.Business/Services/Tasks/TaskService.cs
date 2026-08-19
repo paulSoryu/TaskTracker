@@ -19,23 +19,22 @@ public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory<Tas
 {
     public async Task<PagedResult<TaskView>> GetAllAsync(FilterTasksQuery filterQuery, SortTasksQuery sortQuery, PaginateTasksQuery paginateQuery)
     {
-        // Ideally, we should pass the current date from the frontend, but for now, we will use the server's current date
-        var today = DateOnly.FromDateTime(DateTime.Today);
-
-        var tasksCountAfterFiltering = await db.Tasks
+        var baseQuery = db.Tasks
             .AsNoTracking()
-            .ApplyFilter(filterQuery, today)
-            .CountAsync();
+            .ApplyFilter(filterQuery);
 
-        var result = await db.Tasks
-            .AsNoTracking()
-            .ApplyFilter(filterQuery, today)
+        var totalCount = await baseQuery.CountAsync();
+
+        if (totalCount == 0)
+            return new PagedResult<TaskView>(new List<TaskView>(), 0);
+
+        var pagedData = await baseQuery
             .ApplySorting(sortQuery)
             .ApplyPagination(paginateQuery)
             .ProjectToType<TaskView>()
             .ToListAsync();
 
-        return new PagedResult<TaskView>(result, tasksCountAfterFiltering);
+        return new PagedResult<TaskView>(pagedData, totalCount);
     }
 
     public async Task<Result<TaskView>> GetByIdAsync(Guid id)
@@ -70,6 +69,9 @@ public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory<Tas
 
     public async Task<Result<TaskView>> CreateAsync(SaveTaskCommand command, SortTasksQuery sortQuery, Guid userId)
     {
+        if (command.DueDate < command.ClientToday)
+            return Result.Fail(new ValidationError("Due date must be today or in the future"));
+
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == command.CategoryId);
         if (command.CategoryId != null && !categoryExists)
             return Result.Fail(new NotFoundError("Category", command.CategoryId));
@@ -119,7 +121,7 @@ public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory<Tas
             return Result.Fail(new NotFoundError("Category", command.CategoryId));
 
         // Validate that the due date is not set to a past date, but only if the due date is being changed
-        if (command.DueDate != task.DueDate && command.DueDate < DateOnly.FromDateTime(DateTime.Today))
+        if (command.DueDate != task.DueDate && command.DueDate < command.ClientToday)
             return Result.Fail(new ValidationError("You cannot change the due date to a past date."));
 
         command.Adapt(task);

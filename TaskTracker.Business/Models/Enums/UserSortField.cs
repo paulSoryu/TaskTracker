@@ -7,6 +7,7 @@ public enum UserSortField
 {
     Email,
     CreatedAt,
+    LastOnlineTime,
     TaskCount,
     CompletedTaskCount,
     NotCompletedTaskCount,

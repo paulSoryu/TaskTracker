@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using TaskTracker.Api.Endpoints;
 using TaskTracker.Api.Infrastructure;
+using TaskTracker.Api.Middleware;
 using TaskTracker.Api.Utilities;
 using TaskTracker.Business.Services.Auths;
 using TaskTracker.Business.Services.Categories;
@@ -31,6 +32,8 @@ builder.Services.AddScoped<IUserContext, HttpUserContext>();
 // Identity and authentication
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddCookie(IdentityConstants.ApplicationScheme);
 builder.Services.AddAuthorization();
+
+builder.Services.AddMemoryCache();
 
 builder.Services.AddIdentityCore<UserEntity>(options =>
 {
@@ -133,6 +136,7 @@ app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseMiddleware<UserActivityMiddleware>();
 
 app.MapAuthEndpoints();
 app.MapTaskEndpoints();

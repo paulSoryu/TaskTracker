@@ -9,6 +9,7 @@ namespace TaskTracker.DataAccess.Entities;
 public class UserEntity : IdentityUser<Guid>, IAuditable
 {
     public DateTime CreatedAt { get; set; }
+    public DateTime LastOnlineTime { get; set; }
     public List<CategoryEntity> Categories { get; set; } = [];
     public List<TaskEntity> Tasks { get; set; } = [];
 }

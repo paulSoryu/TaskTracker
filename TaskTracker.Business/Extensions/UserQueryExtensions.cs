@@ -23,8 +23,12 @@ public static class UserQueryExtensions
                 : dbQuery.OrderBy(u => u.Email),
 
             UserSortField.CreatedAt => query.IsDescending
-                ? dbQuery.OrderByDescending(u => u.CreatedAt).ThenBy(u => u.Email)
-                : dbQuery.OrderBy(u => u.CreatedAt).ThenBy(u => u.Email),
+                ? dbQuery.OrderByDescending(u => u.CreatedAt)
+                : dbQuery.OrderBy(u => u.CreatedAt),
+
+            UserSortField.LastOnlineTime => query.IsDescending
+                ? dbQuery.OrderByDescending(u => u.LastOnlineTime)
+                : dbQuery.OrderBy(u => u.LastOnlineTime),
 
             UserSortField.TaskCount => query.IsDescending
                 ? dbQuery.OrderByDescending(u => u.Tasks.Count).ThenBy(u => u.Email)

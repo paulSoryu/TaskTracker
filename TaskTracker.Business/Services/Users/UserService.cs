@@ -6,7 +6,6 @@ using TaskTracker.Business.Extensions;
 using TaskTracker.Business.FluentErrors;
 using TaskTracker.Business.Models;
 using TaskTracker.Business.Models.Auths;
-using TaskTracker.Business.Models.Tasks;
 using TaskTracker.Business.Models.Users;
 using TaskTracker.DataAccess.Databases;
 using TaskTracker.DataAccess.Entities;

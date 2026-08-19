@@ -5,6 +5,7 @@ public record UserListResponse(
     string Email,
     bool IsEmailConfirmed,
     DateTime CreatedAt,
+    DateTime LastOnlineTime,
     int TaskCount,
     int CompletedTaskCount,
     int CategoryCount

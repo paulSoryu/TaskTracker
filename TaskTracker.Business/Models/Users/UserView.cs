@@ -8,6 +8,7 @@ public record UserView(
     string Email,
     bool IsEmailConfirmed,
     DateTime CreatedAt,
+    DateTime LastOnlineTime,
 
     IReadOnlyCollection<TaskView> Tasks,
     IReadOnlyCollection<CategoryView> Categories

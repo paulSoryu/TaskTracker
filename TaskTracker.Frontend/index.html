@@ -3376,7 +3376,7 @@
     const status = accountDetailBody.querySelector('[data-status="confirm-email"]');
     setBusy(button, true, 'Sending…');
     try{
-      await apiFetch('/api/auth/send-email-confirmation', { method: 'POST' });
+      await apiFetch('/api/auth/request-email-confirmation', { method: 'POST' });
       showStatus(status, 'Confirmation email sent.', 'ok');
     } catch(err){
       showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
@@ -3420,7 +3420,7 @@
       if(!password || !newEmail){ showStatus(status, 'Fill in both fields to continue.', 'warn'); return; }
       setBusy(submitBtn, true, 'Sending…');
       try{
-        await apiFetch('/api/auth/request-change-email', { method:'POST', body: JSON.stringify({ password, newEmail }) });
+        await apiFetch('/api/auth/request-email-change', { method:'POST', body: JSON.stringify({ password, newEmail }) });
         showStatus(status, `Confirmation link sent to ${newEmail}. Your email stays the same until you follow it.`, 'ok');
       } catch(err){
         showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
@@ -3803,7 +3803,7 @@
       } else {
         const newEmail = params.get('newEmail') || '';
         const encodedToken = params.get('encodedToken') || '';
-        await apiFetch(`/api/auth/confirm-change-email?newEmail=${encodeURIComponent(newEmail)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method:'POST' });
+        await apiFetch(`/api/auth/change-email?newEmail=${encodeURIComponent(newEmail)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method:'POST' });
         confirmLinkStatus.textContent = `Your email has been changed to ${newEmail}. You can close this tab and return to Ledger.`;
         notifyAuthChange('email-changed');
         refreshCurrentUserSilently('email-changed');

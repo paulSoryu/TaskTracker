@@ -32,18 +32,18 @@ public static class AuthEndpoints
 
         lockedGroup.MapPost("/logout", Logout);
 
-        lockedGroup.MapPost("/send-email-confirmation", RequestEmailConfirmation)
+        lockedGroup.MapPost("/request-email-confirmation", RequestEmailConfirmation)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        group.MapPost("/confirm-email", ConfirmEmail)
+        lockedGroup.MapPost("/confirm-email", ConfirmEmail)
             .WithValidation<ConfirmEmailRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        lockedGroup.MapPost("/request-change-email", RequestChangeEmail)
+        lockedGroup.MapPost("/request-email-change", RequestChangeEmail)
             .WithValidation<ChangeEmailRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
-        lockedGroup.MapPost("/confirm-change-email", ChangeEmail)
+        lockedGroup.MapPost("/change-email", ChangeEmail)
             .WithValidation<ConfirmChangeEmailRequest>()
             .ProducesProblem(StatusCodes.Status400BadRequest);
 

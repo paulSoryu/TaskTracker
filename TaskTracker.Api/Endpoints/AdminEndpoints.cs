@@ -1,15 +1,8 @@
 ﻿using FluentResults;
 using Mapster;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Routing;
-using System.Security.Claims;
-using TaskTracker.Api.DTOs;
 using TaskTracker.Api.DTOs.Users;
-using TaskTracker.Api.Extensions;
 using TaskTracker.Business.Models;
-using TaskTracker.Business.Models.Auths;
 using TaskTracker.Business.Models.Users;
 using TaskTracker.Business.Services.Users;
 

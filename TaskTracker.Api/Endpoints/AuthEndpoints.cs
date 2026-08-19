@@ -1,16 +1,13 @@
 using FluentResults;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 using TaskTracker.Api.DTOs;
 using TaskTracker.Api.DTOs.Auths;
 using TaskTracker.Api.Extensions;
-using TaskTracker.Business.FluentErrors;
 using TaskTracker.Business.Models.Auths;
 using TaskTracker.Business.Services.Auths;
 using TaskTracker.Business.Services.Identity;
 using TaskTracker.Business.Services.Users;
-using TaskTracker.DataAccess.Entities;
 
 namespace TaskTracker.Api.Endpoints;
 

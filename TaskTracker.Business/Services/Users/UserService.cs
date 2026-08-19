@@ -18,6 +18,14 @@ public class UserService(UserManager<UserEntity> userManager) : IUserService
         throw new NotImplementedException();
     }
 
+    public async Task<Result> UnblockUserAsync(string userId)
+    {
+        throw new NotImplementedException();
+    }
+
+    // this CreateAsync method doesn't write anything into DB as ASP.NET Identity already does this in RegisterAsync
+    // but if we ever remove Identity, writing into DB should be here, and password hashing should be in RegisterAsync
+    // it is also async just for the sake of consistency and easier changes later on
     public async Task<Result<UserEntity>> CreateAsync(string email)
     {
         var user = new UserEntity

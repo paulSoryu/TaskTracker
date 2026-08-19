@@ -27,3 +27,9 @@ public class CategoryConstraints
     public const int MaxCategoriesForUnconfirmedEmail = 10;
     public const int MaxCategoriesForConfirmedEmail = 100;
 }
+
+public class PaginationConstraints
+{
+    public const int PageMinSize = 10; 
+    public const int PageMaxSize = 100;
+}

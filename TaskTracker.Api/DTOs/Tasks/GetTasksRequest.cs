@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using TaskTracker.Business.Models.Enums;
+using TaskTracker.Shared.Constants;
 using TaskTracker.Shared.Enums;
 
 namespace TaskTracker.Api.DTOs.Tasks;
@@ -34,8 +35,8 @@ public record GetTasksRequest(
         public Validator()
         {
             RuleFor(x => x.PageSize)
-                .GreaterThanOrEqualTo(10).WithMessage("PageSize must be at least 10.")
-                .LessThanOrEqualTo(100).WithMessage("PageSize must be at most 100.");
+                .GreaterThanOrEqualTo(PaginationConstraints.PageMinSize).WithMessage($"PageSize must be at least {PaginationConstraints.PageMinSize}.")
+                .LessThanOrEqualTo(PaginationConstraints.PageMaxSize).WithMessage($"PageSize must be at most {PaginationConstraints.PageMaxSize}.");
 
             RuleFor(x => x.PageNumber)
                 .GreaterThan(0).WithMessage("PageNumber must be greater than 0.");

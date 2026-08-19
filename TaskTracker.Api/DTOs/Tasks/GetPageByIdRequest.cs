@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using TaskTracker.Business.Models.Enums;
+using TaskTracker.Shared.Constants;
 
 namespace TaskTracker.Api.DTOs.Tasks;
 
@@ -15,8 +16,8 @@ public record GetPageByIdRequest(
         public Validator()
         {
             RuleFor(x => x.PageSize)
-                .GreaterThanOrEqualTo(10).WithMessage("PageSize must be at least 10.")
-                .LessThanOrEqualTo(100).WithMessage("PageSize must be at most 100.");
+                .GreaterThanOrEqualTo(PaginationConstraints.PageMinSize).WithMessage($"PageSize must be at least {PaginationConstraints.PageMinSize}.")
+                .LessThanOrEqualTo(PaginationConstraints.PageMaxSize).WithMessage($"PageSize must be at most {PaginationConstraints.PageMaxSize}.");
 
             RuleFor(x => x.SortBy)
                 .IsInEnum().WithMessage("SortBy is not a valid option.");

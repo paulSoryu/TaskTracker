@@ -45,17 +45,6 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000", "https://192.168.0.102:3000")
-        //policy.SetIsOriginAllowed(origin =>
-        //{
-        //    var uri = new Uri(origin);
-        //    var host = uri.Host;
-        //    var port = uri.Port;
-
-        //    bool isCorrectPort = port == 3000;
-
-        //    return (host == "localhost" || host == "127.0.0.1" || host.StartsWith("192.168.") || host.EndsWith("devtunnels.ms"))
-        //           && isCorrectPort;
-        //})
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials();
@@ -105,10 +94,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddFluentValidationRulesToSwagger();
 
-// Mapster check when mapping if the source member exists for the destination member. If not, it will throw an exception. This is useful to catch mapping issues early during development.
-// TypeAdapterConfig.GlobalSettings.RequireDestinationMemberSource = true;
 TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
-// TypeAdapterConfig.GlobalSettings.Compile();
 
 var app = builder.Build();
 
@@ -119,9 +105,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseExceptionHandler();
-// Middleware to handle 401 Unauthorized responses and return a JSON response instead of the default HTML response.
-// It is needed because global exception handler middleware kicks in after the authentication middleware, so if a request is unauthorized, it will return a 401 response with an HTML page instead of a JSON response.
-// This middleware will catch that and return a JSON response instead.
 app.UseStatusCodePages();
 
 // Configure the HTTP request pipeline.

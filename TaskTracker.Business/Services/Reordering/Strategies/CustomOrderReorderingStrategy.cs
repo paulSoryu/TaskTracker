@@ -39,7 +39,7 @@ public class CustomOrderReorderingStrategy<TEntity>(TaskTrackerDbContext db) : I
     {
         int newPos = targetEntity != null
             ? targetEntity.Position + (options.IsDescending ? 1 : 0)
-            : currentCount + 1;
+            : (options.IsDescending ? 1 : currentCount + 1); ;
 
         try
         {

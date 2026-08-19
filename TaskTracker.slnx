@@ -2,7 +2,6 @@
   <Folder Name="/Solution Items/">
     <File Path="docker-compose.yml" />
     <File Path="README.md" />
-    <File Path="WebApiTaskTracker/Dockerfile" />
   </Folder>
   <Project Path="TaskTracker.Api/TaskTracker.Api.csproj" Id="69f3cd7c-5cfa-47f9-8f05-694c9e813f4b" />
   <Project Path="TaskTracker.Business/TaskTracker.Business.csproj" Id="e5397bc6-ab01-4013-9308-990f7faa158e" />

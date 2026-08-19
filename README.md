@@ -11,7 +11,7 @@ The project is a fully functional Fullstack task management application. It was 
 ## Key Architectural Features
 * **HTTP Communication:** The Backend API and Frontend are completely isolated, run on different ports, and communicate via HTTP with a properly configured **CORS** policy.
 * **Minimal API:** The backend is implemented using ASP.NET Core Minimal API, providing a lightweight and efficient approach to building RESTful services.
-* **Layered Architecture:** The application follows a layered architecture, separating concerns into distinct layers: WebApi, Business (Anemic Domain Model) and Data Access, for better maintainability and scalability.
+* **Layered Architecture:** The application follows a layered architecture, separating concerns into distinct layers: Api, Business and Data Access, for better maintainability and scalability.
 * **Fluent Validation:** The application uses FluentValidation for robust input validation, ensuring that all user inputs are properly checked before processing.
 * **FluentResults:** The application employs FluentResults for consistent error handling and result management, providing a clear and structured way to handle success and failure scenarios. In WebApi layer, TypedResults are used to return results with appropriate HTTP status codes.
 * **Fluent API Configuration:** The application leverages EF Core's Fluent API for precise and flexible configuration of entity relationships, constraints, and database schema. Code first migrations are used to create and update the database schema based on the defined entity models.
@@ -21,6 +21,7 @@ The project is a fully functional Fullstack task management application. It was 
 * **Automated Data Seeding:** When a new user registers, a welcome dataset (5 categories and 5 tasks) is automatically created within a single transaction, allowing immediate interface evaluation.
 * **Data-level CQRS:** The application implements a data-level CQRS pattern, separating read and write operations for improved performance and scalability. WebApi DTOs are used for data transfer, while EF Core entities are utilized for database operations.
 * **Orchestration** For complex operations which require multiple services and/or an explicit transaction, an orchestrator class is used, so that the individual services can remain clean and independent
+* **Strategy and Factory patters** To separate concerns, make code easily extensible and remove repeating code, in Business layer Strategy and Factory patterns are being utilized.
 * **Global Filtering:** The application implements global filtering for all queries, ensuring that only data associated with the currently authenticated user is accessible, enhancing security and data integrity.
 * **Automated Migrations:** The SQLite database is automatically deployed and updated upon the first application launch using EF Core Migrations.
 * **Dockerized Environment:** The application is fully containerized, allowing for easy deployment and consistent environments across different machines.

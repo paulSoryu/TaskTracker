@@ -67,31 +67,31 @@ public static class TaskQueryExtensions
     {
         return query.SortBy switch
         {
-            TaskSortField.Title => query.IsDescending == true
+            TaskSortField.Title => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.Title)
                 : dbQuery.OrderBy(t => t.Title),
 
-            TaskSortField.CategoryTitle => query.IsDescending == true
+            TaskSortField.CategoryTitle => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.Category.Title)
                 : dbQuery.OrderBy(t => t.Category.Title),
 
-            TaskSortField.DueDate => query.IsDescending == true
+            TaskSortField.DueDate => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.DueDate)
                 : dbQuery.OrderBy(t => t.DueDate),
 
-            TaskSortField.Priority => query.IsDescending == true
+            TaskSortField.Priority => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.Priority)
                 : dbQuery.OrderBy(t => t.Priority),
 
-            TaskSortField.IsCompleted => query.IsDescending == true
+            TaskSortField.IsCompleted => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.IsCompleted)
                 : dbQuery.OrderBy(t => t.IsCompleted),
 
-            TaskSortField.CreatedAt => query.IsDescending == true
+            TaskSortField.CreatedAt => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.CreatedAt)
                 : dbQuery.OrderBy(t => t.CreatedAt),
 
-            TaskSortField.Position => query.IsDescending == true
+            TaskSortField.Position => query.IsDescending
                 ? dbQuery.OrderByDescending(t => t.Position)
                 : dbQuery.OrderBy(t => t.Position),
 

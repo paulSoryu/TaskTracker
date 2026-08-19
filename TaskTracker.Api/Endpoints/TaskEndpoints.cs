@@ -52,8 +52,8 @@ public static class TaskEndpoints
     {
         var filterQuery = request.Adapt<FilterTasksQuery>();
         var sortQuery = request.Adapt<SortTasksQuery>();
-        var paginationQuery = request.Adapt<PaginateTasksQuery>();
-        PagedResult<TaskView> pagedTasks = await taskService.GetAllAsync(filterQuery, sortQuery, paginationQuery);
+        var paginateQuery = request.Adapt<PaginateTasksQuery>();
+        PagedResult<TaskView> pagedTasks = await taskService.GetAllAsync(filterQuery, sortQuery, paginateQuery);
 
         var response = new PagedResult<TaskListResponse>(
             pagedTasks.Items.Adapt<IReadOnlyCollection<TaskListResponse>>(),
@@ -77,7 +77,7 @@ public static class TaskEndpoints
         int pageSize = taskRequest.PageSize;
 
         Result<int> result = await taskService.GetPageById(id, query, pageSize);
-        Result<TaskPageResponse> response = new TaskPageResponse(result.Value);
+        Result<TaskPageResponse> response = result.Map(pageIndex => new TaskPageResponse(pageIndex));
 
         return response.ToTypedHttpResult();
     }

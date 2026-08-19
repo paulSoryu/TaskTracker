@@ -8,7 +8,7 @@ public class CategoryMappingConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
-        // Configure mapping from CategoryEntity to CategoryBusinessModel
+        // Configure mapping from CategoryEntity to CategoryView
         config.NewConfig<CategoryEntity, CategoryView>()
             .RequireDestinationMemberSource(true);
 

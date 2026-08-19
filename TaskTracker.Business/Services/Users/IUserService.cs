@@ -1,5 +1,7 @@
 ﻿using FluentResults;
+using TaskTracker.Business.Models;
 using TaskTracker.Business.Models.Auths;
+using TaskTracker.Business.Models.Users;
 using TaskTracker.DataAccess.Entities;
 
 namespace TaskTracker.Business.Services.Users;
@@ -7,8 +9,9 @@ namespace TaskTracker.Business.Services.Users;
 public interface IUserService
 {
     // Data retrival
-    Task<Result<UserInfoView>> GetByIdAsync(string userId);
-    Task<Result<List<UserInfoView>>> GetAllAsync();
+    Task<PagedResult<UserView>> GetAllAsync(FilterUsersQuery filterQuery, SortUsersQuery sortQuery, PaginateUsersQuery paginateQuery);
+    Task<Result<UserView>> GetByIdAsync(Guid userId);
+    Task<Result<UserInfoView>> GetInfoByIdAsync(string id);
 
     // Lifecycle
     Task<Result<UserEntity>> CreateAsync(string email);

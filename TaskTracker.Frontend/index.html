@@ -3273,7 +3273,7 @@
   const accountEmailHint = document.getElementById('accountEmailHint');
   const confirmEmailRow = document.getElementById('confirmEmailRow');
 
-  let currentUser = { userId: '', email: '', isEmailConfirmed: false };
+  let currentUser = { id: '', email: '', isEmailConfirmed: false, createdAt: '' };
 
   function accountScreens(){
     return {
@@ -3375,10 +3375,14 @@
     status.classList.remove('show');
     try{
       const info = await apiFetch('/api/auth/me');
+      const createdAtDisplay = info.createdAt
+        ? new Date(info.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+        : '—';
       list.innerHTML = `
-        <div class="info-row"><span class="info-label">User ID</span><span class="info-value">${escapeHtml(info.userId ?? '')}</span></div>
+        <div class="info-row"><span class="info-label">User ID</span><span class="info-value">${escapeHtml(info.id ?? '')}</span></div>
         <div class="info-row"><span class="info-label">Email</span><span class="info-value">${escapeHtml(info.email ?? '')}</span></div>
         <div class="info-row"><span class="info-label">Email Confirmed</span><span class="info-value">${info.isEmailConfirmed ? 'Yes' : 'No'}</span></div>
+        <div class="info-row"><span class="info-label">Member Since</span><span class="info-value">${escapeHtml(createdAtDisplay)}</span></div>
       `;
     } catch(err){
       list.innerHTML = `<div class="info-row"><span class="info-label">Error</span></div>`;
@@ -3390,7 +3394,7 @@
     const status = accountDetailBody.querySelector('[data-status="confirm-email"]');
     setBusy(button, true, 'Sending…');
     try{
-      await apiFetch('/api/auth/send-email-confirmation');
+      await apiFetch('/api/auth/request-email-confirmation', { method: 'POST' });
       showStatus(status, 'Confirmation email sent.', 'ok');
     } catch(err){
       showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
@@ -3434,7 +3438,7 @@
       if(!password || !newEmail){ showStatus(status, 'Fill in both fields to continue.', 'warn'); return; }
       setBusy(submitBtn, true, 'Sending…');
       try{
-        await apiFetch('/api/auth/request-change-email', { method:'POST', body: JSON.stringify({ password, newEmail }) });
+        await apiFetch('/api/auth/request-email-change', { method:'POST', body: JSON.stringify({ password, newEmail }) });
         showStatus(status, `Confirmation link sent to ${newEmail}. Your email stays the same until you follow it.`, 'ok');
       } catch(err){
         showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
@@ -3604,7 +3608,7 @@
   }
 
   async function enterApp(userInfo){
-    currentUser = { userId: userInfo.userId, email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed };
+    currentUser = { id: userInfo.id, email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed, createdAt: userInfo.createdAt };
     const displayName = currentUser.email.split('@')[0] || currentUser.email;
     userDisplayName.textContent = displayName;
     userAvatar.textContent = initialsFrom(displayName);
@@ -3771,7 +3775,7 @@
     try{
       const info = await apiFetch('/api/auth/me');
       if(!info || !info.email) return;
-      currentUser = { userId: info.userId, email: info.email, isEmailConfirmed: !!info.isEmailConfirmed };
+      currentUser = { id: info.id, email: info.email, isEmailConfirmed: !!info.isEmailConfirmed, createdAt: info.createdAt };
       const displayName = currentUser.email.split('@')[0] || currentUser.email;
       userDisplayName.textContent = displayName;
       userAvatar.textContent = initialsFrom(displayName);
@@ -3810,14 +3814,14 @@
       if(isConfirmEmail){
         const userId = params.get('userId') || '';
         const encodedToken = params.get('encodedToken') || '';
-        await apiFetch(`/api/auth/confirm-email?userId=${encodeURIComponent(userId)}&encodedToken=${encodeURIComponent(encodedToken)}`);
+        await apiFetch(`/api/auth/confirm-email?userId=${encodeURIComponent(userId)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method: 'POST' });
         confirmLinkStatus.textContent = 'Your email has been confirmed. You can close this tab and return to Ledger.';
         notifyAuthChange('email-confirmed');
         refreshCurrentUserSilently('email-confirmed');
       } else {
         const newEmail = params.get('newEmail') || '';
         const encodedToken = params.get('encodedToken') || '';
-        await apiFetch(`/api/auth/confirm-change-email?newEmail=${encodeURIComponent(newEmail)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method:'POST' });
+        await apiFetch(`/api/auth/change-email?newEmail=${encodeURIComponent(newEmail)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method:'POST' });
         confirmLinkStatus.textContent = `Your email has been changed to ${newEmail}. You can close this tab and return to Ledger.`;
         notifyAuthChange('email-changed');
         refreshCurrentUserSilently('email-changed');

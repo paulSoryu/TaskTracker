@@ -15,7 +15,7 @@ public class TaskConstraints
 
 public class UserConstraints
 {
-    // User constraints in case you want to add any specific constraints for user properties in the future
+    // User constraints in case we'll need to add any specific constraints for user properties in the future
 }
 
 public class CategoryConstraints
@@ -26,4 +26,10 @@ public class CategoryConstraints
     // Used in CategoryService to limit the number of categories a user can create based on their email confirmation status
     public const int MaxCategoriesForUnconfirmedEmail = 10;
     public const int MaxCategoriesForConfirmedEmail = 100;
+}
+
+public class PaginationConstraints
+{
+    public const int PageMinSize = 10; 
+    public const int PageMaxSize = 100;
 }

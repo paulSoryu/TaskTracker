@@ -137,5 +137,6 @@ app.UseAuthorization();
 app.MapAuthEndpoints();
 app.MapTaskEndpoints();
 app.MapCategoryEndpoints();
+app.MapAdminEndpoints();
 
 app.Run();

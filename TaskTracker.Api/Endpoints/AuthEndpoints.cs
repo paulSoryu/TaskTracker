@@ -1,8 +1,10 @@
 using FluentResults;
+using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Security.Claims;
 using TaskTracker.Api.DTOs;
 using TaskTracker.Api.DTOs.Auths;
+using TaskTracker.Api.DTOs.Tasks;
 using TaskTracker.Api.Extensions;
 using TaskTracker.Business.Models.Auths;
 using TaskTracker.Business.Services.Auths;
@@ -119,12 +121,13 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<Ok<UserInfoView>, ProblemHttpResult>> GetUserInfo(ClaimsPrincipal user, IUserService userService)
+    private static async Task<Results<Ok<UserInfoResponse>, ProblemHttpResult>> GetUserInfo(ClaimsPrincipal user, IUserService userService)
     {
         var id = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        Result<UserInfoView> result = await userService.GetByIdAsync(id);
-        return result.ToTypedHttpResult();
+        Result<UserInfoView> result = await userService.GetInfoByIdAsync(id);
+        Result<UserInfoResponse> response = result.Map(user => user.Adapt<UserInfoResponse>());
+        return response.ToTypedHttpResult();
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAccount(ClaimsPrincipal user, string password, IUserCoordinator userCoordinator, IIdentitySessionManager sessionManager)

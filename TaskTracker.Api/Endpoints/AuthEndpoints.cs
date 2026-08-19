@@ -8,6 +8,7 @@ using TaskTracker.Api.Extensions;
 using TaskTracker.Business.FluentErrors;
 using TaskTracker.Business.Models.Auths;
 using TaskTracker.Business.Services.Auths;
+using TaskTracker.Business.Services.Identity;
 using TaskTracker.Business.Services.Users;
 using TaskTracker.DataAccess.Entities;
 
@@ -66,22 +67,15 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> Login(LoginRequest request, IAuthService authService, SignInManager<UserEntity> signInManager) // breaks the separation of layers, but otherwise we would need to get rid of ASP.NET Core identity entirely
+    private static async Task<Results<NoContent, ProblemHttpResult>> Login(LoginRequest request, IIdentitySessionManager sessionManager)
     {
-        Result result = await authService.VerifyPasswordAsync(request.Email, request.Password);
-        if (result.IsFailed)
-            return result.ToTypedHttpResult();
-
-        var signInResult = await signInManager.PasswordSignInAsync(request.Email, request.Password, request.RememberMe, false);
-        if (signInResult.IsLockedOut) return Result.Fail(new ValidationError("Account is locked out.")).ToTypedHttpResult();
-        if (!signInResult.Succeeded) return Result.Fail(new ValidationError("Invalid password.")).ToTypedHttpResult();
-
-        return TypedResults.NoContent();
+        Result result = await sessionManager.PasswordSignInAsync(request.Email, request.Password, request.RememberMe);
+        return result.ToTypedHttpResult();
     }
 
-    private static async Task<NoContent> Logout(SignInManager<UserEntity> signInManager)
+    private static async Task<NoContent> Logout(IIdentitySessionManager sessionManager)
     {
-        await signInManager.SignOutAsync();
+        await sessionManager.SignOutAsync();
         return TypedResults.NoContent();
     }
 
@@ -107,15 +101,18 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> ChangeEmail([AsParameters] ConfirmChangeEmailRequest request, ClaimsPrincipal user, IAuthService authService, SignInManager<UserEntity> signInManager)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ChangeEmail([AsParameters] ConfirmChangeEmailRequest request, ClaimsPrincipal user, IAuthService authService, IIdentitySessionManager sessionManager)
     {
         var email = user.FindFirstValue(ClaimTypes.Email)!;
 
-        var result = await authService.ChangeEmailFromTokenAsync(email, request.NewEmail, request.EncodedToken);
+        Result result = await authService.ChangeEmailFromTokenAsync(email, request.NewEmail, request.EncodedToken);
         if (result.IsSuccess)
-            await signInManager.RefreshSignInAsync(result.Value);
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            await sessionManager.RefreshSignInAsync(userId);
+        }
 
-        return result.ToResult().ToTypedHttpResult();
+        return result.ToTypedHttpResult();
     }
     private static async Task<Results<NoContent, ProblemHttpResult>> ChangePassword(ChangePasswordRequest request, ClaimsPrincipal user, IUserService userService)
     {
@@ -133,13 +130,13 @@ public static class AuthEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAccount(ClaimsPrincipal user, string password, IUserCoordinator userCoordinator, SignInManager<UserEntity> signInManager)
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAccount(ClaimsPrincipal user, string password, IUserCoordinator userCoordinator, IIdentitySessionManager sessionManager)
     {
         var email = user.FindFirstValue(ClaimTypes.Email)!;
 
         Result result = await userCoordinator.DeleteUserAndDataAsync(email, password);
         if (result.IsSuccess)
-            await signInManager.SignOutAsync();
+            await sessionManager.SignOutAsync();
 
         return result.ToTypedHttpResult();
     }

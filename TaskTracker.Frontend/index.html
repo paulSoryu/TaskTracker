@@ -3376,7 +3376,7 @@
     const status = accountDetailBody.querySelector('[data-status="confirm-email"]');
     setBusy(button, true, 'Sending…');
     try{
-      await apiFetch('/api/auth/send-email-confirmation');
+      await apiFetch('/api/auth/send-email-confirmation', { method: 'POST' });
       showStatus(status, 'Confirmation email sent.', 'ok');
     } catch(err){
       showStatus(status, (err.messages || [err.message]).join(' '), 'warn');
@@ -3796,7 +3796,7 @@
       if(isConfirmEmail){
         const userId = params.get('userId') || '';
         const encodedToken = params.get('encodedToken') || '';
-        await apiFetch(`/api/auth/confirm-email?userId=${encodeURIComponent(userId)}&encodedToken=${encodeURIComponent(encodedToken)}`);
+        await apiFetch(`/api/auth/confirm-email?userId=${encodeURIComponent(userId)}&encodedToken=${encodeURIComponent(encodedToken)}`, { method: 'POST' });
         confirmLinkStatus.textContent = 'Your email has been confirmed. You can close this tab and return to Ledger.';
         notifyAuthChange('email-confirmed');
         refreshCurrentUserSilently('email-confirmed');

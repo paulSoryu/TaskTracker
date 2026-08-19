@@ -3,7 +3,7 @@
 The project is a fully functional Fullstack task management application. It was specifically developed to demonstrate skills in architectural design, Docker integration, database management, and the separation of concerns (Backend / Frontend).
 
 ## Core Technology Stack
-* **Backend:** .NET 10, ASP.NET Core Web API (Minimal API), Entity Framework Core
+* **Backend:** C# 14, .NET 10, ASP.NET Core Web API (Minimal APIs), Entity Framework Core
 * **Database:** SQLite
 * **Frontend:** HTML5, CSS3, JavaScript (fully AI-generated using Claude)
 * **DevOps / Infrastructure:** Docker, Docker Compose
@@ -20,8 +20,9 @@ The project is a fully functional Fullstack task management application. It was 
 * **Sorting/Filtering/Pagination:** The application implements sorting, filtering, and pagination for efficient data retrieval and presentation, enhancing user experience and performance. It also supports drag-and-drop operations for both tasks and categories. All calculations are done on the backend. 
 * **Automated Data Seeding:** When a new user registers, a welcome dataset (5 categories and 5 tasks) is automatically created within a single transaction, allowing immediate interface evaluation.
 * **Data-level CQRS:** The application implements a data-level CQRS pattern, separating read and write operations for improved performance and scalability. WebApi DTOs are used for data transfer, while EF Core entities are utilized for database operations.
-* **Orchestration** For complex operations which require multiple services and/or an explicit transaction, an orchestrator class is used, so that the individual services can remain clean and independent
-* **Strategy and Factory patters** To separate concerns, make code easily extensible and remove repeating code, in Business layer Strategy and Factory patterns are being utilized.
+* **Orchestration pattern** For complex operations which require multiple services and/or an explicit transaction, an orchestrator class is used, so that the individual services can remain clean and independent, and so that endpoints don't need to operate with entities.
+* **Strategy and Factory patterns** To separate concerns, make code easily extensible and remove repeating code, in Business layer Strategy and Factory patterns are being utilized, specifically for Reordering operations.
+* **Dependency Inversion pattern** To remove dependency of lower layers from higher layers, Dependency Inversion pattern was used, specifically in IIdentitySessionManager and IUserContext.
 * **Global Filtering:** The application implements global filtering for all queries, ensuring that only data associated with the currently authenticated user is accessible, enhancing security and data integrity.
 * **Automated Migrations:** The SQLite database is automatically deployed and updated upon the first application launch using EF Core Migrations.
 * **Dockerized Environment:** The application is fully containerized, allowing for easy deployment and consistent environments across different machines.

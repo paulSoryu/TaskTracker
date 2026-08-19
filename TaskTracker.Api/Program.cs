@@ -6,10 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using TaskTracker.Api.Endpoints;
+using TaskTracker.Api.Infrastructure;
 using TaskTracker.Api.Utilities;
 using TaskTracker.Business.Services.Auths;
 using TaskTracker.Business.Services.Categories;
 using TaskTracker.Business.Services.Emails;
+using TaskTracker.Business.Services.Identity;
 using TaskTracker.Business.Services.Reordering.Factories;
 using TaskTracker.Business.Services.Reordering.Strategies;
 using TaskTracker.Business.Services.Tasks;
@@ -59,7 +61,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IUserCoordinator, UserCoordinator>();
 builder.Services.AddSingleton<IEmailSenderService<UserEntity>, EmailSenderService>();
 
-// Adapt custom interface to Identity interface
+// Adapt custom interface to Identity interface, as IEmailSender can't work directly in a class library like our Business layer
 builder.Services.AddSingleton<IEmailSender<UserEntity>>(sp =>
 {
     var customSender = sp.GetRequiredService<IEmailSenderService<UserEntity>>();
@@ -70,6 +72,9 @@ builder.Services.AddSingleton<IEmailSender<UserEntity>>(sp =>
 builder.Services.AddScoped(typeof(CustomOrderReorderingStrategy<>));
 builder.Services.AddScoped(typeof(SortedListReorderingStrategy<>));
 builder.Services.AddScoped<IReorderingStrategyFactory, ReorderingStrategyFactory>();
+
+// Dependency inversion to get UserEntity for SignInManager in API layer
+builder.Services.AddScoped<IIdentitySessionManager, IdentitySessionManager>();
 
 // Validators and exception handling
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

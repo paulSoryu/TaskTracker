@@ -12,5 +12,5 @@ public interface IAuthService
     Task<Result<string>> GenerateConfirmEmailTokenAsync(UserEntity user);
     Task<Result> ConfirmEmailFromTokenAsync(string userId, string encodedToken);
     Task<Result<string>> GenerateChangeEmailTokenAsync(UserEntity user, string newEmail);
-    Task<Result<UserEntity>> ChangeEmailFromTokenAsync(string currentEmail, string newEmail, string encodedToken);
+    Task<Result> ChangeEmailFromTokenAsync(string currentEmail, string newEmail, string encodedToken);
 }

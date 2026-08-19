@@ -83,7 +83,7 @@ public class AuthService(UserManager<UserEntity> userManager, TaskTrackerDbConte
         return Result.Ok(encodedToken);
     }
 
-    public async Task<Result<UserEntity>> ChangeEmailFromTokenAsync(string currentEmail, string newEmail, string encodedToken)
+    public async Task<Result> ChangeEmailFromTokenAsync(string currentEmail, string newEmail, string encodedToken)
     {
         var user = (await userManager.FindByEmailAsync(currentEmail))!;
 
@@ -100,7 +100,7 @@ public class AuthService(UserManager<UserEntity> userManager, TaskTrackerDbConte
             await userManager.SetUserNameAsync(user, newEmail);
 
             await transaction.CommitAsync();
-            return Result.Ok(user);
+            return Result.Ok();
         }
         catch (Exception ex)
         {

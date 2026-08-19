@@ -71,7 +71,7 @@ builder.Services.AddSingleton<IEmailSender<UserEntity>>(sp =>
 // Reordering strategies
 builder.Services.AddScoped(typeof(CustomOrderReorderingStrategy<>));
 builder.Services.AddScoped(typeof(SortedListReorderingStrategy<>));
-builder.Services.AddScoped<IReorderingStrategyFactory, ReorderingStrategyFactory>();
+builder.Services.AddScoped(typeof(IReorderingStrategyFactory<>), typeof(ReorderingStrategyFactory<>));
 
 // Dependency inversion to get UserEntity for SignInManager in API layer
 builder.Services.AddScoped<IIdentitySessionManager, IdentitySessionManager>();

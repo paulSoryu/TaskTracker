@@ -13,7 +13,7 @@ using TaskTracker.Shared.Constants;
 
 namespace TaskTracker.Business.Services.Categories;
 
-public class CategoryService(TaskTrackerDbContext db, IReorderingStrategyFactory reorderingFactory) : ICategoryService
+public class CategoryService(TaskTrackerDbContext db, IReorderingStrategyFactory<CategoryEntity> reorderingFactory) : ICategoryService
 {
     public async Task<IReadOnlyCollection<CategoryView>> GetAllAsync(FilterCategoriesQuery filterQuery, SortCategoriesQuery sortQuery)
     {
@@ -58,7 +58,7 @@ public class CategoryService(TaskTrackerDbContext db, IReorderingStrategyFactory
         var entity = command.Adapt<CategoryEntity>();
         entity.UserId = userId;
 
-        var strategy = reorderingFactory.GetStrategy<CategoryEntity>(query.SortBy == CategorySortField.Position);
+        var strategy = reorderingFactory.GetStrategy(query.SortBy == CategorySortField.Position);
         var options = new ReorderingOptions<CategoryEntity>
         {
             IsDescending = query.IsDescending,
@@ -136,7 +136,7 @@ public class CategoryService(TaskTrackerDbContext db, IReorderingStrategyFactory
         if (category.Position == targetCategory.Position)
             return Result.Ok();
 
-        var strategy = reorderingFactory.GetStrategy<CategoryEntity>(sortQuery.SortBy == CategorySortField.Position);
+        var strategy = reorderingFactory.GetStrategy(sortQuery.SortBy == CategorySortField.Position);
         var options = new ReorderingOptions<CategoryEntity>
         {
             IsDescending = sortQuery.IsDescending,

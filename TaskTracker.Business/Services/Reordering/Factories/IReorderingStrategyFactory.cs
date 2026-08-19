@@ -3,7 +3,7 @@ using TaskTracker.DataAccess.Interfaces;
 
 namespace TaskTracker.Business.Services.Reordering.Factories;
 
-public interface IReorderingStrategyFactory
+public interface IReorderingStrategyFactory<TEntity> where TEntity : class, IOrderable
 {
-    IReorderingStrategy<TEntity> GetStrategy<TEntity>(bool isCustomOrder) where TEntity : class, IOrderable;
+    IReorderingStrategy<TEntity> GetStrategy(bool isCustomOrder);
 }

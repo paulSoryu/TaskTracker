@@ -15,7 +15,7 @@ using TaskTracker.Shared.Enums;
 
 namespace TaskTracker.Business.Services.Tasks;
 
-public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory reorderingFactory) : ITaskService
+public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory<TaskEntity> reorderingFactory) : ITaskService
 {
     public async Task<PagedResult<TaskView>> GetAllAsync(FilterTasksQuery filterQuery, SortTasksQuery sortQuery, PaginateTasksQuery paginateQuery)
     {
@@ -94,7 +94,7 @@ public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory reo
         var createdTask = command.Adapt<TaskEntity>();
         createdTask.UserId = userId;
 
-        var strategy = reorderingFactory.GetStrategy<TaskEntity>(sortQuery.SortBy == TaskSortField.Position);
+        var strategy = reorderingFactory.GetStrategy(sortQuery.SortBy == TaskSortField.Position);
         var options = new ReorderingOptions<TaskEntity>
         {
             IsDescending = sortQuery.IsDescending,
@@ -170,7 +170,7 @@ public class TaskService(TaskTrackerDbContext db, IReorderingStrategyFactory reo
 
         if (task.Position == targetTask.Position) return Result.Ok();
 
-        var strategy = reorderingFactory.GetStrategy<TaskEntity>(sortQuery.SortBy == TaskSortField.Position);
+        var strategy = reorderingFactory.GetStrategy(sortQuery.SortBy == TaskSortField.Position);
         var options = new ReorderingOptions<TaskEntity>
         {
             IsDescending = sortQuery.IsDescending,

@@ -4,10 +4,12 @@ using TaskTracker.DataAccess.Interfaces;
 
 namespace TaskTracker.Business.Services.Reordering.Factories;
 
-public class ReorderingStrategyFactory(IServiceProvider serviceProvider) : IReorderingStrategyFactory
+public class ReorderingStrategyFactory<TEntity>(
+    CustomOrderReorderingStrategy<TEntity> customStrategy,
+    SortedListReorderingStrategy<TEntity> sortedStrategy) 
+    : IReorderingStrategyFactory<TEntity> 
+    where TEntity : class, IOrderable
 {
-    public IReorderingStrategy<TEntity> GetStrategy<TEntity>(bool isCustomOrder) where TEntity : class, IOrderable
-        => isCustomOrder
-            ? serviceProvider.GetRequiredService<CustomOrderReorderingStrategy<TEntity>>()
-            : serviceProvider.GetRequiredService<SortedListReorderingStrategy<TEntity>>();
+    public IReorderingStrategy<TEntity> GetStrategy(bool isCustomOrder)
+        => isCustomOrder ? customStrategy : sortedStrategy;
 }

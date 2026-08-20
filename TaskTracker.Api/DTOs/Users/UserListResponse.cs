@@ -6,6 +6,8 @@ public record UserListResponse(
     bool IsEmailConfirmed,
     DateTime CreatedAt,
     DateTime LastOnlineTime,
+    bool IsAdmin,
+    DateTimeOffset? LockoutEnd,
     int TaskCount,
     int CompletedTaskCount,
     int CategoryCount

@@ -21,6 +21,8 @@ public interface IUserService
     Task<Result> UpdatePasswordAsync(string userEmail, string currentPassword, string newPassword);
 
     // Admin functions
-    Task<Result> AssignRoleAsync(string userId, string roleName);
-    Task<Result> BlockUserAsync(string userId, DateTimeOffset? until);
+    Task<Result> AssignAdminRoleAsync(Guid userId);
+    Task<Result> RemoveAdminRoleAsync(Guid userId);
+    Task<Result> BlockUserAsync(Guid userId, DateOnly? until);
+    Task<Result> UnblockUserAsync(Guid userId);
 }

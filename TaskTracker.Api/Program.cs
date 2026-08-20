@@ -39,10 +39,22 @@ builder.Services.AddIdentityCore<UserEntity>(options =>
 {
     options.SignIn.RequireConfirmedAccount = false;
     options.SignIn.RequireConfirmedEmail = false;
+    options.Lockout.AllowedForNewUsers = true;
 })
+    .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<TaskTrackerDbContext>()
     .AddDefaultTokenProviders()
+    .AddRoleManager<RoleManager<IdentityRole<Guid>>>()
     .AddSignInManager<SignInManager<UserEntity>>();
+
+// This is needed to logout admins as soon as they are no longer admins
+builder.Services.AddScoped<ISecurityStampValidator, SecurityStampValidator<UserEntity>>();
+
+// Check Security Stamps every minute, this is important for removing admin roles. By default it's 30 minutes which is too long
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.Zero;
+});
 
 // CORS configuration to allow requests from the frontend application running on a different origin
 builder.Services.AddCors(options =>
@@ -106,10 +118,18 @@ TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
 
 var app = builder.Build();
 
+// Automatically apply migrations
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<TaskTrackerDbContext>();
     context.Database.Migrate();
+}
+
+// Ensure at least one admin account exists
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    await IdentitySeedData.EnsureAtLeastOneAdminAsync(services);
 }
 
 app.UseExceptionHandler();

@@ -9,7 +9,11 @@ public record UserView(
     bool IsEmailConfirmed,
     DateTime CreatedAt,
     DateTime LastOnlineTime,
+    DateTimeOffset? LockoutEnd,
 
     IReadOnlyCollection<TaskView> Tasks,
     IReadOnlyCollection<CategoryView> Categories
-);
+)
+{
+    public bool IsAdmin { get; set; }
+}

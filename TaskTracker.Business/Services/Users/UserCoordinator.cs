@@ -126,7 +126,7 @@ public class UserCoordinator(
             await categoryService.DeleteAllByUserIdAsync(user.Id);
 
             var deleteUserResult = await userService.DeleteAsync(user.Id.ToString());
-            if (!deleteUserResult.IsFailed)
+            if (deleteUserResult.IsFailed)
                 return deleteUserResult;
 
             await transaction.CommitAsync();
@@ -135,7 +135,53 @@ public class UserCoordinator(
         }
         catch (Exception ex)
         {
-            return Result.Fail(new ExceptionalError("Registration failed due to an internal database error.", ex));
+            return Result.Fail(new ExceptionalError("Deletion failed due to an internal database error.", ex));
         }
+    }
+
+    public async Task<Result> DeleteUserAndDataByAdminAsync(Guid id, string reason)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user == null)
+            return Result.Fail(new NotFoundError("User", id));
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        try
+        {
+            await taskService.DeleteAllByUserIdAsync(user.Id);
+            await categoryService.DeleteAllByUserIdAsync(user.Id);
+
+            var deleteUserResult = await userService.DeleteAsync(user.Id.ToString());
+            if (deleteUserResult.IsFailed)
+                return deleteUserResult;
+
+            //var sendResult = 
+            await emailSender.SendDeletionNotificationAsync(user, user.Email!, reason);
+            //if (sendResult.IsFailed)
+            //    return sendResult.ToResult();
+
+            await transaction.CommitAsync();
+
+            return Result.Ok();
+        }
+        catch (Exception ex)
+        {
+            return Result.Fail(new ExceptionalError("Deletion failed due to an internal database error.", ex));
+        }
+    }
+
+    public async Task<Result> SendDeletionWarningLetterAsync(Guid id, string reason)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user == null)
+            return Result.Fail(new NotFoundError("User", id));
+
+        //var sendResult = 
+        await emailSender.SendDeletionWarningAsync(user, user.Email!, reason);
+        //if (sendResult.IsFailed)
+        //    return sendResult.ToResult();
+
+        return Result.Ok();
     }
 }

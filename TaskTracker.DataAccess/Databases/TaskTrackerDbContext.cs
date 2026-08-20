@@ -30,6 +30,13 @@ public class TaskTrackerDbContext(DbContextOptions<TaskTrackerDbContext> options
         // Breaks userManager.FindByIdAsync(userId) in AuthService.cs, so commented out for now
         //modelBuilder.Entity<UserEntity>()
         //    .HasQueryFilter(u => !_userContext.IsAuthenticated || u.Id == _userContext.CurrentUserId);
+
+        // Connect Users to Roles to know who's admin and who's not
+        modelBuilder.Entity<UserEntity>()
+                    .HasMany(u => u.UserRoles)
+                    .WithOne()
+                    .HasForeignKey(ur => ur.UserId)
+                    .IsRequired();
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -5,4 +5,7 @@ public record UserInfoView(
     string Email,
     bool IsEmailConfirmed,
     DateTime CreatedAt
-);
+)
+{
+    public bool IsAdmin { get; set;  }
+}

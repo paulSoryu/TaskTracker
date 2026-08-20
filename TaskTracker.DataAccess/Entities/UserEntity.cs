@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using System.Collections;
 using TaskTracker.DataAccess.Interfaces;
 
 namespace TaskTracker.DataAccess.Entities;
@@ -10,6 +11,9 @@ public class UserEntity : IdentityUser<Guid>, IAuditable
 {
     public DateTime CreatedAt { get; set; }
     public DateTime LastOnlineTime { get; set; }
+
+    public virtual ICollection<IdentityUserRole<Guid>> UserRoles { get; set; } = [];
+
     public List<CategoryEntity> Categories { get; set; } = [];
     public List<TaskEntity> Tasks { get; set; } = [];
 }

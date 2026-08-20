@@ -2,6 +2,7 @@
 using TaskTracker.Business.Models.Auths;
 using TaskTracker.Business.Models.Users;
 using TaskTracker.DataAccess.Entities;
+using TaskTracker.Shared.Constants;
 
 namespace TaskTracker.Business.Models.MappingConfigurations;
 
@@ -12,11 +13,13 @@ public class UserMappingConfig : IRegister
         // Configure mapping from UserEntity to UserInfoView
         config.NewConfig<UserEntity, UserInfoView>()
             .RequireDestinationMemberSource(true)
-            .Ignore(dest => dest.IsAdmin); // Couldn't make it work, thus we will load IsAdmin directly in the services
+            .Map(dest => dest.IsEmailConfirmed, src => src.EmailConfirmed)
+            .Map(dest => dest.IsAdmin, src => src.UserRoles.Any(ur => ur.RoleId == RoleConstraints.AdminRoleId)); // Couldn't make it work, thus we will load IsAdmin directly in the services
 
         // Configure mapping from UserEntity to UserView
         config.NewConfig<UserEntity, UserView>()
             .RequireDestinationMemberSource(true)
-            .Ignore(dest => dest.IsAdmin); // Couldn't make it work, thus we will load IsAdmin directly in the services
+            .Map(dest => dest.IsEmailConfirmed, src => src.EmailConfirmed)
+            .Map(dest => dest.IsAdmin, src => src.UserRoles.Any(ur => ur.RoleId == RoleConstraints.AdminRoleId)); // Couldn't make it work, thus we will load IsAdmin directly in the services
     }
 }

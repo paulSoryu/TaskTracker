@@ -33,3 +33,8 @@ public class PaginationConstraints
     public const int PageMinSize = 10; 
     public const int PageMaxSize = 100;
 }
+
+public class RoleConstraints
+{
+    public static readonly Guid AdminRoleId = Guid.Parse("CAF8ABC3-174D-4E54-B5B2-950CB55E748F");
+}

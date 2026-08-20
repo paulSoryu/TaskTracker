@@ -9,8 +9,7 @@ public static class UserQueryExtensions
     public static IQueryable<UserEntity> ApplyFilter(this IQueryable<UserEntity> dbQuery, FilterUsersQuery query)
     {
         if (query.SearchTerm != null)
-            dbQuery = dbQuery.Where(c => c.Email!.Contains(query.SearchTerm));
-
+            dbQuery = dbQuery.Where(u => u.Email!.Contains(query.SearchTerm));
         return dbQuery;
     }
 

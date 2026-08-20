@@ -114,7 +114,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddFluentValidationRulesToSwagger();
 
-TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly());
+TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly(),
+                            Assembly.Load("TaskTracker.Business"));
 
 var app = builder.Build();
 

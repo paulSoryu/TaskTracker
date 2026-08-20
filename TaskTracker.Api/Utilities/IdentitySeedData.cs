@@ -3,6 +3,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using TaskTracker.DataAccess.Entities;
+using TaskTracker.Shared.Constants;
 
 public static class IdentitySeedData
 {
@@ -28,6 +29,7 @@ public static class IdentitySeedData
             {
                 defaultAdmin = new UserEntity
                 {
+                    Id = RoleConstraints.AdminRoleId,
                     UserName = defaultAdminEmail,
                     Email = defaultAdminEmail,
                     EmailConfirmed = true

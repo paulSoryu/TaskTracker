@@ -21,6 +21,8 @@
     --ochre:      #C89B3C;
     --burgundy:   #7A2A38;
     --burgundy-deep: #5E1F2A;
+    --royal-blue: #4169E1;
+    --royal-blue-deep: #2F4FB0;
     --ink-line:   rgba(35,43,54,0.14);
     --shadow:     0 1px 0 rgba(35,43,54,0.06), 0 8px 20px -12px rgba(35,43,54,0.35);
   }
@@ -144,6 +146,21 @@
     background:rgba(181,96,45,0.12);
   }
   .btn-danger:hover{ background:var(--rust); color:#fff; border-color:var(--rust); }
+
+  .btn-admin-panel{
+    display:none;
+    color:#fff;
+    background:#C0392B;
+    border-color:#C0392B;
+  }
+  .btn-admin-panel.show{ display:inline-flex; align-items:center; }
+  .btn-admin-panel:hover{ background:#A5301F; border-color:#A5301F; }
+  .btn-admin-panel.active-admin{
+    background:var(--ink);
+    border-color:var(--ink);
+    color:#F1EBDC;
+  }
+  .btn-admin-panel.active-admin:hover{ background:var(--ink-soft); border-color:var(--ink-soft); }
 
   /* ---------- CONTROL DECK (filters + sort) ---------- */
   .control-deck{
@@ -351,6 +368,94 @@
     transition:opacity .15s ease;
   }
   .board.board-loading{ opacity:0.55; pointer-events:none; }
+
+  .user-card{
+    background:var(--card);
+    border:1px solid var(--card-edge);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+    padding:16px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .user-card:hover{ transform:translateY(-2px); }
+  .user-card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .user-card-email{
+    font-family:'Source Serif 4', serif;
+    font-weight:600;
+    font-size:16px;
+    color:var(--ink);
+    overflow-wrap:anywhere;
+  }
+  .user-card-badges{ display:flex; align-items:center; gap:6px; flex:none; }
+  .user-card-badge{
+    flex:none;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    color:#fff;
+    background:#C0392B;
+    border-radius:10px;
+    padding:3px 9px;
+  }
+  .user-card-badge-locked{ background:var(--royal-blue); }
+
+  .user-card-unconfirmed{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    color:var(--ochre);
+  }
+  .user-card-meta{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .user-card-meta-row{ display:flex; justify-content:space-between; gap:10px; }
+  .user-card-stats{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
+    margin-top:2px;
+    padding-top:10px;
+    border-top:1px dashed var(--card-edge);
+  }
+  .user-card-stat{ display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .user-card-stat strong{ font-size:17px; font-family:'IBM Plex Mono', monospace; color:var(--ink); }
+  .user-card-stat span{ font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; }
+  .user-card-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:2px;
+    padding-top:10px;
+    border-top:1px dashed var(--card-edge);
+  }
+  .field textarea{
+    border:1px solid var(--card-edge);
+    border-radius:6px;
+    padding:9px 10px;
+    font-size:13px;
+    font-family:inherit;
+    background:var(--card);
+    color:var(--ink);
+    resize:vertical;
+    min-height:80px;
+  }
+  .field textarea:focus{ outline:none; border-color:var(--ink-soft); }
 
   .board-error-banner{
     display:none;
@@ -919,6 +1024,19 @@
     background:rgba(35,43,54,0.06);
     border-color:var(--ink);
   }
+  .btn-role-active.btn-small-neutral{
+    background:#C0392B;
+    border-color:#C0392B;
+    color:#fff;
+  }
+  .btn-role-active.btn-small-neutral:hover{ background:#A5301F; border-color:#A5301F; }
+
+  .btn-block-active.btn-small-neutral{
+    background:var(--royal-blue);
+    border-color:var(--royal-blue);
+    color:#fff;
+  }
+  .btn-block-active.btn-small-neutral:hover{ background:var(--royal-blue-deep); border-color:var(--royal-blue-deep); }
   .cat-sort-btn.active:not(.cat-sort-circle){
     background:var(--ink);
     color:#F1EBDC;
@@ -1384,6 +1502,7 @@
       <button class="btn btn-ghost-light" id="manageCategoriesBtn">📁 Manage Categories</button>
     </div>
     <div class="topbar-right">
+      <button class="btn btn-admin-panel" id="adminPanelBtn" title="Admin Panel">Admin Panel</button>
       <button class="user-chip" id="accountBtn" title="Account settings">
         <span class="user-avatar" id="userAvatar">AK</span>
         <span id="userDisplayName">anna.kovalenko</span>
@@ -1486,6 +1605,95 @@
     <button class="page-btn">10</button>
     <button class="page-nav">›</button>
   </nav>
+
+  <!-- ================= ADMIN CONTROL DECK ================= -->
+  <section class="control-deck" id="adminControlDeck" style="display:none">
+    <div class="deck-row" id="adminFilterRow">
+      <span class="deck-label">Filter</span>
+      <div class="search-field">
+        <input type="text" id="adminSearchInput" class="search-input" placeholder="Search by email…">
+      </div>
+    </div>
+
+    <div class="deck-row" id="adminSortRow">
+      <span class="deck-label">Sort by</span>
+      <button class="pill sort-btn" data-admin-sort="Email">Email</button>
+      <button class="pill sort-btn" data-admin-sort="CreatedAt">Created At</button>
+      <button class="pill sort-btn" data-admin-sort="LastOnlineTime">Last Online</button>
+      <button class="pill sort-btn" data-admin-sort="TaskCount">Tasks</button>
+      <button class="pill sort-btn" data-admin-sort="CompletedTaskCount">Completed</button>
+      <button class="pill sort-btn" data-admin-sort="NotCompletedTaskCount">Not Completed</button>
+      <button class="pill sort-btn" data-admin-sort="CategoryCount">Categories</button>
+
+      <div class="page-size-group">
+        <label for="adminPageSizeSelect" class="page-size-label">Per Page</label>
+        <select id="adminPageSizeSelect" class="page-size-select">
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ADMIN BOARD ================= -->
+  <div class="board-error-banner" id="adminErrorBanner"></div>
+  <main class="board" id="adminBoard" style="display:none"></main>
+
+  <nav class="pagination" id="adminPagination" aria-label="Admin Pagination" style="display:none"></nav>
+
+  <!-- ================= BLOCK USER MODAL ================= -->
+  <div class="overlay" id="blockUserOverlay">
+    <div class="modal">
+      <h2>Block User</h2>
+      <p class="hint">Block <strong id="blockUserEmail"></strong> from signing in.</p>
+      <div class="field">
+        <label for="blockUserUntil">Blocked until (optional)</label>
+        <input type="date" id="blockUserUntil">
+      </div>
+      <p class="form-note">Leave empty to block indefinitely.</p>
+      <div class="inline-status warn" id="blockUserError"></div>
+      <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
+        <button class="btn-plain" id="blockUserCancelBtn">Cancel</button>
+        <button class="btn-solid btn-solid-danger" id="blockUserConfirmBtn">Block User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SEND DELETION WARNING MODAL ================= -->
+  <div class="overlay" id="warnUserOverlay">
+    <div class="modal">
+      <h2>Send Deletion Warning</h2>
+      <p class="hint">Warn <strong id="warnUserEmail"></strong> that their account may be deleted.</p>
+      <div class="field">
+        <label for="warnUserReason">Reason</label>
+        <textarea id="warnUserReason" rows="4" placeholder="Explain why this account is at risk of deletion…"></textarea>
+      </div>
+      <div class="inline-status warn" id="warnUserError"></div>
+      <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
+        <button class="btn-plain" id="warnUserCancelBtn">Cancel</button>
+        <button class="btn-solid" id="warnUserConfirmBtn">Send Warning</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DELETE USER MODAL ================= -->
+  <div class="overlay" id="deleteUserOverlay">
+    <div class="modal">
+      <h2>Delete User</h2>
+      <p class="hint">Permanently delete <strong id="deleteUserEmail"></strong>? This cannot be undone.</p>
+      <div class="field">
+        <label for="deleteUserReason">Reason</label>
+        <textarea id="deleteUserReason" rows="4" placeholder="Reason for deleting this account…"></textarea>
+      </div>
+      <div class="inline-status warn" id="deleteUserError"></div>
+      <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
+        <button class="btn-plain" id="deleteUserCancelBtn">Cancel</button>
+        <button class="btn-solid btn-solid-danger" id="deleteUserConfirmBtn">Delete User</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ================= CATEGORY MODAL ================= -->
   <div class="overlay" id="catOverlay">
@@ -1961,6 +2169,413 @@
     currentPage = 1;
     saveBoardState();
     loadTasks();
+  });
+
+  /* ==================================================================
+     ADMIN PANEL — user list (filter, sort, pagination) via GET /api/admin/users
+     ================================================================== */
+  let adminMode = false;
+  let adminUsers = [];
+  let adminTotalCount = 0;
+  let adminSearchQuery = '';
+  let adminSortKey = 'CreatedAt';
+  let adminSortDesc = false;
+  let adminCurrentPage = 1;
+
+  function getAdminPageSize(){
+    return parseInt(document.getElementById('adminPageSizeSelect').value, 10) || 10;
+  }
+
+  function buildAdminUsersQuery(){
+    const params = new URLSearchParams();
+    params.set('sortBy', adminSortKey);
+    params.set('isDescending', adminSortDesc ? 'true' : 'false');
+    if(adminSearchQuery.trim()) params.set('searchTerm', adminSearchQuery.trim());
+    params.set('pageNumber', adminCurrentPage);
+    params.set('pageSize', getAdminPageSize());
+    return params.toString();
+  }
+
+  async function loadAdminUsers(){
+    const board = document.getElementById('adminBoard');
+    const errorBanner = document.getElementById('adminErrorBanner');
+    const hasExistingCards = !!board.querySelector('.user-card');
+    if(!hasExistingCards){
+      board.innerHTML = '<div class="empty-state">Loading users…</div>';
+    }
+    const loadingIndicatorTimer = setTimeout(()=>{ board.classList.add('board-loading'); }, 1000);
+    try{
+      const query = buildAdminUsersQuery();
+      const result = await apiFetch(`/api/admin/users?${query}`);
+      const totalPages = Math.max(1, Math.ceil((result.totalCount || 0) / getAdminPageSize()));
+      if(adminCurrentPage > totalPages){
+        adminCurrentPage = totalPages;
+        return loadAdminUsers();
+      }
+      adminUsers = (result.items || []).map(u => ({
+        id: u.id,
+        email: u.email,
+        isEmailConfirmed: !!u.isEmailConfirmed,
+        createdAt: u.createdAt,
+        lastOnlineTime: u.lastOnlineTime || '',
+        taskCount: u.taskCount || 0,
+        completedTaskCount: u.completedTaskCount || 0,
+        notCompletedTaskCount: Math.max(0, (u.taskCount || 0) - (u.completedTaskCount || 0)),
+        categoryCount: u.categoryCount || 0,
+        isAdmin: !!u.isAdmin,
+        lockoutEnd: u.lockoutEnd || null
+      }));
+      adminTotalCount = result.totalCount || 0;
+      errorBanner.classList.remove('show');
+      renderAdminPagination();
+      renderAdminBoard();
+    } catch(err){
+      const message = (err.messages || [err.message]).join(' ');
+      if(hasExistingCards){
+        errorBanner.textContent = `Couldn't refresh users: ${message}`;
+        errorBanner.classList.add('show');
+      } else {
+        board.innerHTML = `<div class="empty-state">Couldn't load users: ${escapeHtml(message)}</div>`;
+      }
+    } finally {
+      clearTimeout(loadingIndicatorTimer);
+      board.classList.remove('board-loading');
+    }
+  }
+
+  function formatAdminDate(value){
+    if(!value) return '—';
+    const d = new Date(value);
+    if(isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+
+  function isUserLockedOut(u){
+    return !!u.lockoutEnd && new Date(u.lockoutEnd).getTime() > Date.now();
+  }
+
+  function renderAdminBoard(){
+    const board = document.getElementById('adminBoard');
+    if(adminUsers.length === 0){
+      board.innerHTML = '<div class="empty-state">No users found.</div>';
+      return;
+    }
+    board.innerHTML = adminUsers.map(u => `
+      <div class="user-card" data-id="${escapeAttr(u.id)}">
+        <div class="user-card-head">
+          <span class="user-card-email">${escapeHtml(u.email)}</span>
+          <span class="user-card-badges">
+            ${u.isAdmin ? '<span class="user-card-badge">Admin</span>' : ''}
+            ${isUserLockedOut(u) ? '<span class="user-card-badge user-card-badge-locked">Locked</span>' : ''}
+          </span>
+        </div>
+        <div class="user-card-meta">
+          <div class="user-card-meta-row"><span>Status</span><span>${u.isEmailConfirmed ? 'Confirmed' : '<span class="user-card-unconfirmed">Unconfirmed</span>'}</span></div>
+          <div class="user-card-meta-row"><span>Created</span><span>${formatAdminDate(u.createdAt)}</span></div>
+          <div class="user-card-meta-row"><span>Last online</span><span>${formatAdminDate(u.lastOnlineTime)}</span></div>
+        </div>
+        <div class="user-card-stats">
+          <div class="user-card-stat"><strong>${u.taskCount}</strong><span>Tasks</span></div>
+          <div class="user-card-stat"><strong>${u.completedTaskCount}</strong><span>Done</span></div>
+          <div class="user-card-stat"><strong>${u.notCompletedTaskCount}</strong><span>Open</span></div>
+          <div class="user-card-stat"><strong>${u.categoryCount}</strong><span>Categories</span></div>
+        </div>
+        <div class="user-card-actions">
+          <button class="btn-plain btn-small-neutral ${u.isAdmin ? 'btn-role-active' : ''}" data-action="toggle-admin">${u.isAdmin ? 'Remove Admin' : 'Make Admin'}</button>
+          <button class="btn-plain btn-small-neutral ${isUserLockedOut(u) ? 'btn-block-active' : ''}" data-action="toggle-block">${isUserLockedOut(u) ? 'Unblock' : 'Block'}</button>
+          <button class="btn-plain btn-small-neutral" data-action="warn">Warn</button>
+          <button class="btn-plain btn-small-danger" data-action="delete-user" title="Delete user permanently">🗑 Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderAdminPagination(){
+    const nav = document.getElementById('adminPagination');
+    if(!nav) return;
+    const pageSize = getAdminPageSize();
+    const totalPages = Math.max(1, Math.ceil(adminTotalCount / pageSize));
+
+    function pageButtonList(current, total){
+      if(total <= 7) return Array.from({length: total}, (_,i)=>i+1);
+      const pages = [1];
+      if(current > 3) pages.push('…');
+      for(let p = Math.max(2, current-1); p <= Math.min(total-1, current+1); p++) pages.push(p);
+      if(current < total-2) pages.push('…');
+      pages.push(total);
+      return pages;
+    }
+
+    let html = `<button class="page-nav" data-admin-page="${adminCurrentPage-1}" ${adminCurrentPage<=1?'disabled':''}>‹</button>`;
+    pageButtonList(adminCurrentPage, totalPages).forEach(p=>{
+      html += (p === '…')
+        ? `<span class="page-ellipsis">…</span>`
+        : `<button class="page-btn ${p===adminCurrentPage?'active':''}" data-admin-page="${p}">${p}</button>`;
+    });
+    html += `<button class="page-nav" data-admin-page="${adminCurrentPage+1}" ${adminCurrentPage>=totalPages?'disabled':''}>›</button>`;
+    nav.innerHTML = html;
+  }
+
+  document.getElementById('adminPagination').addEventListener('click', e=>{
+    const btn = e.target.closest('[data-admin-page]');
+    if(!btn || btn.disabled) return;
+    const page = parseInt(btn.dataset.adminPage, 10);
+    if(!page || page === adminCurrentPage) return;
+    adminCurrentPage = page;
+    loadAdminUsers();
+  });
+
+  document.getElementById('adminPageSizeSelect').addEventListener('change', ()=>{
+    adminCurrentPage = 1;
+    loadAdminUsers();
+  });
+
+  const debouncedAdminSearchLoad = debounce(()=>{ adminCurrentPage = 1; loadAdminUsers(); }, 300);
+  document.getElementById('adminSearchInput').addEventListener('input', e=>{
+    adminSearchQuery = e.target.value;
+    debouncedAdminSearchLoad();
+  });
+
+  function activateAdminSortButton(key, desc){
+    adminSortKey = key;
+    adminSortDesc = desc;
+    document.querySelectorAll('#adminSortRow .sort-btn').forEach(b=>{
+      b.classList.remove('active');
+      b.innerHTML = b.textContent.replace(/ [▲▼]$/,'');
+    });
+    const btn = document.querySelector(`#adminSortRow .sort-btn[data-admin-sort="${key}"]`);
+    if(btn){
+      btn.classList.add('active');
+      btn.innerHTML = btn.textContent + (desc ? ' ▼' : ' ▲');
+    }
+  }
+
+  document.getElementById('adminSortRow').addEventListener('click', e=>{
+    const btn = e.target.closest('.sort-btn');
+    if(!btn) return;
+    const key = btn.dataset.adminSort;
+    const desc = (adminSortKey === key) ? !adminSortDesc : false;
+    activateAdminSortButton(key, desc);
+    adminCurrentPage = 1;
+    loadAdminUsers();
+  });
+
+  // Default sort indicator matches the DTO defaults (CreatedAt, ascending)
+  activateAdminSortButton('CreatedAt', false);
+
+  function enterAdminMode(){
+    if(adminMode) return;
+    adminMode = true;
+    document.getElementById('adminPanelBtn').textContent = '← Back to Board';
+    document.getElementById('adminPanelBtn').classList.add('active-admin');
+    document.getElementById('manageCategoriesBtn').style.display = 'none';
+    document.querySelector('.control-deck').style.display = 'none';
+    document.getElementById('board').style.display = 'none';
+    document.getElementById('taskHiddenBanner').classList.remove('show');
+    document.getElementById('boardErrorBanner').classList.remove('show');
+    document.querySelector('nav.pagination').style.display = 'none';
+    document.getElementById('addTaskBtn').style.display = 'none';
+
+    document.getElementById('adminControlDeck').style.display = '';
+    document.getElementById('adminBoard').style.display = '';
+    document.getElementById('adminPagination').style.display = '';
+
+    adminCurrentPage = 1;
+    loadAdminUsers();
+  }
+
+  function exitAdminMode(){
+    if(!adminMode) return;
+    adminMode = false;
+    document.getElementById('adminPanelBtn').textContent = 'Admin Panel';
+    document.getElementById('adminPanelBtn').classList.remove('active-admin');
+    document.getElementById('manageCategoriesBtn').style.display = '';
+    document.querySelector('.control-deck').style.display = '';
+    document.getElementById('board').style.display = '';
+    document.querySelector('nav.pagination').style.display = '';
+    document.getElementById('addTaskBtn').style.display = '';
+
+    document.getElementById('adminControlDeck').style.display = 'none';
+    document.getElementById('adminBoard').style.display = 'none';
+    document.getElementById('adminPagination').style.display = 'none';
+  }
+
+  document.getElementById('adminPanelBtn').addEventListener('click', ()=>{
+    if(adminMode) exitAdminMode(); else enterAdminMode();
+  });
+
+  /* ---------------- ADMIN USER ACTIONS ---------------- */
+  function adminBoardError(message){
+    const errorBanner = document.getElementById('adminErrorBanner');
+    errorBanner.textContent = message;
+    errorBanner.classList.add('show');
+  }
+  function clearAdminBoardError(){
+    document.getElementById('adminErrorBanner').classList.remove('show');
+  }
+
+  async function adminToggleAdminRole(user, btn){
+    const endpoint = user.isAdmin ? 'remove-admin' : 'assign-admin';
+    btn.disabled = true;
+    try{
+      await apiFetch(`/api/admin/users/${user.id}/${endpoint}`, { method: 'POST' });
+      clearAdminBoardError();
+      await loadAdminUsers();
+    } catch(err){
+      adminBoardError(`Couldn't update admin role: ${(err.messages || [err.message]).join(' ')}`);
+      btn.disabled = false;
+    }
+  }
+
+  async function adminUnblockUser(user, btn){
+    btn.disabled = true;
+    try{
+      await apiFetch(`/api/admin/users/${user.id}/unblock`, { method: 'POST' });
+      clearAdminBoardError();
+      await loadAdminUsers();
+    } catch(err){
+      adminBoardError(`Couldn't unblock user: ${(err.messages || [err.message]).join(' ')}`);
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('adminBoard').addEventListener('click', e=>{
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const card = btn.closest('.user-card');
+    if(!card) return;
+    const user = adminUsers.find(u => u.id === card.dataset.id);
+    if(!user) return;
+
+    if(btn.dataset.action === 'toggle-admin') adminToggleAdminRole(user, btn);
+    if(btn.dataset.action === 'toggle-block'){
+      if(isUserLockedOut(user)) adminUnblockUser(user, btn);
+      else openBlockUserModal(user);
+    }
+    if(btn.dataset.action === 'warn') openWarnUserModal(user);
+    if(btn.dataset.action === 'delete-user') openDeleteUserModal(user);
+  });
+
+  /* ---------------- BLOCK USER MODAL ---------------- */
+  let pendingBlockUserId = null;
+  const blockUserOverlay = document.getElementById('blockUserOverlay');
+
+  function openBlockUserModal(user){
+    pendingBlockUserId = user.id;
+    document.getElementById('blockUserEmail').textContent = user.email;
+    document.getElementById('blockUserUntil').value = '';
+    document.getElementById('blockUserError').classList.remove('show');
+    blockUserOverlay.classList.add('open');
+  }
+  function closeBlockUserModal(){
+    blockUserOverlay.classList.remove('open');
+    pendingBlockUserId = null;
+  }
+  document.getElementById('blockUserCancelBtn').addEventListener('click', closeBlockUserModal);
+  bindOverlayOutsideClose(blockUserOverlay, closeBlockUserModal);
+
+  document.getElementById('blockUserConfirmBtn').addEventListener('click', async ()=>{
+    if(!pendingBlockUserId) return;
+    const userId = pendingBlockUserId;
+    const untilRaw = document.getElementById('blockUserUntil').value; // "" or "YYYY-MM-DD"
+    const errorEl = document.getElementById('blockUserError');
+    errorEl.classList.remove('show');
+    try{
+      await apiFetch(`/api/admin/users/${userId}/block`, {
+        method: 'POST',
+        body: JSON.stringify({ until: untilRaw || null })
+      });
+      closeBlockUserModal();
+      clearAdminBoardError();
+      await loadAdminUsers();
+    } catch(err){
+      errorEl.textContent = (err.messages || [err.message]).join(' ');
+      errorEl.classList.add('show');
+    }
+  });
+
+  /* ---------------- SEND DELETION WARNING MODAL ---------------- */
+  let pendingWarnUserId = null;
+  const warnUserOverlay = document.getElementById('warnUserOverlay');
+
+  function openWarnUserModal(user){
+    pendingWarnUserId = user.id;
+    document.getElementById('warnUserEmail').textContent = user.email;
+    document.getElementById('warnUserReason').value = '';
+    document.getElementById('warnUserError').classList.remove('show');
+    warnUserOverlay.classList.add('open');
+  }
+  function closeWarnUserModal(){
+    warnUserOverlay.classList.remove('open');
+    pendingWarnUserId = null;
+  }
+  document.getElementById('warnUserCancelBtn').addEventListener('click', closeWarnUserModal);
+  bindOverlayOutsideClose(warnUserOverlay, closeWarnUserModal);
+
+  document.getElementById('warnUserConfirmBtn').addEventListener('click', async ()=>{
+    if(!pendingWarnUserId) return;
+    const userId = pendingWarnUserId;
+    const reason = document.getElementById('warnUserReason').value.trim();
+    const errorEl = document.getElementById('warnUserError');
+    if(!reason){
+      errorEl.textContent = 'Reason is required.';
+      errorEl.classList.add('show');
+      return;
+    }
+    errorEl.classList.remove('show');
+    try{
+      await apiFetch(`/api/admin/users/${userId}/send-deletion-warning`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      closeWarnUserModal();
+    } catch(err){
+      errorEl.textContent = (err.messages || [err.message]).join(' ');
+      errorEl.classList.add('show');
+    }
+  });
+
+  /* ---------------- DELETE USER MODAL ---------------- */
+  let pendingDeleteUserId = null;
+  const deleteUserOverlay = document.getElementById('deleteUserOverlay');
+
+  function openDeleteUserModal(user){
+    pendingDeleteUserId = user.id;
+    document.getElementById('deleteUserEmail').textContent = user.email;
+    document.getElementById('deleteUserReason').value = '';
+    document.getElementById('deleteUserError').classList.remove('show');
+    deleteUserOverlay.classList.add('open');
+  }
+  function closeDeleteUserModal(){
+    deleteUserOverlay.classList.remove('open');
+    pendingDeleteUserId = null;
+  }
+  document.getElementById('deleteUserCancelBtn').addEventListener('click', closeDeleteUserModal);
+  bindOverlayOutsideClose(deleteUserOverlay, closeDeleteUserModal);
+
+  document.getElementById('deleteUserConfirmBtn').addEventListener('click', async ()=>{
+    if(!pendingDeleteUserId) return;
+    const userId = pendingDeleteUserId;
+    const reason = document.getElementById('deleteUserReason').value.trim();
+    const errorEl = document.getElementById('deleteUserError');
+    if(!reason){
+      errorEl.textContent = 'Reason is required.';
+      errorEl.classList.add('show');
+      return;
+    }
+    errorEl.classList.remove('show');
+    try{
+      await apiFetch(`/api/admin/users/${userId}/delete`, {
+        method: 'DELETE',
+        body: JSON.stringify({ reason })
+      });
+      closeDeleteUserModal();
+      clearAdminBoardError();
+      await loadAdminUsers();
+    } catch(err){
+      errorEl.textContent = (err.messages || [err.message]).join(' ');
+      errorEl.classList.add('show');
+    }
   });
 
   function categoryOptions(selectedId){
@@ -3273,7 +3888,7 @@
   const accountEmailHint = document.getElementById('accountEmailHint');
   const confirmEmailRow = document.getElementById('confirmEmailRow');
 
-  let currentUser = { id: '', email: '', isEmailConfirmed: false, createdAt: '' };
+  let currentUser = { id: '', email: '', isEmailConfirmed: false, createdAt: '', isAdmin: false };
 
   function accountScreens(){
     return {
@@ -3561,6 +4176,11 @@
   const signupError = document.getElementById('signupError');
   const userAvatar = document.getElementById('userAvatar');
   const userDisplayName = document.getElementById('userDisplayName');
+  const adminPanelBtn = document.getElementById('adminPanelBtn');
+
+  function updateAdminPanelVisibility(){
+    adminPanelBtn.classList.toggle('show', !!currentUser.isAdmin);
+  }
 
   let appStarted = false;
 
@@ -3573,6 +4193,12 @@
     tasks = [];
     totalTaskCount = 0;
     categories = [];
+    currentUser = { id: '', email: '', isEmailConfirmed: false, createdAt: '', isAdmin: false };
+    exitAdminMode();
+    document.getElementById('blockUserOverlay').classList.remove('open');
+    document.getElementById('warnUserOverlay').classList.remove('open');
+    document.getElementById('deleteUserOverlay').classList.remove('open');
+    updateAdminPanelVisibility();
     renderBoardFromState();
     renderCatList();
     localStorage.removeItem(BOARD_STATE_KEY);
@@ -3608,10 +4234,11 @@
   }
 
   async function enterApp(userInfo){
-    currentUser = { id: userInfo.id, email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed, createdAt: userInfo.createdAt };
+    currentUser = { id: userInfo.id, email: userInfo.email, isEmailConfirmed: !!userInfo.isEmailConfirmed, createdAt: userInfo.createdAt, isAdmin: !!userInfo.isAdmin };
     const displayName = currentUser.email.split('@')[0] || currentUser.email;
     userDisplayName.textContent = displayName;
     userAvatar.textContent = initialsFrom(displayName);
+    updateAdminPanelVisibility();
     authLoading.classList.add('hidden');
     authGate.classList.add('hidden');
     appShell.classList.add('visible');
@@ -3775,10 +4402,11 @@
     try{
       const info = await apiFetch('/api/auth/me');
       if(!info || !info.email) return;
-      currentUser = { id: info.id, email: info.email, isEmailConfirmed: !!info.isEmailConfirmed, createdAt: info.createdAt };
+      currentUser = { id: info.id, email: info.email, isEmailConfirmed: !!info.isEmailConfirmed, createdAt: info.createdAt, isAdmin: !!info.isAdmin };
       const displayName = currentUser.email.split('@')[0] || currentUser.email;
       userDisplayName.textContent = displayName;
       userAvatar.textContent = initialsFrom(displayName);
+      updateAdminPanelVisibility();
       confirmEmailRow.style.display = currentUser.isEmailConfirmed ? 'none' : 'flex';
       if(accountOverlay.classList.contains('open')){
         const openTitle = accountDetailTitle.textContent;

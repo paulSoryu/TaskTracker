@@ -8,7 +8,6 @@ using TaskTracker.Api.Extensions;
 using TaskTracker.Business.Models;
 using TaskTracker.Business.Models.Users;
 using TaskTracker.Business.Services.Users;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TaskTracker.Api.Endpoints;
 

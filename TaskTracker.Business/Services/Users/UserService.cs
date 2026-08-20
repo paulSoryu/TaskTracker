@@ -33,25 +33,6 @@ public class UserService(TaskTrackerDbContext db, UserManager<UserEntity> userMa
             .AsSplitQuery()
             .ToListAsync();
 
-        // This is needed because Mapster couldn't map UserRoles.Any() to bool IsAdmin, maybe there's some other solution, but I couldn't find it
-        // Maybe we should load UserRoles into UserView, and then map it into IsAdmin in UserListResponse
-        if (pagedData.Any())
-        {
-            var pagedUserIds = pagedData.Select(u => u.Id).ToList();
-
-            var activeAdminIds = await db.UserRoles
-                .Where(ur => pagedUserIds.Contains(ur.UserId))
-                .Select(ur => ur.UserId)
-                .ToListAsync();
-
-            var adminHashSet = activeAdminIds.ToHashSet();
-
-            foreach (var userView in pagedData)
-            {
-                userView.IsAdmin = adminHashSet.Contains(userView.Id);
-            }
-        }
-
         return new PagedResult<UserView>(pagedData, totalCount);
     }
 
@@ -73,16 +54,15 @@ public class UserService(TaskTrackerDbContext db, UserManager<UserEntity> userMa
 
     public async Task<Result<UserInfoView>> GetInfoByIdAsync(string id)
     {
-        var user = await userManager.FindByIdAsync(id);
+        var userView = await db.Users
+            .Where(u => u.Id == Guid.Parse(id))
+            .ProjectToType<UserInfoView>()
+            .FirstOrDefaultAsync();
 
-        if (user == null)
+        if (userView == null)
             return Result.Fail(new NotFoundError("User", id));
 
-        var response = user.Adapt<UserInfoView>();
-
-        response.IsAdmin = await userManager.IsInRoleAsync(user, "Admin");
-
-        return Result.Ok(response);
+        return Result.Ok(userView);
     }
 
     // this CreateAsync method doesn't write anything into DB as ASP.NET Identity already does this in RegisterAsync
@@ -114,6 +94,9 @@ public class UserService(TaskTrackerDbContext db, UserManager<UserEntity> userMa
 
         if (await userManager.IsInRoleAsync(user, "Admin"))
             return Result.Fail(new ValidationError("This user already has this role"));
+
+        if (user.LockoutEnd > DateTime.UtcNow)
+            return Result.Fail(new ValidationError("Blocked users could not become admins"));
 
         var addRoleResult = await userManager.AddToRoleAsync(user, "Admin");
 
@@ -158,13 +141,9 @@ public class UserService(TaskTrackerDbContext db, UserManager<UserEntity> userMa
             return Result.Fail(new NotFoundError("User", userId));
 
         if (await userManager.IsInRoleAsync(user, "Admin"))
-        {
-            var admins = await userManager.GetUsersInRoleAsync("Admin");
-            if (admins.Count <= 1)
-                return Result.Fail(new ValidationError("Can't block the only user with Admin role in the system"));
-        }
+            return Result.Fail(new ValidationError("Admins could not be blocked"));
 
-        DateTimeOffset lockoutEndDate = until == null 
+        DateTimeOffset lockoutEndDate = until == null
             ? DateTimeOffset.UtcNow.AddYears(200)
             : until.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 

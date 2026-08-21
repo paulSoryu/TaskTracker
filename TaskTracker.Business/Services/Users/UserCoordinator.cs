@@ -119,7 +119,7 @@ public class UserCoordinator(
             var admins = await userManager.GetUsersInRoleAsync("Admin");
 
             if (admins.Count <= 1)
-                return Result.Fail(new ValidationError("Can't delete the last admin in the system"));
+                return Result.Fail(new ValidationError("Can't delete the last admin in the system."));
         }
 
         var checkPasswordResult = await authService.VerifyPasswordAsync(user, password);
@@ -147,8 +147,11 @@ public class UserCoordinator(
         }
     }
 
-    public async Task<Result> DeleteUserAndDataByAdminAsync(Guid id, string reason)
+    public async Task<Result> DeleteUserAndDataByAdminAsync(Guid id, string reason, string currentUserId)
     {
+        if (Guid.Parse(currentUserId) == id)
+            return Result.Fail(new ValidationError("Can't delete your own account from Admin Panel. Use account window instead."));
+
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user == null)
             return Result.Fail(new NotFoundError("User", id));
@@ -158,7 +161,7 @@ public class UserCoordinator(
             var admins = await userManager.GetUsersInRoleAsync("Admin");
 
             if (admins.Count <= 1)
-                return Result.Fail(new ValidationError("Can't delete the last admin in the system"));
+                return Result.Fail(new ValidationError("Can't delete the last admin in the system."));
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync();

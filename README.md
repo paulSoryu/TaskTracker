@@ -57,7 +57,7 @@ To launch the project, you only need **Docker Desktop** installed.
 
 ## Admin Panel
 To access admin panel log in with "admin@admin" email and "adminA1!" password, a new button will appear in the top right corner.
-You can also press a green button to seed default data for testing purposes. You can generate up to 1000 tasks and 100 categories per account (admin account is automatically verified).
+You can also press a green button to seed default data for testing purposes. You can generate up to 1000 tasks and 100 categories per account (admin accounts are automatically verified).
 
 ## Email Simulation
-For now Emails are simulated in the console, check it if you want to confirm your email or recieve a deletion warning.
+Emails are simulated in the console, check it if you want to confirm your email or recieve a deletion warning.

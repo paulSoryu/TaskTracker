@@ -99,9 +99,11 @@ public static class AdminEndpoints
         return result.ToTypedHttpResult();
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteUserByAdmin(Guid id, [FromBody] UserDeletionRequest request, IUserCoordinator userCoordinator)
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteUserByAdmin(Guid id, [FromBody] UserDeletionRequest request, IUserCoordinator userCoordinator, UserManager<UserEntity> userManager, ClaimsPrincipal currentUser)
     {
-        Result result = await userCoordinator.DeleteUserAndDataByAdminAsync(id, request.Reason);
+        var currentUserId = userManager.GetUserId(currentUser)!;
+
+        Result result = await userCoordinator.DeleteUserAndDataByAdminAsync(id, request.Reason, currentUserId);
         return result.ToTypedHttpResult();
     }
 

@@ -8,7 +8,7 @@ public interface IUserCoordinator
     Task<Result> SendEmailConfirmationLetterAsync(string email);
     Task<Result> SendEmailChangeLetterAsync(string currentEmail, string newEmail, string password);
     Task<Result> DeleteUserAndDataAsync(string email, string password);
-    Task<Result> DeleteUserAndDataByAdminAsync(Guid id, string reason);
+    Task<Result> DeleteUserAndDataByAdminAsync(Guid id, string reason, string currentUserId);
     Task<Result> SendDeletionWarningLetterAsync(Guid id, string reason);
 
 }

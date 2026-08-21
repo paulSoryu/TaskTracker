@@ -47,6 +47,11 @@ public static class ResultExtensions
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Resource Not Found"),
 
+            UserNotFoundError => TypedResults.Problem(
+                detail: error.Message,
+                statusCode: StatusCodes.Status404NotFound,
+                title: "User Not Found"),
+
             ValidationError validationError => TypedResults.Problem(
                 detail: validationError.Message,
                 statusCode: StatusCodes.Status400BadRequest,

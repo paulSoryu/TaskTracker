@@ -16,7 +16,10 @@ public static class IdentitySeedData
         const string defaultAdminEmail = "admin@admin";
 
         if (!await roleManager.RoleExistsAsync(adminRole))
-            await roleManager.CreateAsync(new IdentityRole<Guid>(adminRole));
+            await roleManager.CreateAsync(new IdentityRole<Guid>(adminRole) 
+            {
+                Id = RoleConstraints.AdminRoleId
+            });
 
         var admins = await userManager.GetUsersInRoleAsync(adminRole);
 
@@ -29,7 +32,6 @@ public static class IdentitySeedData
             {
                 defaultAdmin = new UserEntity
                 {
-                    Id = RoleConstraints.AdminRoleId,
                     UserName = defaultAdminEmail,
                     Email = defaultAdminEmail,
                     EmailConfirmed = true

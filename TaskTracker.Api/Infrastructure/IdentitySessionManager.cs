@@ -12,6 +12,9 @@ public class IdentitySessionManager(SignInManager<UserEntity> signInManager, Use
 {
     public async Task<Result> PasswordSignInAsync(string email, string password, bool isPersistent)
     {
+        if (await userManager.FindByEmailAsync(email) == null)
+            return Result.Fail(new UserNotFoundError(email));
+
         var signInResult = await signInManager.PasswordSignInAsync(email, password, isPersistent, lockoutOnFailure: false);
 
         if (signInResult.IsLockedOut)

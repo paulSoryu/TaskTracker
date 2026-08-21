@@ -1,6 +1,5 @@
 ﻿using FluentResults;
 using Microsoft.AspNetCore.Identity;
-using System.Collections;
 
 namespace TaskTracker.Business.FluentErrors;
 
@@ -18,6 +17,20 @@ public class NotFoundError : Error
         Metadata.Add("ErrorCode", "RESOURCE_NOT_FOUND");
         Metadata.Add("EntityName", entityName);
         Metadata.Add("EntityId", entityId.ToString() ?? string.Empty);
+    }
+}
+
+public class UserNotFoundError : Error
+{
+    public object Email { get; }
+
+    public UserNotFoundError(string email)
+        : base($"User with email '{email}' was not found.")
+    {
+        Email = email;
+
+        Metadata.Add("ErrorCode", "RESOURCE_NOT_FOUND");
+        Metadata.Add("EntityId", email.ToString() ?? string.Empty);
     }
 }
 

@@ -31,9 +31,8 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # 6. Настройка прав для SQLite базы данных и ключей защиты данных (Data Protection)
-# Поскольку мы используем Вариант 1 (база в корне папки приложения), выдаем права 
-# встроенному пользователю 'app', чтобы приложение могло писать в файлы рантайма не от root.
-RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && \
+# Выдаем права встроенному пользователю 'app', чтобы приложение могло писать в файлы рантайма не от root.
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys /app/data && \
     chown -R app:app /app /home/app/.aspnet/DataProtection-Keys
 
 # 7. Объявляем тома. Теперь папка /app (где создается TaskTracker.db) замаплена на Volume, 

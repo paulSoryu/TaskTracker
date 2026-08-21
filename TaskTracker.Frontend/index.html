@@ -679,6 +679,14 @@
     border-top:1px dashed var(--card-edge);
     padding:12px 14px 14px;
   }
+  .task-created-meta{
+    padding:0 16px 6px;
+    text-align:right;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    opacity:0.75;
+  }
   .card-save-status{
     display:none;
     font-size:11px;
@@ -2243,7 +2251,7 @@
     }
   }
 
-  function formatAdminDate(value){
+  function formatDateOnly(value){
     if(!value) return '—';
     const d = new Date(value);
     if(isNaN(d.getTime())) return '—';
@@ -2271,8 +2279,8 @@
         </div>
         <div class="user-card-meta">
           <div class="user-card-meta-row"><span>Status</span><span>${u.isEmailConfirmed ? 'Confirmed' : '<span class="user-card-unconfirmed">Unconfirmed</span>'}</span></div>
-          <div class="user-card-meta-row"><span>Created</span><span>${formatAdminDate(u.createdAt)}</span></div>
-          <div class="user-card-meta-row"><span>Last online</span><span>${formatAdminDate(u.lastOnlineTime)}</span></div>
+          <div class="user-card-meta-row"><span>Created</span><span>${formatDateOnly(u.createdAt)}</span></div>
+          <div class="user-card-meta-row"><span>Last online</span><span>${formatDateOnly(u.lastOnlineTime)}</span></div>
         </div>
         <div class="user-card-stats">
           <div class="user-card-stat"><strong>${u.taskCount}</strong><span>Tasks</span></div>
@@ -2622,6 +2630,7 @@
           <input class="task-title-input" data-field="title" value="${escapeAttr(t.title)}" placeholder="Task title">
         </div>
         <textarea class="task-desc" data-field="description" placeholder="Describe this task…">${escapeHtml(t.description)}</textarea>
+        <div class="task-created-meta">Created ${formatDateOnly(t.createdAt)}</div>
         <div class="card-foot">
           <div class="foot-row">
             <div class="field-group">

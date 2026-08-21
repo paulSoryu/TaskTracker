@@ -4,9 +4,7 @@ public class TaskConstraints
 {
     public const int TitleMinLength = 3;
     public const int TitleMaxLength = 50;
-    public const int DescriptionMaxLength = 100;
-    public const int PriorityMinValue = 1;
-    public const int PriorityMaxValue = 3;
+    public const int DescriptionMaxLength = 2000;
 
     // Used in TaskService to limit the number of tasks a user can create based on their email confirmation status
     public const int MaxTasksForUnconfirmedEmail = 20;

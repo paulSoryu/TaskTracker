@@ -27,16 +27,11 @@ public class TaskTrackerDbContext(DbContextOptions<TaskTrackerDbContext> options
         modelBuilder.Entity<TaskEntity>()
             .HasQueryFilter(t => !userContext.IsAuthenticated || t.UserId == userContext.CurrentUserId);
 
-        // Breaks userManager.FindByIdAsync(userId) in AuthService.cs, so commented out for now
-        //modelBuilder.Entity<UserEntity>()
-        //    .HasQueryFilter(u => !_userContext.IsAuthenticated || u.Id == _userContext.CurrentUserId);
-
-        // Connect Users to Roles to know who's admin and who's not
-        modelBuilder.Entity<UserEntity>()
-                    .HasMany(u => u.UserRoles)
-                    .WithOne()
-                    .HasForeignKey(ur => ur.UserId)
-                    .IsRequired();
+        // UserEntity doesn't have a query filter. For AuthEndpoints, they are using ClaimsPrincipal to get current user.
+        // And for AdminEndpoints, they handle all users in the system, so we would need to write .IgnoreQueryFilters() everywhere
+        
+        // Still, when accessing tasks and categories of other users (to count them) we need to write .IgnoreQueryFilters()
+        // This is more secure as it is better to be forced to remove filter when you really need it, as opposed to just forgetting to filter entities by current user 
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -15,6 +15,7 @@ using TaskTracker.Business.Services.Emails;
 using TaskTracker.Business.Services.Identity;
 using TaskTracker.Business.Services.Reordering.Factories;
 using TaskTracker.Business.Services.Reordering.Strategies;
+using TaskTracker.Business.Services.Seeding;
 using TaskTracker.Business.Services.Tasks;
 using TaskTracker.Business.Services.Users;
 using TaskTracker.DataAccess.Databases;
@@ -73,6 +74,7 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IDataSeederService, DataSeederService>();
 builder.Services.AddScoped<IUserCoordinator, UserCoordinator>();
 builder.Services.AddSingleton<IEmailSenderService<UserEntity>, EmailSenderService>();
 
@@ -115,7 +117,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddFluentValidationRulesToSwagger();
 
 TypeAdapterConfig.GlobalSettings.Scan(Assembly.GetExecutingAssembly(),
-                            Assembly.Load("TaskTracker.Business"));
+                                      Assembly.Load("TaskTracker.Business"));
 
 var app = builder.Build();
 

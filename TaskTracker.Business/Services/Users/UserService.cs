@@ -103,6 +103,9 @@ public class UserService(TaskTrackerDbContext db, UserManager<UserEntity> userMa
         if (!addRoleResult.Succeeded)
             return Result.Fail(new IdentityValidationError($"Couldn't add Admin role to user {user.Email}", addRoleResult.Errors));
 
+        user.EmailConfirmed = true;
+        await db.SaveChangesAsync();
+
         var updateSecurityResult = await userManager.UpdateSecurityStampAsync(user);
 
         return updateSecurityResult.Succeeded

@@ -18,11 +18,12 @@ The project is a fully functional Fullstack task management application. It was 
 * **Mapster Integration:** The application uses Mapster for efficient object mapping between DTOs and EF Core entities, streamlining data transfer and reducing boilerplate code.
 * **Identity Management:** The application implements account management system using ASP.NET Core Identity for user authentication and authorization, ensuring secure access to resources and personalized user experiences. The advatage of this is that it is quick and easy to write, but the disadvantage is that it doesn't follow SRP
 * **Sorting/Filtering/Pagination:** The application implements sorting, filtering, and pagination for efficient data retrieval and presentation, enhancing user experience and performance. It also supports drag-and-drop operations for both tasks and categories. All calculations are done on the backend. 
-* **Automated Data Seeding:** When a new user registers, a welcome dataset (5 categories and 5 tasks) is automatically created within a single transaction, allowing immediate interface evaluation. There is a limit of 20 Tasks and 10 Categories for users with unconfirmed email (the confirmation link will be sent to the console)
+* **Welcoming Dataset:** When a new user registers, a welcome dataset (5 categories and 5 tasks) is automatically created within a single transaction, allowing immediate interface evaluation. There is a limit of 20 Tasks and 10 Categories for users with unconfirmed email (the confirmation link will be sent to the console).
+* **Automated Data Seeding:** Bogus library is used to allow admins to automatically generate a specified amount of Tasks and/or Categories in their accounts, up to 1000 Tasks and 100 Categories per account.
 * **Data-level CQRS:** The application implements a data-level CQRS pattern, separating read and write operations for improved performance and scalability. WebApi DTOs are used for data transfer, while EF Core entities are utilized for database operations.
-* **Orchestration pattern** For complex operations which require multiple services and/or an explicit transaction, an orchestrator class is used, so that the individual services can remain clean and independent, and so that endpoints don't need to operate with entities.
-* **Strategy and Factory patterns** To separate concerns, make code easily extensible and remove repeating code, in Business layer Strategy and Factory patterns are being utilized, specifically for Reordering operations.
-* **Dependency Inversion pattern** To remove dependency of lower layers from higher layers, Dependency Inversion pattern was used, specifically in IIdentitySessionManager and IUserContext.
+* **Orchestration pattern:** For complex operations which require multiple services and/or an explicit transaction, an orchestrator class is used, so that the individual services can remain clean and independent, and so that endpoints don't need to operate with entities.
+* **Strategy and Factory patterns:** To separate concerns, make code easily extensible and remove repeating code, in Business layer Strategy and Factory patterns are being utilized, specifically for Reordering operations.
+* **Dependency Inversion pattern:** To remove dependency of lower layers from higher layers, Dependency Inversion pattern was used, specifically in IIdentitySessionManager and IUserContext.
 * **Global Filtering:** The application implements global filtering for all queries, ensuring that only data associated with the currently authenticated user is accessible, enhancing security and data integrity.
 * **Automated Migrations:** The SQLite database is automatically deployed and updated upon the first application launch using EF Core Migrations.
 * **Dockerized Environment:** The application is fully containerized, allowing for easy deployment and consistent environments across different machines.
@@ -56,7 +57,7 @@ To launch the project, you only need **Docker Desktop** installed.
 
 ## Admin Panel
 To access admin panel log in with "admin@admin" email and "adminA1!" password, a new button will appear in the top right corner.
-You can also press a green button to seed default data for testing purposes. It generates 500 tasks and 50 categories in the current account.
+You can also press a green button to seed default data for testing purposes. You can generate up to 1000 tasks and 100 categories per account (admin account is automatically verified).
 
 ## Email Simulation
 For now Emails are simulated in the console, check it if you want to confirm your email or recieve a deletion warning.

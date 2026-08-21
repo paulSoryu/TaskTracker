@@ -1,13 +1,17 @@
 ﻿using FluentResults;
 using Mapster;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using TaskTracker.Api.DTOs.Admin;
 using TaskTracker.Api.DTOs.Users;
 using TaskTracker.Api.Extensions;
 using TaskTracker.Business.Models;
 using TaskTracker.Business.Models.Users;
+using TaskTracker.Business.Services.Seeding;
 using TaskTracker.Business.Services.Users;
+using TaskTracker.DataAccess.Entities;
 
 namespace TaskTracker.Api.Endpoints;
 
@@ -46,6 +50,9 @@ public static class AdminEndpoints
         group.MapDelete("/users/{id}/delete", DeleteUserByAdmin)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/seed-demo-data", SeedDemoData)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
     private static async Task<Ok<PagedResult<UserListResponse>>> GetAllUsers(IUserService userService, [AsParameters] GetUsersRequest request)
@@ -95,6 +102,15 @@ public static class AdminEndpoints
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteUserByAdmin(Guid id, [FromBody] UserDeletionRequest request, IUserCoordinator userCoordinator)
     {
         Result result = await userCoordinator.DeleteUserAndDataByAdminAsync(id, request.Reason);
+        return result.ToTypedHttpResult();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> SeedDemoData(ClaimsPrincipal user, SeedDemoDataRequest request, IDataSeederService seeder, UserManager<UserEntity> userManager)
+    {
+        var userId = userManager.GetUserId(user)!;
+
+        Result result = await seeder.GenerateDefaultDataAsync(Guid.Parse(userId), request.TaskAddAmount, request.CategoryAddAmount);
+
         return result.ToTypedHttpResult();
     }
 }

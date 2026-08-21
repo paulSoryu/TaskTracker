@@ -28,7 +28,6 @@ public class TaskConfiguration : IEntityTypeConfiguration<TaskEntity>
                .HasMaxLength(TaskConstraints.TitleMaxLength);
 
         builder.Property(p => p.Description)
-               .IsRequired()
                .HasMaxLength(TaskConstraints.DescriptionMaxLength);
 
         builder.Property(p => p.CreatedAt)

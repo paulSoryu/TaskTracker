@@ -114,6 +114,14 @@ public class UserCoordinator(
         if (user == null)
             return Result.Fail(new NotFoundError("User", email));
 
+        if (await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            var admins = await userManager.GetUsersInRoleAsync("Admin");
+
+            if (admins.Count <= 1)
+                return Result.Fail(new ValidationError("Can't delete the last admin in the system"));
+        }
+
         var checkPasswordResult = await authService.VerifyPasswordAsync(user, password);
         if (checkPasswordResult.IsFailed)
             return checkPasswordResult;
@@ -144,6 +152,14 @@ public class UserCoordinator(
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user == null)
             return Result.Fail(new NotFoundError("User", id));
+
+        if (await userManager.IsInRoleAsync(user, "Admin"))
+        {
+            var admins = await userManager.GetUsersInRoleAsync("Admin");
+
+            if (admins.Count <= 1)
+                return Result.Fail(new ValidationError("Can't delete the last admin in the system"));
+        }
 
         await using var transaction = await db.Database.BeginTransactionAsync();
 

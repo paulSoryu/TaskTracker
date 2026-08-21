@@ -162,6 +162,35 @@
   }
   .btn-admin-panel.active-admin:hover{ background:var(--ink-soft); border-color:var(--ink-soft); }
 
+  .btn-seed-data{
+    display:none;
+    color:#fff;
+    background:#3E9B4F;
+    border-color:#3E9B4F;
+  }
+  .btn-seed-data.show{ display:inline-flex; align-items:center; }
+  .btn-seed-data:hover{ background:#348642; border-color:#348642; }
+
+  .email-confirm-nudge{
+    display:none;
+    align-items:center;
+    gap:6px;
+    margin-left:auto;
+    padding:7px 12px;
+    border-radius:8px;
+    border:1px solid rgba(181,96,45,0.35);
+    background:rgba(181,96,45,0.12);
+    color:var(--rust-deep);
+    font-size:12.5px;
+    font-weight:600;
+    line-height:1.3;
+    text-align:left;
+    max-width:340px;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .email-confirm-nudge:hover{ background:rgba(181,96,45,0.2); border-color:var(--rust); }
+  .email-confirm-nudge.show{ display:inline-flex; }
+
   /* ---------- CONTROL DECK (filters + sort) ---------- */
   .control-deck{
     padding:16px 22px 6px;
@@ -1510,6 +1539,7 @@
       <button class="btn btn-ghost-light" id="manageCategoriesBtn">📁 Manage Categories</button>
     </div>
     <div class="topbar-right">
+      <button class="btn btn-seed-data" id="seedDataBtn" title="Seed Default Data">🌱 Seed Default Data</button>
       <button class="btn btn-admin-panel" id="adminPanelBtn" title="Admin Panel">Admin Panel</button>
       <button class="user-chip" id="accountBtn" title="Account settings">
         <span class="user-avatar" id="userAvatar">AK</span>
@@ -1580,6 +1610,8 @@
       <button class="pill sort-btn" data-sort="isCompleted">Is Completed</button>
       <button class="pill sort-btn" data-sort="createdAt">Created At</button>
       <button class="pill sort-btn" data-sort="position">Custom Order</button>
+
+      <button type="button" class="email-confirm-nudge" id="emailConfirmNudge">Confirm your email to raise your Tasks and Categories limits!</button>
 
       <div class="page-size-group">
         <label for="pageSizeSelect" class="page-size-label">Per Page</label>
@@ -1699,6 +1731,28 @@
       <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
         <button class="btn-plain" id="deleteUserCancelBtn">Cancel</button>
         <button class="btn-solid btn-solid-danger" id="deleteUserConfirmBtn">Delete User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SEED DEFAULT DATA MODAL ================= -->
+  <div class="overlay" id="seedDataOverlay">
+    <div class="modal" style="width:380px;">
+      <h2>Seed Default Data</h2>
+      <p class="hint">Generate demo tasks and categories for your account.</p>
+      <div class="field">
+        <label for="seedTaskAmount">Tasks to create</label>
+        <input type="number" id="seedTaskAmount" min="0" max="1000" step="1" value="0">
+      </div>
+      <div class="field">
+        <label for="seedCategoryAmount">Categories to create</label>
+        <input type="number" id="seedCategoryAmount" min="0" max="100" step="1" value="0">
+      </div>
+      <p class="form-note">Maximum per account: 1000 tasks and 100 categories.</p>
+      <div class="inline-status warn" id="seedDataError"></div>
+      <div class="modal-actions" style="justify-content:flex-end; gap:8px;">
+        <button class="btn-plain" id="seedDataCancelBtn">Cancel</button>
+        <button class="btn-solid" id="seedDataConfirmBtn">Seed Data</button>
       </div>
     </div>
   </div>
@@ -2383,6 +2437,7 @@
     document.getElementById('boardErrorBanner').classList.remove('show');
     document.querySelector('nav.pagination').style.display = 'none';
     document.getElementById('addTaskBtn').style.display = 'none';
+    document.getElementById('seedDataBtn').style.display = 'none';
 
     document.getElementById('adminControlDeck').style.display = '';
     document.getElementById('adminBoard').style.display = '';
@@ -2402,6 +2457,7 @@
     document.getElementById('board').style.display = '';
     document.querySelector('nav.pagination').style.display = '';
     document.getElementById('addTaskBtn').style.display = '';
+    document.getElementById('seedDataBtn').style.display = '';
 
     document.getElementById('adminControlDeck').style.display = 'none';
     document.getElementById('adminBoard').style.display = 'none';
@@ -2583,6 +2639,58 @@
     } catch(err){
       errorEl.textContent = (err.messages || [err.message]).join(' ');
       errorEl.classList.add('show');
+    }
+  });
+
+  /* ---------------- SEED DEFAULT DATA MODAL ---------------- */
+  const seedDataOverlay = document.getElementById('seedDataOverlay');
+
+  function openSeedDataModal(){
+    document.getElementById('seedTaskAmount').value = '0';
+    document.getElementById('seedCategoryAmount').value = '0';
+    document.getElementById('seedDataError').classList.remove('show');
+    seedDataOverlay.classList.add('open');
+  }
+  function closeSeedDataModal(){
+    seedDataOverlay.classList.remove('open');
+  }
+  document.getElementById('seedDataBtn').addEventListener('click', openSeedDataModal);
+  document.getElementById('seedDataCancelBtn').addEventListener('click', closeSeedDataModal);
+  bindOverlayOutsideClose(seedDataOverlay, closeSeedDataModal);
+
+  document.getElementById('seedDataConfirmBtn').addEventListener('click', async ()=>{
+    const errorEl = document.getElementById('seedDataError');
+    errorEl.classList.remove('show');
+
+    const taskAddAmount = parseInt(document.getElementById('seedTaskAmount').value, 10) || 0;
+    const categoryAddAmount = parseInt(document.getElementById('seedCategoryAmount').value, 10) || 0;
+
+    if(taskAddAmount < 0 || taskAddAmount > 1000 || categoryAddAmount < 0 || categoryAddAmount > 100){
+      errorEl.textContent = 'Tasks must be 0–1000 and categories must be 0–100.';
+      errorEl.classList.add('show');
+      return;
+    }
+    if(taskAddAmount === 0 && categoryAddAmount === 0){
+      errorEl.textContent = 'Enter at least one task or category to create.';
+      errorEl.classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('seedDataConfirmBtn');
+    setBusy(btn, true, 'Seeding…');
+    try{
+      await apiFetch('/api/admin/seed-demo-data', {
+        method: 'POST',
+        body: JSON.stringify({ taskAddAmount, categoryAddAmount })
+      });
+      closeSeedDataModal();
+      await loadCategories();
+      await loadTasks();
+    } catch(err){
+      errorEl.textContent = (err.messages || [err.message]).join(' ');
+      errorEl.classList.add('show');
+    } finally {
+      setBusy(btn, false);
     }
   });
 
@@ -3896,6 +4004,15 @@
   const accountDetailBody = document.getElementById('accountDetailBody');
   const accountEmailHint = document.getElementById('accountEmailHint');
   const confirmEmailRow = document.getElementById('confirmEmailRow');
+  const emailConfirmNudge = document.getElementById('emailConfirmNudge');
+
+  function updateEmailConfirmUI(){
+    const needsConfirm = !currentUser.isEmailConfirmed;
+    confirmEmailRow.style.display = needsConfirm ? 'flex' : 'none';
+    emailConfirmNudge.classList.toggle('show', needsConfirm);
+  }
+
+  emailConfirmNudge.addEventListener('click', openAccountModal);
 
   let currentUser = { id: '', email: '', isEmailConfirmed: false, createdAt: '', isAdmin: false };
 
@@ -3964,7 +4081,7 @@
 
   function openAccountModal(){
     accountEmailHint.textContent = `${currentUser.email} — manage your email and password.`;
-    confirmEmailRow.style.display = currentUser.isEmailConfirmed ? 'none' : 'flex';
+    updateEmailConfirmUI();
     showAccountList();
     accountOverlay.classList.add('open');
   }
@@ -4189,6 +4306,7 @@
 
   function updateAdminPanelVisibility(){
     adminPanelBtn.classList.toggle('show', !!currentUser.isAdmin);
+    document.getElementById('seedDataBtn').classList.toggle('show', !!currentUser.isAdmin);
   }
 
   let appStarted = false;
@@ -4207,7 +4325,9 @@
     document.getElementById('blockUserOverlay').classList.remove('open');
     document.getElementById('warnUserOverlay').classList.remove('open');
     document.getElementById('deleteUserOverlay').classList.remove('open');
+    document.getElementById('seedDataOverlay').classList.remove('open');
     updateAdminPanelVisibility();
+    updateEmailConfirmUI();
     renderBoardFromState();
     renderCatList();
     localStorage.removeItem(BOARD_STATE_KEY);
@@ -4248,6 +4368,7 @@
     userDisplayName.textContent = displayName;
     userAvatar.textContent = initialsFrom(displayName);
     updateAdminPanelVisibility();
+    updateEmailConfirmUI();
     authLoading.classList.add('hidden');
     authGate.classList.add('hidden');
     appShell.classList.add('visible');
@@ -4416,7 +4537,7 @@
       userDisplayName.textContent = displayName;
       userAvatar.textContent = initialsFrom(displayName);
       updateAdminPanelVisibility();
-      confirmEmailRow.style.display = currentUser.isEmailConfirmed ? 'none' : 'flex';
+      updateEmailConfirmUI();
       if(accountOverlay.classList.contains('open')){
         const openTitle = accountDetailTitle.textContent;
         // nothing left to do on these screens once the relevant change has landed

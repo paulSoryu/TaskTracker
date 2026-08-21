@@ -1,6 +1,8 @@
 # TaskTracker Application (Fullstack Pet-Project)
 
-The project is a fully functional Fullstack task management application. It was specifically developed to demonstrate skills in architectural design, Docker integration, database management, and the separation of concerns (Backend / Frontend).
+The project is a fully functional Fullstack task management application. It was specifically developed to demonstrate skills in architectural design, C#, ASP.NET, REST API, SOLID knowledge, database management, and the separation of concerns.
+
+<img width="1919" height="1058" alt="Ledger" src="https://github.com/user-attachments/assets/43de04a9-a10e-4e25-9de9-6448e7fa5166" />
 
 ## Core Technology Stack
 * **Backend:** C# 14, .NET 10, ASP.NET Core Web API (Minimal APIs), Entity Framework Core

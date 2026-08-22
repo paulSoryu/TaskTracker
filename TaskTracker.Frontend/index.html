@@ -2168,12 +2168,13 @@
       totalTaskCount = result.totalCount || 0;
       errorBanner.classList.remove('show');
       renderPagination();
+      const willScrollToCreatedTask = !!pendingCreateAnimationId;
       renderBoardFromState();
       if(!scrollRestoredOnce){
         restoreScrollOnce(); // the very first load after a real browser refresh — restore the saved position
-      } else {
+      } else if(!willScrollToCreatedTask){
         window.scrollTo(0, scrollYBeforeLoad); // every later reload (filter, sort, drag reorder…) — don't jump around
-      }
+      } // else: renderBoardFromState already smooth-scrolled to the newly created task — don't stomp on it
     } catch(err){
       const message = (err.messages || [err.message]).join(' ');
       if(hasExistingCards){
@@ -2762,15 +2763,47 @@
       pendingCreateAnimationId = null;
       if(newCard){
         newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        newCard.classList.add('anim-create', 'flash-green');
-        setTimeout(()=>{
-          newCard.classList.add('flash-fade');
+        waitForScrollToSettle(newCard, ()=>{
+          newCard.classList.add('anim-create', 'flash-green');
           setTimeout(()=>{
-            newCard.classList.remove('anim-create', 'flash-green', 'flash-fade');
-          }, 200);
-        }, 700);
+            newCard.classList.add('flash-fade');
+            setTimeout(()=>{
+              newCard.classList.remove('anim-create', 'flash-green', 'flash-fade');
+            }, 200);
+          }, 700);
+        });
       }
     }
+  }
+
+  // Native smooth scrollIntoView has no "finished" callback, and its duration
+  // isn't fixed (depends on distance/browser), so a flat setTimeout would
+  // either fire early on long scrolls or feel sluggish on short ones. Instead,
+  // watch the element's position each frame and treat it as "arrived" once it
+  // stops moving for a few consecutive frames. Capped so a pathological case
+  // (e.g. layout still shifting) can't stall the animation forever.
+  function waitForScrollToSettle(el, callback){
+    let lastTop = el.getBoundingClientRect().top;
+    let stableFrames = 0;
+    let totalFrames = 0;
+    const stableFramesNeeded = 4;
+    const maxFrames = 180; // ~3s at 60fps safety net
+    function tick(){
+      totalFrames++;
+      const currentTop = el.getBoundingClientRect().top;
+      if(Math.abs(currentTop - lastTop) < 0.5){
+        stableFrames++;
+      } else {
+        stableFrames = 0;
+      }
+      lastTop = currentTop;
+      if(stableFrames >= stableFramesNeeded || totalFrames >= maxFrames){
+        callback();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    }
+    requestAnimationFrame(tick);
   }
 
   function escapeHtml(str){

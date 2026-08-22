@@ -2761,6 +2761,7 @@
       const newCard = board.querySelector(`.task-card[data-id="${pendingCreateAnimationId}"]`);
       pendingCreateAnimationId = null;
       if(newCard){
+        newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
         newCard.classList.add('anim-create', 'flash-green');
         setTimeout(()=>{
           newCard.classList.add('flash-fade');

@@ -54,12 +54,12 @@ To launch the project, you only need **Docker Desktop** installed.
 > **Note:** Ports `3000` and `5001` must be free on your machine.
 ## How to Test
 1. Open the frontend (`http://localhost:3000`) and register a new user.
-2. The system will automatically create the account, apply a transaction to generate 5 starting categories and tasks, and log you in.
-3. You will immediately see a populated interface, ready for work.
+2. The system will automatically create the account, generate 5 starting categories and tasks.
+3. Then log in. You will immediately see a populated interface, ready for work.
 
 ## Admin Panel
-To access admin panel log in with "admin@admin" email and "adminA1!" password, a new button will appear in the top right corner.
-You can also press a green button to seed default data for testing purposes. You can generate up to 1000 tasks and 100 categories per account (admin accounts are automatically verified).
+* To access admin panel which allows you to interact with all users in the system, log in using "admin@admin" email and "adminA1!" password, a new red button will appear in the top right corner.
+* You can also press a green button to seed default data for testing purposes. You can generate up to 1000 tasks and 100 categories per account (admin accounts are automatically verified).
 
 ## Email Simulation
 Emails are simulated in the console, check it if you want to confirm your email or recieve a deletion warning.

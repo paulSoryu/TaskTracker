@@ -125,7 +125,7 @@ public static class AuthEndpoints
     {
         var id = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        Result<UserInfoView> result = await userService.GetInfoByIdAsync(id);
+        Result<UserInfoView> result = await userService.GetInfoByIdAsync(Guid.Parse(id));
         Result<UserInfoResponse> response = result.Map(user => user.Adapt<UserInfoResponse>());
         return response.ToTypedHttpResult();
     }

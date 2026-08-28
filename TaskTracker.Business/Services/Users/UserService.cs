@@ -52,10 +52,10 @@ public class UserService(TaskTrackerDbContext db, UserManager<UserEntity> userMa
         return Result.Ok(response);
     }
 
-    public async Task<Result<UserInfoView>> GetInfoByIdAsync(string id)
+    public async Task<Result<UserInfoView>> GetInfoByIdAsync(Guid id)
     {
         var userView = await db.Users
-            .Where(u => u.Id == Guid.Parse(id))
+            .Where(u => u.Id == id)
             .ProjectToType<UserInfoView>()
             .FirstOrDefaultAsync();
 
@@ -79,9 +79,9 @@ public class UserService(TaskTrackerDbContext db, UserManager<UserEntity> userMa
         return Result.Ok(user);
     }
 
-    public async Task<Result> DeleteAsync(string userId)
+    public async Task<Result> DeleteAsync(Guid userId)
     {
-        var user = (await userManager.FindByIdAsync(userId))!;
+        var user = (await userManager.FindByIdAsync(userId.ToString()))!;
         var result = await userManager.DeleteAsync(user);
         return result.ToFluentResult();
     }

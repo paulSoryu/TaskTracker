@@ -11,11 +11,11 @@ public interface IUserService
     // Data retrival
     Task<PagedResult<UserView>> GetAllAsync(FilterUsersQuery filterQuery, SortUsersQuery sortQuery, PaginateUsersQuery paginateQuery);
     Task<Result<UserView>> GetByIdAsync(Guid userId);
-    Task<Result<UserInfoView>> GetInfoByIdAsync(string id);
+    Task<Result<UserInfoView>> GetInfoByIdAsync(Guid id);
 
     // Lifecycle
     Task<Result<UserEntity>> CreateAsync(string email);
-    Task<Result> DeleteAsync(string userId);
+    Task<Result> DeleteAsync(Guid userId);
 
     // Account updates
     Task<Result> UpdatePasswordAsync(string userEmail, string currentPassword, string newPassword);

@@ -17,6 +17,7 @@ using TaskTracker.Business.Services.Reordering.Factories;
 using TaskTracker.Business.Services.Reordering.Strategies;
 using TaskTracker.Business.Services.Seeding;
 using TaskTracker.Business.Services.Tasks;
+using TaskTracker.Business.Services.UserActivity;
 using TaskTracker.Business.Services.Users;
 using TaskTracker.DataAccess.Databases;
 using TaskTracker.DataAccess.Entities;
@@ -77,6 +78,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IDataSeederService, DataSeederService>();
 builder.Services.AddScoped<IUserCoordinator, UserCoordinator>();
 builder.Services.AddSingleton<IEmailSenderService<UserEntity>, EmailSenderService>();
+builder.Services.AddScoped<IUserActivityTracker, UserActivityTracker>();
 
 // Adapt custom interface to Identity interface, as IEmailSender can't work directly in a class library like our Business layer
 builder.Services.AddSingleton<IEmailSender<UserEntity>>(sp =>

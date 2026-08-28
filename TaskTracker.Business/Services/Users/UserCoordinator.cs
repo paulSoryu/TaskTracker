@@ -133,7 +133,7 @@ public class UserCoordinator(
             await taskService.DeleteAllByUserIdAsync(user.Id);
             await categoryService.DeleteAllByUserIdAsync(user.Id);
 
-            var deleteUserResult = await userService.DeleteAsync(user.Id.ToString());
+            var deleteUserResult = await userService.DeleteAsync(user.Id);
             if (deleteUserResult.IsFailed)
                 return deleteUserResult;
 
@@ -171,7 +171,7 @@ public class UserCoordinator(
             await taskService.DeleteAllByUserIdAsync(user.Id);
             await categoryService.DeleteAllByUserIdAsync(user.Id);
 
-            var deleteUserResult = await userService.DeleteAsync(user.Id.ToString());
+            var deleteUserResult = await userService.DeleteAsync(user.Id);
             if (deleteUserResult.IsFailed)
                 return deleteUserResult;
 

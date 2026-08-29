@@ -110,7 +110,12 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 // Database context and Mapster configuration
 builder.Services.AddDbContext<TaskTrackerDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"),
-    b => b.MigrationsAssembly("TaskTracker.DataAccess")));
+    sqlOptions => sqlOptions
+        .MigrationsAssembly("TaskTracker.DataAccess")
+        .CommandTimeout(3))
+           .LogTo(Console.WriteLine, new[] { DbLoggerCategory.Database.Command.Name }, LogLevel.Warning) // Log SQL warnings and errors
+           .EnableSensitiveDataLogging()); // Will show values of SQL parameters, disable this for production
+                                      
 builder.Services.AddMapster();
 
 // Access by adding /swagger to the base URL of the API. For example, https://localhost:5001/swagger

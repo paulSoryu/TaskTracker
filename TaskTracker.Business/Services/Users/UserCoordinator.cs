@@ -126,10 +126,10 @@ public class UserCoordinator(
         if (checkPasswordResult.IsFailed)
             return checkPasswordResult;
 
-        await using var transaction = await db.Database.BeginTransactionAsync();
-
         try
         {
+            await using var transaction = await db.Database.BeginTransactionAsync();
+
             await taskService.DeleteAllByUserIdAsync(user.Id);
             await categoryService.DeleteAllByUserIdAsync(user.Id);
 
@@ -164,10 +164,10 @@ public class UserCoordinator(
                 return Result.Fail(new ValidationError("Can't delete the last admin in the system."));
         }
 
-        await using var transaction = await db.Database.BeginTransactionAsync();
-
         try
         {
+            await using var transaction = await db.Database.BeginTransactionAsync();
+
             await taskService.DeleteAllByUserIdAsync(user.Id);
             await categoryService.DeleteAllByUserIdAsync(user.Id);
 

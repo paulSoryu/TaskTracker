@@ -7,4 +7,5 @@
   <Project Path="TaskTracker.Business/TaskTracker.Business.csproj" Id="e5397bc6-ab01-4013-9308-990f7faa158e" />
   <Project Path="TaskTracker.DataAccess/TaskTracker.DataAccess.csproj" Id="be398b0c-15cd-40da-b4b9-38606a7d4dec" />
   <Project Path="TaskTracker.Shared/TaskTracker.Shared.csproj" Id="e799cb5e-941c-481e-9913-5a630555c1b9" />
+  <Project Path="TaskTracker.Tests/TaskTracker.Tests.csproj" Id="cc56db70-e9b6-424f-baff-7a0d6f2d0723" />
 </Solution>
